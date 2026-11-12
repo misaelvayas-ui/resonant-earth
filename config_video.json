@@ -1,0 +1,25 @@
+{
+  "video": "04_video_sintetico.mp4",
+  "mapa": [
+    20,
+    40,
+    540,
+    340
+  ],
+  "barra": [
+    580,
+    40,
+    600,
+    340
+  ],
+  "barra_vertical": true,
+  "barra_arriba_es_max": true,
+  "vmin": 0.0,
+  "vmax": 1.0,
+  "umbral": 0.7,
+  "fps_muestreo": 4,
+  "dist_max": 8.0,
+  "mascara_estatica": true,
+  "umbral_estatico": 3.0,
+  "borde_px": 1
+}

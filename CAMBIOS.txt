@@ -1,0 +1,226 @@
+REGISTRO DE CAMBIOS - rocola_practica
+(antes CAMBIOS_01.txt; aquí se acumulan todas las rondas, la más reciente al final)
+
+======================================================================
+RONDA 1 - verificación de 01_tono_prueba.py   (2026-11-12)
+======================================================================
+
+ARCHIVOS MODIFICADOS
+--------------------
+sintesis.py
+  1) oscilador(): la fase ahora empieza en 0.
+     Antes:  fase = 2 * np.pi * np.cumsum(f_inst) / FS
+     Ahora:  f_inst = np.asarray(f_inst, dtype=float)
+             fase = 2 * np.pi * (np.cumsum(f_inst) - f_inst[0]) / FS
+     Motivo: cumsum empezaba en 2*pi*f/FS, así que x[0] valía +0,03131
+     en lugar de 0 (desfase de una muestra).
+     Resultado: x[0] = 0,00000.
+
+  2) adsr(): escala a, d y r cuando la nota es más corta que a+d+r.
+     Se añadió, antes de calcular na, nd, nr:
+         total = (a + d + r) * FS
+         if total > n_muestras:
+             k = n_muestras / total
+             a, d, r = a * k, d * k, r * k
+     Motivo: con adsr(4410, a=0.02, d=0.1, s=0.7, r=0.2) la envolvente
+     terminaba en 0,760 (liberación cortada), lo que produce un clic.
+     Resultado: termina en 0,0. Con n=1 muestra queda 0,7 (límite
+     inevitable, una muestra no puede subir y bajar).
+
+ARCHIVOS NUEVOS
+---------------
+verificar_01.py   Verifica 01_tono_prueba.wav (formato, FFT, picos,
+                  saltos en bordes) y la hipótesis de clic por duración.
+graficar_01.py    Genera grafica_01_v2.png. Calcula las señales en memoria
+                  con tono(), adsr() y FS de sintesis.py (backend Agg).
+grafica_01_v2.png Figura 2x3 (15x8 pulgadas, 150 dpi), todo en español:
+                  "Por qué la envolvente ADSR evita el clic".
+                  Fila 1: señal completa, envolvente ADSR con sus 4 tramos,
+                  tono x envolvente. Fila 2: zoom al inicio (30 ms), zoom
+                  al final (250 ms) y corte con clic.
+                  Panel de corte (amplitud 0,5, salto máx. entre muestras):
+                  1,0 s + 1/4 ciclo: 0,4989 (clic); 1,0 s exacto: 0,0313;
+                  con ADSR: ~0,00003.
+                  (La versión anterior grafica_01.png fue eliminada.)
+CAMBIOS.txt       Este archivo (antes CAMBIOS_01.txt).
+
+ARCHIVOS REGENERADOS (por ejecutar los scripts tras el cambio)
+--------------------------------------------------------------
+01_tono_prueba.wav
+02a_mal.wav, 02b_bien.wav, 03_datos_a_melodia.wav
+(02_clics_y_fase.py y 03_datos_a_melodia.py terminaron con código 0;
+no se comparó su audio con el anterior.)
+
+RESULTADOS DE LA VERIFICACIÓN (después de los cambios)
+------------------------------------------------------
+WAV: 44100 Hz, mono, int16, 101430 muestras (2,3 s).
+Frecuencia dominante del primer tono: 440,00 Hz.
+Pico tono crudo: 0,49998. Pico tono ADSR: 0,49846 (el ADSR sube a 1,0
+  en el ataque; el sostenido mide 0,34999 = 0,5 * 0,7).
+Bordes del ADSR: inicio x[0]=0, salto 0,00055; fin x[-1]=0, salto 0,00003.
+Tono crudo: empieza en 0; termina en -0,03131 (paso normal del seno,
+  sin clic extra).
+Hipótesis de duración (salto al cortar):
+  1,0 s              (440,0000 ciclos): 0,03132
+  1,0 + 0,5/440 s    (440,4989 ciclos): 0,03488  -> no hay clic; medio
+                     ciclo extra deja el corte en un cruce por cero.
+  1,0 + 0,25/440 s   (440,2494 ciclos): 0,49890  -> clic real (corte
+                     en el pico, a ¼ o ¾ de ciclo).
+
+NO MODIFICADO
+-------------
+01_tono_prueba.py y el resto de scripts del proyecto.
+
+
+======================================================================
+RONDA 2 - evaluación y corrección de 04, 05 y 06   (2026-11-12)
+======================================================================
+
+PROBLEMAS ENCONTRADOS (de mayor a menor gravedad) Y CORRECCIÓN APLICADA
+------------------------------------------------------------------------
+1) Fotograma sin píxeles válidos -> media = NaN en rasgos.json (JSON no
+   válido) -> 06 fallaba con IndexError en valor_a_nota.
+   05: si no hay píxeles válidos repite la media y el centroide anteriores
+       (o el centro del rango si es el primero) y avisa por consola.
+   06: nueva función rellenar(): NaN/None -> último valor válido.
+
+2) Tierra gris clara en paleta divergente aceptada como dato (92 % de esos
+   píxeles pasaban, con valor ~0,47; 'validos' no lo delataba: 0,99).
+   05: máscara de píxeles ESTÁTICOS durante todo el video (primera pasada,
+       desviación estándar < umbral_estatico) + máscara opcional a mano
+       (mascara_imagen, PNG del tamaño del recorte, negro = descartar).
+
+3) El dron (0,15) tapaba a la voz principal (-12 dB con área 0): era el
+   pico espectral dominante en 31 de 40 fotogramas.
+   06: dron 0,15 -> 0,08; volumen de la voz -12..0 dB -> -6..0 dB.
+
+4) Lab de OpenCV en uint8 (L escalada a 0-255): dist_max=12 no era ΔE.
+   05: a_lab() convierte en float32/255 -> CIE Lab real (L 0-100).
+       dist_max recalibrado a 8,0 (ruido de compresión medido: p99,9 = 5,4).
+       De paso se elimina la truncación astype(uint8) del perfil de la barra.
+
+5) Halo antialias de costas y texto aceptado con valores erróneos (~2,8 %).
+   05: se descarta un borde de 'borde_px' (1) alrededor de lo no válido.
+
+6) centroide_x no monótono al inicio (6 retrocesos, hasta -0,032) porque la
+   ondulación del fondo pesaba tanto como la tormenta.
+   05: centroide ponderado por el exceso sobre la media AL CUADRADO.
+
+7) Menores: docstring de 04 (decía 0,1 -> 0,8; real ~0,12 -> 0,64);
+   open() sin cerrar (ResourceWarning) en 04, 05 y 06 -> 'with open';
+   imread de barra_imagen/mascara_imagen sin comprobar -> mensaje claro.
+
+NO ES ERROR: 'area' baja 0,0005 entre los fotogramas 13 y 14; la verdad sin
+compresión también baja (-0,0004). Error máximo área medida vs verdad: 0,0047.
+
+ARCHIVOS MODIFICADOS
+--------------------
+04_video_sintetico.py  docstring; config con dist_max, mascara_estatica,
+                       umbral_estatico, borde_px; with open.
+05_video_a_rasgos.py   Lab real, dist_max configurable, máscara estática y a
+                       mano, borde antialias, fotograma sin datos, centroide
+                       al cuadrado, comprobación de imread, with open.
+06_rasgos_a_audio.py   rellenar() de NaN, voz -6..0 dB, dron 0,08, with open.
+CAMBIOS_01.txt -> CAMBIOS.txt (renombrado).
+
+Claves NUEVAS (opcionales) del config de 05, con su valor por defecto:
+  "dist_max": 8.0, "mascara_estatica": true, "umbral_estatico": 3.0,
+  "borde_px": 1, "mascara_imagen": null
+El ejemplo config_eic.json del README sigue funcionando (usa los defectos).
+
+ARCHIVOS REGENERADOS (pipeline 04 -> 07 ejecutado en el proyecto)
+-----------------------------------------------------------------
+04_video_sintetico.mp4, config_video.json, fotograma_ref.png, rasgos.json,
+rocola.wav, control.json, validacion.png
+
+RESULTADOS (antes -> después)
+-----------------------------
+media           0,1182 -> 0,6425 creciente   | 0,1137 -> 0,6396 creciente
+centroide_x     0,2552 -> 0,8634, 6 retrocesos | 0,1046 -> 0,8784, 0 retrocesos
+                (verdad de la tormenta: 0,10 -> 0,90)
+area            0 -> 0,1824                   | 0 -> 0,1835 (sigue a la verdad)
+validos         1,0                           | 0,999 - 1,0
+rocola.wav      estéreo, 44100 Hz, 20,0 s, pico 0,90, 0 muestras recortadas
+tono dominante  dron en 31/40 fotogramas      | voz en 40/40, error máx 0,5 cents
+paneo           corr. con control 0,949       | 0,998
+07_validar.py   4 x PASA (error de tono 11,8 cents; L/R -9,8 dB -> +11,2 dB)
+
+Prueba con video "real" simulado (paleta RdBu_r, tierra gris 240 estática,
+costa, texto que cambia dentro del mapa):
+  error |media - verdad| máx   0,0262 -> 0,0018
+  validos (datos reales 0,887) 0,989 (tierra aceptada) -> 0,864
+  fotograma sin datos (gris 128): antes NaN + 06 caía con IndexError;
+                                  ahora aviso + valor anterior, 06 genera WAV.
+
+LIMITACIÓN CONOCIDA
+-------------------
+Un fotograma AISLADO de gris muy claro (p. ej. 240) en una paleta divergente
+sigue pasando como dato: por color es casi el blanco del centro y, al no ser
+estático, la máscara no lo detecta. Solución si aparece en el video real:
+dibujar una máscara a mano (mascara_imagen) o recortar mejor el mapa.
+
+
+======================================================================
+RONDA 3 - 08_video_con_audio.py: video + audio para la demo   (2026-11-12)
+======================================================================
+
+ARCHIVOS NUEVOS
+---------------
+08_video_con_audio.py  Une video y rocola.wav en un MP4 sincronizado.
+                       Uso: python 08_video_con_audio.py [video] [audio] [salida]
+                       ffprobe -> factor = dur_audio/dur_video; setpts=PTS*factor si
+                       el factor está fuera de 0,99-1,01; libx264 yuv420p veryfast,
+                       AAC 192k, -shortest, +faststart; texto "media = X" (drawtext,
+                       DejaVuSans de matplotlib) si rasgos.json es del mismo video;
+                       verificación final PASA/FALLA (|video - audio| < 0,1 s).
+demo_rocola.mp4        Salida con los archivos por defecto.
+
+RESULTADO (ffmpeg 6.1.1)
+------------------------
+video 10,000 s, audio 20,000 s, factor 2,0000 (video estirado)
+demo_rocola.mp4: 19,950 s; video 19,950 s, audio 19,946 s, diferencia 0,004 s -> PASA
+
+Reporte "el audio se entrecorta en los primeros 2 s": NO se reproduce en los datos.
+  - Audio del MP4 decodificado vs rocola.wav: misma envolvente (RMS cada 50 ms),
+    sin huecos ni silencios, retardo 0; diferencias solo por AAC en transitorios.
+  - rocola.wav en 0-2 s: RMS de 10 ms estable (igual que en 2-4 s), sin saltos.
+  -> Probablemente es del reproductor (arranque/buffer). Pendiente: probar con
+     ffplay/VLC y escuchar rocola.wav solo para descartar.
+
+PENDIENTE MENOR: -shortest recorta 0,054 s finales del audio (el video termina en
+19,95 s). -> Resuelto en la ronda 4.
+
+
+======================================================================
+RONDA 4 - 08: audio entrecortado al inicio en VLC   (2026-11-12)
+======================================================================
+
+PROBLEMA: en VLC el audio de demo_rocola.mp4 se entrecortaba los primeros ~2 s
+(rocola.wav solo sonaba bien; el audio dentro del MP4 era idéntico en datos).
+Causa: listas de edición (elst) del MP4 que ffmpeg escribe para ocultar el
+retardo de los B-frames (video) y el relleno inicial del AAC (audio); VLC las
+maneja mal. Se probaron 4 variantes en VLC (sin B-frames / sin listas de
+edición / audio 48 kHz / todo junto): la variante sin listas de edición
+funcionó (confirmado por el usuario).
+
+CAMBIOS EN 08_video_con_audio.py
+--------------------------------
+- "-use_editlist 0": sin listas de edición (corrige el entrecorte en VLC).
+- "-bf 0": sin B-frames. Sin lista de edición, su retardo dejaba el video
+  empezando en 0,100 s (77 ms detrás del audio). Ahora ambos empiezan en 0.
+- "-g 20": un fotograma clave por segundo (antes solo en 0 y 12,5 s), para
+  poder saltar dentro de la demo.
+- tpad=stop_mode=clone:stop_duration=0.1: repite el último fotograma para que
+  -shortest corte por el audio (antes se perdían 0,054 s del final).
+- Verificación con duracion_real(): fin del último paquete de cada pista. El
+  'duration' del encabezado daba 20,100 s para el audio sin reflejar lo que
+  se reproduce.
+
+RESULTADO
+---------
+demo_rocola.mp4: 20,023 s; video 20,023 s, audio 20,023 s, diferencia 0,000 s -> PASA
+Primer pts: video 0,000 s, audio 0,000 s; listas de edición: 0; keyframes: 20.
+El audio incluye 23 ms de silencio inicial del codificador AAC (imperceptible);
+después suenan los 20,000 s completos de rocola.wav.
+Pendiente: confirmar en VLC que el demo final (con -bf 0 y -g 20) sigue sin
+entrecortes; esa combinación exacta no se probó como variante.

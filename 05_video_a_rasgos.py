@@ -1,0 +1,152 @@
+"""
+05 — Video -> fotogramas -> inversión de paleta -> rasgos por fotograma -> rasgos.json
+
+Pasos:
+  1. Muestrea el video a 'fps_muestreo' (no hace falta procesar los 30 fps).
+  2. Recorta la zona de datos (fuera textos, logos, barra).
+  3. INVIERTE LA PALETA: lee la barra de colores del propio video, arma una tabla
+     color -> valor y asigna a cada píxel el valor del color más cercano en espacio
+     CIE Lab (Lab es perceptual: la distancia euclídea ahí ≈ diferencia que ve el ojo).
+     No cuentan (NaN):
+       - píxeles demasiado lejos de cualquier color de la barra (texto, costas oscuras);
+       - píxeles ESTÁTICOS durante todo el video (tierra gris, máscaras, logos): en una
+         paleta divergente el gris claro se parece al blanco del centro y se colaría;
+       - un borde de 'borde_px' alrededor de todo lo anterior (antialias de costas/texto).
+  4. Rasgos: media, fracción de área sobre umbral, centroide x de lo caliente, cambio.
+
+Uso:  python 05_video_a_rasgos.py [config_video.json]
+Para un video real del EIC: abre un fotograma (guardado como 'fotograma_ref.png'),
+mide los rectángulos del mapa y de la barra en píxeles y edita el config.
+
+Claves opcionales del config (valores por defecto):
+  "dist_max": 8.0           distancia Lab máxima para aceptar un color de la barra
+  "mascara_estatica": true  descartar píxeles que no cambian en todo el video
+  "umbral_estatico": 3.0    desviación estándar (niveles 0-255) bajo la cual un píxel es estático
+  "borde_px": 1             píxeles extra descartados alrededor de lo no válido
+  "mascara_imagen": null    PNG del tamaño del recorte: negro = descartar (máscara a mano)
+"""
+import json
+import sys
+import numpy as np
+import cv2
+from scipy.spatial import cKDTree
+
+with open(sys.argv[1] if len(sys.argv) > 1 else "config_video.json") as fh:
+    cfg = json.load(fh)
+DIST_MAX = cfg.get("dist_max", 8.0)
+
+
+def a_lab(bgr):
+    """BGR (0-255) -> CIE Lab real (L 0-100). Con uint8, OpenCV escala L a 0-255 y la
+    distancia dejaría de ser ΔE; por eso se convierte en float32 dentro de [0, 1]."""
+    bgr = np.asarray(bgr, dtype=np.float32).reshape(-1, 1, 3) / 255
+    return cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB).reshape(-1, 3).astype(float)
+
+
+def tabla_desde_barra(frame):
+    """Devuelve (KD-tree de colores Lab, valores asociados) leyendo la barra."""
+    x0, y0, x1, y1 = cfg["barra"]
+    if cfg.get("barra_imagen"):            # p. ej. SVS 5207 trae la barra como PNG aparte
+        frame = cv2.imread(cfg["barra_imagen"])
+        if frame is None:
+            sys.exit(f"No se pudo leer la barra '{cfg['barra_imagen']}'. Revisa la ruta.")
+    tira = frame[y0:y1, x0:x1]
+    # promedia a lo ancho de la barra para quitar ruido de compresión
+    perfil = tira.mean(axis=1 if cfg["barra_vertical"] else 0)          # (N, 3) BGR
+    n = len(perfil)
+    vals = np.linspace(cfg["vmin"], cfg["vmax"], n)
+    if cfg["barra_vertical"] and cfg["barra_arriba_es_max"]:
+        vals = vals[::-1]
+    return cKDTree(a_lab(perfil)), vals
+
+
+def fotogramas_muestreados(ruta, paso):
+    cap = cv2.VideoCapture(ruta)
+    k = 0
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
+        if k % paso == 0:
+            yield k, frame
+        k += 1
+    cap.release()
+
+
+def mascara_fija(paso):
+    """True = píxel del recorte que NO es dato (estático o marcado a mano)."""
+    x0, y0, x1, y1 = cfg["mapa"]
+    fija = np.zeros((y1 - y0, x1 - x0), bool)
+    if cfg.get("mascara_imagen"):
+        m = cv2.imread(cfg["mascara_imagen"], cv2.IMREAD_GRAYSCALE)
+        if m is None:
+            sys.exit(f"No se pudo leer la máscara '{cfg['mascara_imagen']}'.")
+        fija |= m == 0
+    if cfg.get("mascara_estatica", True):
+        n, suma, suma2 = 0, 0.0, 0.0
+        for _, frame in fotogramas_muestreados(cfg["video"], paso):
+            z = frame[y0:y1, x0:x1].astype(float)
+            n, suma, suma2 = n + 1, suma + z, suma2 + z ** 2
+        if n >= 2:
+            std = np.sqrt(np.maximum(suma2 / n - (suma / n) ** 2, 0)).max(axis=2)
+            fija |= std < cfg.get("umbral_estatico", 3.0)
+    return fija
+
+
+def invertir(frame, arbol, vals, fija):
+    x0, y0, x1, y1 = cfg["mapa"]
+    zona = frame[y0:y1, x0:x1]
+    d, idx = arbol.query(a_lab(zona))
+    campo = vals[idx].astype(float).reshape(zona.shape[:2])
+    malo = (d.reshape(zona.shape[:2]) > DIST_MAX) | fija    # no pertenece a la paleta
+    b = cfg.get("borde_px", 1)
+    if b > 0 and malo.any():                               # quita el halo antialias
+        malo = cv2.dilate(malo.astype(np.uint8), np.ones((2 * b + 1, 2 * b + 1), np.uint8)) > 0
+    campo[malo] = np.nan
+    return campo
+
+
+fps_video = cv2.VideoCapture(cfg["video"]).get(cv2.CAP_PROP_FPS) or 30
+paso = max(1, round(fps_video / cfg["fps_muestreo"]))
+fija = mascara_fija(paso)
+if fija.any():
+    print(f"Máscara fija: {fija.mean():.1%} del recorte descartado (estático o marcado a mano)")
+
+rasgos, arbol, previo, cx_previo = [], None, None, 0.5
+for k, frame in fotogramas_muestreados(cfg["video"], paso):
+    if arbol is None:
+        cv2.imwrite("fotograma_ref.png", frame)    # para medir rectángulos a mano
+        arbol, vals = tabla_desde_barra(frame)
+    campo = invertir(frame, arbol, vals, fija)
+    validos = ~np.isnan(campo)
+    caliente = (campo > cfg["umbral"]) & validos
+    area = caliente.sum() / max(validos.sum(), 1)
+    if validos.any():
+        media = float(np.nanmean(campo))
+        # centroide de lo que está POR ENCIMA de la media, ponderado por el exceso AL
+        # CUADRADO: así domina la zona caliente y no las ondulaciones suaves del fondo.
+        exceso = np.nan_to_num(np.clip(campo - media, 0, None)) ** 2
+        peso_col = exceso.sum(axis=0)
+        cx = float((peso_col * np.arange(len(peso_col))).sum() / peso_col.sum() / len(peso_col)) \
+            if peso_col.sum() > 0 else cx_previo
+    else:                                          # fotograma sin datos: se repite el anterior
+        media = previo if previo is not None else (cfg["vmin"] + cfg["vmax"]) / 2
+        cx = cx_previo
+        print(f"Aviso: t={k / fps_video:.2f} s sin píxeles válidos; se repite el valor anterior")
+    rasgos.append({
+        "t": round(k / fps_video, 3),
+        "media": round(media, 4),
+        "area": round(float(area), 4),
+        "centroide_x": round(float(cx), 4),            # 0 = izquierda, 1 = derecha
+        "cambio": round(0.0 if previo is None else media - previo, 4),
+        "validos": round(float(validos.mean()), 3),
+    })
+    previo, cx_previo = media, cx
+
+salida = {"fuente": cfg["video"], "vmin": cfg["vmin"], "vmax": cfg["vmax"],
+          "fps_rasgos": fps_video / paso, "rasgos": rasgos}
+with open("rasgos.json", "w") as fh:
+    json.dump(salida, fh, indent=1)
+print(f"{len(rasgos)} fotogramas analizados -> rasgos.json")
+for r in rasgos[:: max(1, len(rasgos) // 6)]:
+    print(r)
