@@ -224,3 +224,69 @@ El audio incluye 23 ms de silencio inicial del codificador AAC (imperceptible);
 después suenan los 20,000 s completos de rocola.wav.
 Pendiente: confirmar en VLC que el demo final (con -bf 0 y -g 20) sigue sin
 entrecortes; esa combinación exacta no se probó como variante.
+
+
+======================================================================
+RONDA 5 - reorganización + evaluar.py (pedida como "Ronda 3")   (2026-11-12)
+======================================================================
+(Numerada 5 porque las rondas 1-4 ya existían; PLAN.md es docs/PLAN.md.)
+
+GIT: git init; .gitignore (.venv/, __pycache__/, *.wav, *.mp4);
+commit "antes de reorganizar" (19f392b) y commit final de esta ronda.
+Nota: al ignorar *.wav y *.mp4, esos archivos NO están versionados.
+
+ARCHIVOS MOVIDOS
+----------------
+*.wav, *.mp4                                   -> salidas/
+fotograma_ref.png, grafica_01_v2.png, validacion.png, rasgos.json, control.json -> salidas/
+config_video.json                              -> config/
+verificar_01.py, graficar_01.py                -> herramientas/
+CAMBIOS.txt, PLAN.md                           -> docs/
+__pycache__/ de la raíz                        -> borrado (se regenera)
+
+ARCHIVOS NUEVOS
+---------------
+rutas.py     sal(nombre), cfg_ruta(nombre); respeta ROCOLA_SALIDAS / ROCOLA_CONFIG;
+             si no se ejecuta desde la raíz (no hay sintesis.py) sale con un mensaje claro.
+evaluar.py   15 evaluaciones PASA/FALLA en ~6 s (A: motor de síntesis; B: pipeline
+             04->07 con video de 2 s; C: 05 con tierra gris y con fotograma sin datos;
+             D: sincronía de 08). Corre en carpeta temporal; no toca salidas/.
+             Fuera de la raíz muestra un mensaje claro.
+
+EDICIONES
+---------
+sintesis.py     reproducir(): no reproduce si ROCOLA_SIN_AUDIO está definida (+ import os).
+01, 02, 03      guardar_wav(sal(...)).
+04              salidas con sal()/cfg_ruta(); duración opcional: python 04_video_sintetico.py 2.
+05              config por defecto con cfg_ruta(); fotograma_ref.png y rasgos.json con sal().
+06              rasgos.json (entrada), rocola.wav y control.json con sal().
+07              lee/escribe con sal(); termina con código 1 si algún chequeo FALLA.
+08              rasgos.json y rutas por defecto con sal().
+herramientas/*  sal() en lugar de rutas sueltas; mensaje claro si no se usa "python -m".
+README.md       estructura, rutas nuevas, evaluar.py.
+Ningún cambio en la lógica de síntesis, de 05 ni de 06.
+
+VERIFICACIÓN
+------------
+Ejecución desde la raíz de 01->08 y herramientas: todos con código 0.
+Comparación con la línea base (antes de mover): .wav y .json por md5; .png por píxeles;
+.mp4 por fotogramas decodificados con OpenCV (200 fotogramas): IDÉNTICOS en los 13 archivos
+salvo los dos campos de ruta esperados:
+  salidas/rasgos.json   "fuente": "04_video_sintetico.mp4" -> "salidas/04_video_sintetico.mp4"
+  config/config_video.json  "video": igual cambio.
+Tras evaluar.py, salidas/ idéntica (no la modifica). Raíz sin *.wav/*.mp4/*.json/*.png sueltos.
+
+UMBRALES C1 (medidos una vez, 320x180, 8 fotogramas muestreados)
+-----------------------------------------------------------------
+error máx |media - verdad| = 0,0031 (umbral 0,01, margen x3,2)
+|mediana de validos - fracción real| = 0,0272 (umbral 0,05, margen x1,8)
+
+HALLAZGO NO CORREGIDO (fuera del alcance de la reorganización)
+---------------------------------------------------------------
+Un solo fotograma sin datos desactiva la máscara de píxeles estáticos de 05: la tierra
+fija deja de ser estática (std alta) y se cuenta como dato. Medido con el video de C:
+sin fotograma vacío validos = 0,86 y "Máscara fija: 8,8 %"; con uno, validos = 0,964-0,968
+en los demás fotogramas y 05 no imprime la línea de máscara. Por eso C1 y C2 usan dos
+videos distintos (el plan decía uno compartido). Corrección propuesta: decidir "estático"
+con una estadística robusta (mediana por píxel o fracción de pares de fotogramas sin
+cambio >= 70 %) en vez de la desviación estándar.

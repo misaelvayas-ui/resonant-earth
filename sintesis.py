@@ -4,6 +4,8 @@ sintesis.py — Bloque A: fundamentos de síntesis de audio (motor de la rocola)
 Todo es numpy puro. Cada función es pequeña a propósito: léela, cámbiala y escucha qué pasa.
 Convención: señales float en [-1, 1], frecuencia de muestreo FS.
 """
+import os
+
 import numpy as np
 from scipy.io import wavfile
 
@@ -130,7 +132,10 @@ def guardar_wav(ruta, x):
 
 
 def reproducir(x):
-    """Reproduce si sounddevice está instalado y hay tarjeta de audio."""
+    """Reproduce si sounddevice está instalado y hay tarjeta de audio.
+    Con la variable de entorno ROCOLA_SIN_AUDIO no reproduce (pruebas automáticas)."""
+    if os.environ.get("ROCOLA_SIN_AUDIO"):
+        return
     try:
         import sounddevice as sd
         sd.play(x, FS)

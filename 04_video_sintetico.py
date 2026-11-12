@@ -10,11 +10,14 @@ Verdad conocida (lo que el audio DEBE contar):
   - el área caliente crece con el tiempo                   -> el volumen debe SUBIR
 """
 import json
+import sys
 import numpy as np
+from rutas import sal, cfg_ruta
 import cv2
 from matplotlib import colormaps
 
-W, H, FPS, DUR = 640, 360, 20, 10
+W, H, FPS = 640, 360, 20
+DUR = int(sys.argv[1]) if len(sys.argv) > 1 else 10   # segundos (opcional: python 04_video_sintetico.py 2)
 MAPA = (20, 40, 540, 340)      # x0, y0, x1, y1 de la zona de datos
 BARRA = (580, 40, 600, 340)    # x0, y0, x1, y1 de la barra de colores (arriba = vmax)
 VMIN, VMAX = 0.0, 1.0
@@ -35,7 +38,7 @@ bx0, by0, bx1, by1 = BARRA
 col_barra = np.linspace(VMAX, VMIN, by1 - by0)[:, None].repeat(bx1 - bx0, 1)
 img_barra = a_bgr(col_barra)
 
-out = cv2.VideoWriter("04_video_sintetico.mp4", cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+out = cv2.VideoWriter(sal("04_video_sintetico.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
 n_frames = FPS * DUR
 for k in range(n_frames):
     p = k / (n_frames - 1)                                    # 0 -> 1
@@ -56,10 +59,10 @@ for k in range(n_frames):
 out.release()
 
 # Configuración que leerá el script 05 (para un video real, la editas a mano)
-cfg = {"video": "04_video_sintetico.mp4", "mapa": MAPA, "barra": BARRA,
+cfg = {"video": sal("04_video_sintetico.mp4"), "mapa": MAPA, "barra": BARRA,
        "barra_vertical": True, "barra_arriba_es_max": True, "vmin": VMIN, "vmax": VMAX,
        "umbral": 0.7, "fps_muestreo": 4,
        "dist_max": 8.0, "mascara_estatica": True, "umbral_estatico": 3.0, "borde_px": 1}
-with open("config_video.json", "w") as fh:
+with open(cfg_ruta("config_video.json"), "w") as fh:
     json.dump(cfg, fh, indent=2)
-print(f"Video: 04_video_sintetico.mp4 ({n_frames} fotogramas). Config: config_video.json")
+print(f"Video: {sal('04_video_sintetico.mp4')} ({n_frames} fotogramas). Config: {cfg_ruta('config_video.json')}")

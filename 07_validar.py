@@ -7,17 +7,19 @@
 Genera validacion.png.
 """
 import json
+import sys
 import numpy as np
+from rutas import sal
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
 from scipy.signal import spectrogram
 
-fs, x = wavfile.read("rocola.wav")
+fs, x = wavfile.read(sal("rocola.wav"))
 x = x.astype(float) / 32768
-ctl = json.load(open("control.json"))
-r = json.load(open("rasgos.json"))["rasgos"]
+ctl = json.load(open(sal("control.json")))
+r = json.load(open(sal("rasgos.json")))["rasgos"]
 spf = int(ctl["seg_por_fotograma"] * fs)
 n_f = len(ctl["midi"])
 
@@ -60,5 +62,6 @@ ax[1].plot(esperado, "o-", label="esperado"); ax[1].plot(pico_hz, "x--", label="
 ax[1].set_ylabel("Hz"); ax[1].legend(); ax[1].set_title("Tono por fotograma")
 ax[2].plot(bal, "s-"); ax[2].axhline(0, color="gray", lw=0.8)
 ax[2].set_ylabel("dB (R/L)"); ax[2].set_xlabel("fotograma"); ax[2].set_title("Balance estéreo (+ = derecha)")
-plt.tight_layout(); plt.savefig("validacion.png", dpi=110)
-print("Gráfica: validacion.png")
+plt.tight_layout(); plt.savefig(sal("validacion.png"), dpi=110)
+print(f"Gráfica: {sal('validacion.png')}")
+sys.exit(0 if all(checks.values()) else 1)

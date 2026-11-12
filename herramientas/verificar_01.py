@@ -4,13 +4,18 @@ No modifica ningún archivo.
 """
 import numpy as np
 from scipy.io import wavfile
+import sys
+try:
+    from rutas import sal
+except ModuleNotFoundError:
+    sys.exit("Ejecuta desde la raíz del proyecto:  python -m herramientas.verificar_01")
 from sintesis import tono, FS
 
 N_TONO = int(1.0 * FS)          # 44100
 N_SIL = int(0.3 * FS)           # 13230
 K = 10                          # muestras a inspeccionar en cada borde
 
-fs, datos = wavfile.read("01_tono_prueba.wav")
+fs, datos = wavfile.read(sal("01_tono_prueba.wav"))
 canales = 1 if datos.ndim == 1 else datos.shape[1]
 
 print("== a) Formato ==")

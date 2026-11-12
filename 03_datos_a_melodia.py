@@ -11,6 +11,7 @@ Mapeo:
   + un tono de referencia fijo (dron) en el valor 0 para escuchar "por encima / por debajo"
 """
 import numpy as np
+from rutas import sal
 from sintesis import (FS, escala, valor_a_nota, midi_a_hz, oscilador, adsr,
                       limitar, guardar_wav, reproducir, PENTATONICA_MAYOR)
 
@@ -37,7 +38,7 @@ nota_cero = valor_a_nota(0.0, vmin, vmax, notas)
 dron = 0.12 * oscilador(np.full(len(melodia), midi_a_hz(nota_cero - 12)), "seno")
 
 salida = limitar(melodia + dron)
-guardar_wav("03_datos_a_melodia.wav", salida)
+guardar_wav(sal("03_datos_a_melodia.wav"), salida)
 reproducir(salida)
 
 print("Primeras notas MIDI:", midi[:12])

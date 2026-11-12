@@ -1,5 +1,5 @@
 {
- "fuente": "04_video_sintetico.mp4",
+ "fuente": "salidas/04_video_sintetico.mp4",
  "vmin": 0.0,
  "vmax": 1.0,
  "fps_rasgos": 4.0,

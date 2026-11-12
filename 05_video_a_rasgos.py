@@ -14,8 +14,8 @@ Pasos:
        - un borde de 'borde_px' alrededor de todo lo anterior (antialias de costas/texto).
   4. Rasgos: media, fracción de área sobre umbral, centroide x de lo caliente, cambio.
 
-Uso:  python 05_video_a_rasgos.py [config_video.json]
-Para un video real del EIC: abre un fotograma (guardado como 'fotograma_ref.png'),
+Uso:  python 05_video_a_rasgos.py [config/config_video.json]   (desde la raíz del proyecto)
+Para un video real del EIC: abre un fotograma (guardado como 'salidas/fotograma_ref.png'),
 mide los rectángulos del mapa y de la barra en píxeles y edita el config.
 
 Claves opcionales del config (valores por defecto):
@@ -30,8 +30,9 @@ import sys
 import numpy as np
 import cv2
 from scipy.spatial import cKDTree
+from rutas import sal, cfg_ruta
 
-with open(sys.argv[1] if len(sys.argv) > 1 else "config_video.json") as fh:
+with open(sys.argv[1] if len(sys.argv) > 1 else cfg_ruta("config_video.json")) as fh:
     cfg = json.load(fh)
 DIST_MAX = cfg.get("dist_max", 8.0)
 
@@ -115,7 +116,7 @@ if fija.any():
 rasgos, arbol, previo, cx_previo = [], None, None, 0.5
 for k, frame in fotogramas_muestreados(cfg["video"], paso):
     if arbol is None:
-        cv2.imwrite("fotograma_ref.png", frame)    # para medir rectángulos a mano
+        cv2.imwrite(sal("fotograma_ref.png"), frame)    # para medir rectángulos a mano
         arbol, vals = tabla_desde_barra(frame)
     campo = invertir(frame, arbol, vals, fija)
     validos = ~np.isnan(campo)
@@ -145,8 +146,8 @@ for k, frame in fotogramas_muestreados(cfg["video"], paso):
 
 salida = {"fuente": cfg["video"], "vmin": cfg["vmin"], "vmax": cfg["vmax"],
           "fps_rasgos": fps_video / paso, "rasgos": rasgos}
-with open("rasgos.json", "w") as fh:
+with open(sal("rasgos.json"), "w") as fh:
     json.dump(salida, fh, indent=1)
-print(f"{len(rasgos)} fotogramas analizados -> rasgos.json")
+print(f"{len(rasgos)} fotogramas analizados -> {sal('rasgos.json')}")
 for r in rasgos[:: max(1, len(rasgos) // 6)]:
     print(r)

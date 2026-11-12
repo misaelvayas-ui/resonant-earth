@@ -1,8 +1,8 @@
 """
 08 — Une el video de la visualización con rocola.wav en un solo MP4 sincronizado (demo).
 
-Uso:  python 08_video_con_audio.py [video.mp4] [rocola.wav] [salida.mp4]
-Por defecto: 04_video_sintetico.mp4, rocola.wav, demo_rocola.mp4
+Uso:  python 08_video_con_audio.py [video.mp4] [rocola.wav] [salida.mp4]   (desde la raíz)
+Por defecto (en salidas/): 04_video_sintetico.mp4, rocola.wav, demo_rocola.mp4
 
 1. Mide la duración del video y del audio con ffprobe; factor = dur_audio / dur_video.
 2. Estira el video con setpts=PTS*factor (el audio no se toca). Si 0,99 <= factor <= 1,01, no estira.
@@ -19,6 +19,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+
+from rutas import sal
 
 TOLERANCIA = 0.1  # s
 
@@ -73,10 +75,10 @@ def fuente_tipografica():
 
 def filtros_texto(video, factor, carpeta):
     """Lista de filtros drawtext ('media = X' por intervalo) o [] si no aplica."""
-    if not os.path.exists("rasgos.json"):
+    if not os.path.exists(sal("rasgos.json")):
         print("rasgos.json no existe: sin texto superpuesto.")
         return []
-    with open("rasgos.json") as fh:
+    with open(sal("rasgos.json")) as fh:
         d = json.load(fh)
     if os.path.basename(d.get("fuente", "")) != os.path.basename(video):
         print(f"rasgos.json es de '{d.get('fuente')}', no de '{video}': sin texto superpuesto.")
@@ -103,9 +105,9 @@ def filtros_texto(video, factor, carpeta):
 
 def main():
     args = sys.argv[1:]
-    video = args[0] if len(args) > 0 else "04_video_sintetico.mp4"
-    audio = args[1] if len(args) > 1 else "rocola.wav"
-    salida = args[2] if len(args) > 2 else "demo_rocola.mp4"
+    video = args[0] if len(args) > 0 else sal("04_video_sintetico.mp4")
+    audio = args[1] if len(args) > 1 else sal("rocola.wav")
+    salida = args[2] if len(args) > 2 else sal("demo_rocola.mp4")
 
     faltan = [p for p in ("ffmpeg", "ffprobe") if shutil.which(p) is None]
     if faltan:

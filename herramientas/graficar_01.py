@@ -9,6 +9,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.ticker import FuncFormatter
+import sys
+try:
+    from rutas import sal
+except ModuleNotFoundError:
+    sys.exit("Ejecuta desde la raíz del proyecto:  python -m herramientas.graficar_01")
 from sintesis import tono, adsr, FS
 
 # ---------------------------------------------------------------- señales
@@ -155,8 +160,8 @@ for p in ax.flat:
         p.yaxis.set_major_formatter(fmt)
 
 fig.tight_layout(rect=(0, 0, 1, 0.95), h_pad=2.5)
-fig.savefig("grafica_01_v2.png")
-print(f"Guardado: grafica_01_v2.png")
+fig.savefig(sal("grafica_01_v2.png"))
+print(f"Guardado: {sal('grafica_01_v2.png')}")
 print(f"Panel f: salto con corte a 1,0 s + 1/4 ciclo = {salto_malo:.5f}; "
       f"con 1,0 s exacto = {salto_bueno:.5f}; "
       f"último valor = {malo[-1]:+.5f} / {crudo[-1]:+.5f}")

@@ -15,11 +15,12 @@ Los rasgos llegan a ~4 por segundo; se interpolan a 44,1 kHz y se suavizan
 import json
 import sys
 import numpy as np
+from rutas import sal
 from sintesis import (FS, escala, valor_a_nota, midi_a_hz, oscilador, adsr, paneo,
                       db_a_lineal, suavizar_rapido, limitar, guardar_wav, reproducir)
 
 SEG_POR_FOTOGRAMA = 0.5   # tempo: cuánto dura cada fotograma en el audio
-with open(sys.argv[1] if len(sys.argv) > 1 else "rasgos.json") as fh:
+with open(sys.argv[1] if len(sys.argv) > 1 else sal("rasgos.json")) as fh:
     d = json.load(fh)
 R = d["rasgos"]
 
@@ -73,10 +74,10 @@ dron = 0.08 * oscilador(np.full(N, midi_a_hz(midi[0] - 12)), "seno")
 
 estereo = paneo(lead + plucks, pan) + paneo(dron, 0.0)
 estereo = limitar(estereo)
-guardar_wav("rocola.wav", estereo)
+guardar_wav(sal("rocola.wav"), estereo)
 
 # guarda la curva de control para validar (script 07)
-with open("control.json", "w") as fh:
+with open(sal("control.json"), "w") as fh:
     json.dump({"seg_por_fotograma": SEG_POR_FOTOGRAMA, "midi": midi.tolist(),
                "pan": (2 * cx - 1).tolist()}, fh)
 print("Notas por fotograma:", midi.tolist())
