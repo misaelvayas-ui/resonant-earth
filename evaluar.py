@@ -294,7 +294,10 @@ def d1():
                               "packet=pts_time", "-of", "csv=p=0", os.path.join(sal, "demo.mp4")],
                              capture_output=True, text=True).stdout.split()
         pts.append(min(float(x) for x in out))
-    return max(pts) < 0.05, f"08 PASA; primer pts video {pts[0]:.3f} s, audio {pts[1]:.3f} s"
+    # El video empieza ~0,100 s después del audio (retardo de 2 B-frames a 20 fps): es la
+    # configuración confirmada sin entrecortes en VLC (ronda 7); el umbral deja margen de 1 fotograma.
+    desfase = abs(pts[0] - pts[1])
+    return desfase <= 0.15, f"08 PASA; primer pts video {pts[0]:.3f} s, audio {pts[1]:.3f} s (desfase {desfase:.3f} s)"
 
 
 EVALUACIONES = [
@@ -313,7 +316,7 @@ EVALUACIONES = [
     ("C1", "05 con tierra gris + costa", f"error media < {UMBRAL_MEDIA_C1}; validos ± {UMBRAL_VALIDOS_C1}", c1),
     ("C2", "05 y 06 con fotograma sin datos", "sin NaN, validos = 0, media anterior", c2),
     ("C3", "máscara robusta: negro + título", f"máscara ≥ {MASCARA_MIN_C3} %; error media < {UMBRAL_MEDIA_C1}", c3),
-    ("D1", "sincronía de 08", "PASA; primer pts < 0,05 s", d1),
+    ("D1", "sincronía de 08", "PASA; desfase de inicio ≤ 0,15 s", d1),
 ]
 
 

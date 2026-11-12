@@ -342,3 +342,24 @@ LIMITACIONES
 - Dato casi inmóvil (p. ej. océano sin cambio en toda la serie) se enmascara como estático;
   en el video de prueba de 8 fotogramas fue 1,5 % del dato. Desactivable con
   "mascara_estatica": false o ajustable con umbral_estatico/frac_estatico.
+
+
+======================================================================
+RONDA 7 - 08: vuelta a la configuración confirmada en VLC   (2026-11-12)
+======================================================================
+
+PROBLEMA: el demo generado en la ronda 4 (con -bf 0, -g 20 y tpad añadidos) volvió a
+entrecortarse en VLC. La variante que el usuario había confirmado SIN entrecortes fue
+solo "-use_editlist 0" (sin -bf 0, sin -g 20, sin tpad); la combinación final nunca se
+había probado en VLC (lo anotó la ronda 4 como pendiente).
+
+CAMBIO en 08_video_con_audio.py: se eliminan "-bf 0", "-g 20" y el filtro tpad.
+Queda: libx264 veryfast yuv420p, AAC 192k, -shortest, +faststart, -use_editlist 0
+(idéntico a la variante B probada). Se conserva duracion_real() en la verificación.
+Causa exacta del entrecorte (-bf 0, -g 20 o tpad): no aislada; sin pruebas en VLC.
+
+RESULTADO: salidas/demo_rocola.mp4 20,050 s; video 20,050 s, audio 20,046 s, diferencia
+0,004 s -> PASA; 0 listas de edición. COSTE CONOCIDO: el video empieza en 0,100 s (retardo
+de 2 B-frames a 20 fps), el audio en 0,000 s: desfase de 0,1 s, a favor de que no se corte.
+evaluar.py D1: umbral cambiado de "primer pts < 0,05 s" a "desfase de inicio <= 0,15 s".
+evaluar.py: 16 PASA, 0 FALLA.

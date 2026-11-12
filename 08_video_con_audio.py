@@ -126,16 +126,10 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmp:
         f_aplicado = factor if estirar else 1.0
-        # tpad: repite el último fotograma 0,1 s para que -shortest corte por el audio
-        # y no se pierda su final (antes se recortaban ~0,05 s).
-        cadena = ([f"setpts=PTS*{factor:.6f}"] if estirar else []) + filtros_texto(video, f_aplicado, tmp) \
-            + ["tpad=stop_mode=clone:stop_duration=0.1"]
+        cadena = ([f"setpts=PTS*{factor:.6f}"] if estirar else []) + filtros_texto(video, f_aplicado, tmp)
         cmd = ["ffmpeg", "-y", "-v", "error", "-i", video, "-i", audio,
                "-filter_complex", "[0:v]" + ",".join(cadena) + "[v]", "-map", "[v]",
                "-map", "1:a:0", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-               # sin B-frames: sin lista de edición, su retardo dejaría el video 0,1 s tarde;
-               # un fotograma clave por segundo para poder saltar en la demo
-               "-bf", "0", "-g", "20",
                "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
                # sin listas de edición: VLC las maneja mal y el audio se entrecortaba al inicio
                "-use_editlist", "0", salida]
