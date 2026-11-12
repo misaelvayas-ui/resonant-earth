@@ -1,0 +1,27 @@
+{
+  "video": "datos/2023GISTEMP_Map_SOS.mp4",
+  "mapa": [
+    0,
+    0,
+    4096,
+    2048
+  ],
+  "barra_imagen": "datos/giss_navy_anomaly_Vertical-both.png",
+  "barra": [
+    130,
+    35,
+    188,
+    637
+  ],
+  "barra_vertical": true,
+  "barra_arriba_es_max": true,
+  "vmin": -2.0,
+  "vmax": 2.0,
+  "umbral": 1.0,
+  "fps_muestreo": 2,
+  "escala": 0.25,
+  "ponderar_latitud": true,
+  "dist_max": 17.0,
+  "fechas": "datos/time.txt",
+  "referencia": 0.0
+}

@@ -45,6 +45,18 @@ Resultado esperado: 4 × PASA, el tono sube en escalera y el balance va de izqui
 ```
 Visión por computador (tus compañeros) puede **añadir** campos, p. ej. `"evento": "huracan"`, y el motor de sonido los convierte en golpes o timbres.
 
+## Atajo para el video real (NASA SVS 5207)
+```bash
+mkdir -p datos   # descarga ahí el mp4, la barra PNG y time.txt de https://svs.gsfc.nasa.gov/5207/
+python -m herramientas.calibrar                         # detecta mapa y degradado; guarda salidas/calibracion.png
+python -m herramientas.calibrar --vmin -2 --vmax 2      # tras leer el rango en calibracion.png -> config/config_eic.json
+python 05_video_a_rasgos.py config/config_eic.json      # ~25 s (escala 0.25, 60 fotogramas)
+python 06_rasgos_a_audio.py
+```
+Claves opcionales del config de 05: `escala`, `ponderar_latitud`, `fechas` (añade `fecha` a cada rasgo) y
+`referencia` (06 coloca el dron en la nota de ese valor; 0 = sin anomalía). Rectángulos siempre en píxeles originales.
+Cuidado: 05 y 06 escriben `salidas/rasgos.json` y `salidas/rocola.wav`; para volver al ejemplo sintético, `04` → `07`.
+
 ## Reto final de hoy: un video real del EIC
 Candidata principal: **SVS 5207 — Global Temperature Anomalies 1880–2023** (GISTEMP v4).
 1. Descarga `2023GISTEMP_Map_SOS.mp4` (equirectangular: x = longitud, ideal para el paneo) y la barra `giss_navy_anomaly_Vertical-both.png`.

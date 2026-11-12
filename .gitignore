@@ -2,3 +2,5 @@
 __pycache__/
 *.wav
 *.mp4
+datos/
+salidas/fotograma_ref.png

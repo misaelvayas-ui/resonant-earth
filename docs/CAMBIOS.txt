@@ -363,3 +363,67 @@ RESULTADO: salidas/demo_rocola.mp4 20,050 s; video 20,050 s, audio 20,046 s, dif
 de 2 B-frames a 20 fps), el audio en 0,000 s: desfase de 0,1 s, a favor de que no se corte.
 evaluar.py D1: umbral cambiado de "primer pts < 0,05 s" a "desfase de inicio <= 0,15 s".
 evaluar.py: 16 PASA, 0 FALLA.
+
+
+======================================================================
+RONDA 8 - pipeline para el video real NASA SVS 5207 (GISTEMP)   (2026-11-12)
+======================================================================
+
+DESCARGAS (carpeta datos/, ignorada en .gitignore; URLs tomadas de la página
+https://svs.gsfc.nasa.gov/5207/ y comprobadas con HTTP 200):
+  2023GISTEMP_Map_SOS.mp4              119,8 MB, 4096x2048, 900 fotogramas, 30 fps, 30 s,
+                                       H.264 yuv420p, matriz bt709
+  giss_navy_anomaly_Vertical-both.png  PNG RGBA 314x680 (la página decía 167x333)
+  time.txt                             900 líneas, una por fotograma: año 1881..2023
+                                       (143 valores distintos, de 6 a 48 fotogramas cada uno)
+  GLB.Ts+dSST.csv                      curva oficial GISTEMP v4 (data.giss.nasa.gov), para la
+                                       comprobación de cordura (no está en la página SVS)
+
+CAMBIOS
+-------
+05_video_a_rasgos.py  Claves opcionales del config (por defecto el comportamiento no cambia):
+  "escala"            reduce el recorte del mapa (INTER_AREA) antes de procesar; rectángulos
+                      siempre en píxeles originales; la máscara a mano se reescala sola.
+  "ponderar_latitud"  media ponderada por cos(latitud del centro de cada fila); supone que el
+                      recorte va de +90 a -90.
+  "fechas"            ruta a time.txt: añade "fecha" (entero) a cada rasgo (línea del fotograma).
+  "referencia"        se copia a rasgos.json para 06.
+  Además: lectura con grab()/retrieve() (solo se convierten a BGR los fotogramas muestreados)
+  y el tiempo total se imprime al final.
+06_rasgos_a_audio.py  "referencia" en rasgos.json: el dron va en la nota de ese valor; sin la clave,
+                      en la del primer fotograma (como antes). Comprobado: referencia -1,5 -> dron
+                      82,4 Hz (MIDI 40); sin referencia -> 164,8 Hz (MIDI 52), medidos en el WAV.
+herramientas/calibrar.py  NUEVO. python -m herramientas.calibrar [--vmin --vmax ...]
+  - Degradado de la barra PNG: bloque de filas contiguas donde cada fila es de un solo color
+    (las marcas y el texto no lo cumplen). Resultado: (x0, y0, x1, y1) = (130, 35, 188, 637).
+  - Mapa: filas/columnas con >= 20 % de píxeles que casan con la paleta (Lab <= 20), con ajuste
+    al borde si queda a < 3 %. Resultado: (0, 0, 4096, 2048), el fotograma completo.
+  - Rango de °C: la barra trae las cifras como imagen y no hay OCR. El script dibuja la barra
+    sobre fondo gris con líneas en los extremos del degradado en salidas/calibracion.png y pide
+    --vmin/--vmax. LEÍDO A OJO en esa imagen: +2 °C arriba y -2 °C abajo (marcas de 1 °C
+    equiespaciadas; las de °F, 3 °F = 1,67 °C, cuadran). PENDIENTE de confirmar por el usuario.
+  - Escribe config/config_eic.json: escala 0,25, ponderar_latitud (si el mapa es 2:1 y a alto
+    completo), fechas, referencia 0, dist_max = percentil 95 de las distancias (17), umbral 1,0.
+evaluar.py            Pruebas C4 (ponderar_latitud) y C5 (escala + fechas + defecto = escala 1,0)
+                      con un video sintético 320x180 cuyo valor crece hacia los polos. Umbrales y
+                      márgenes medidos, anotados junto a las constantes.
+
+RESULTADOS CON EL VIDEO REAL (config/config_eic.json)
+-----------------------------------------------------
+05: 22,4 s (user 1 min 29 s con hilos de OpenCV); 60 fotogramas; máscara estática 0,0 %.
+06: 0,9 s; rocola.wav de 30,0 s.
+validos: mín 0,826, mediana 0,879, máx 0,949 (los más bajos en 1958-1996, hasta 0,826).
+Comparación con la curva oficial GISTEMP (media anual J-D, 58 años con fotograma muestreado):
+  correlación de Pearson 0,992 (todo), 0,987 (desde 1960), 0,976 (desde 1980).
+  Pendiente 1980-2023: video 0,196 °C/década, oficial 0,183. 1881: -0,24 vs -0,09;
+  1981: 0,26 vs 0,32; 2023: 1,05 vs 1,17 (el mapa suaviza y satura en ±2 °C).
+Pipeline sintético por defecto: rasgos.json idéntico (salvo "fuente") al del commit anterior.
+evaluar.py: 18 PASA, 0 FALLA en 10 s.
+
+NOTAS
+-----
+- salidas/rasgos.json y salidas/rocola.wav ahora son los del video REAL; el sintético se
+  regenera con 04 -> 07. salidas/demo_rocola.mp4 sigue siendo el de la ronda 7 (08 no se tocó).
+- salidas/fotograma_ref.png pesa 6,6 MB con este video: se deja de versionar (.gitignore).
+- La base de la curva SVS/GISTEMP es 1951-1980; la tabla oficial descargada hoy incluye años
+  posteriores a 2023, que no se usan.

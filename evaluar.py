@@ -42,6 +42,11 @@ from sintesis import (FS, adsr, escala, guardar_wav, hz_a_midi, limitar, midi_a_
 UMBRAL_MEDIA_C1 = 0.01
 UMBRAL_VALIDOS_C1 = 0.10
 MASCARA_MIN_C3 = 5.0
+# C4 (ponderar_latitud, video 320x180 con valor creciente hacia los polos): error medio ponderada
+#     0.0005 y sin ponderar 0.0006 -> umbral 0.01 (margen x16); las dos medias distan 0.081 como
+#     mínimo -> umbral 0.05 (margen x1,6): si no se separan, la ponderación no actuó.
+# C5 (escala 0,5 frente a 1,0): |Δmedia| máx = 0.0001 -> umbral 0.01 (margen x100).
+UMBRAL_LAT, SEPARACION_LAT, UMBRAL_ESCALA = 0.01, 0.05, 0.01
 
 # Video sintético de las pruebas C (misma geometría que usa 04, en pequeño)
 W, H, FPS, N_FRAMES = 320, 180, 20, 40
@@ -278,6 +283,87 @@ def c3():
     return bool(ok), f"máscara fija {pct:.1f} % (≥ {MASCARA_MIN_C3}); error media {err:.4f} (<{UMBRAL_MEDIA_C1})"
 
 
+def video_lat(carpeta, nombre):
+    """Video 320x180 cuyo valor depende de la latitud (|lat| grande = valor alto) y sube con el
+    tiempo. Devuelve (ruta_cfg, media_ponderada, media_sin_ponderar, ruta_fechas) por fotograma
+    muestreado; las medias salen del campo sin comprimir."""
+    cm = colormaps["RdBu_r"]
+    x0, y0, x1, y1 = MAPA
+    mh, mw = y1 - y0, x1 - x0
+    lat = 90 - (np.arange(mh) + 0.5) * 180 / mh
+    w = np.cos(np.deg2rad(lat))
+    bgr = lambda v: (cm(np.clip(v, 0, 1))[..., :3][..., ::-1] * 255).astype(np.uint8)
+    barra = bgr(np.linspace(1, 0, BARRA[3] - BARRA[1])[:, None].repeat(BARRA[2] - BARRA[0], 1))
+    ruta_video = os.path.join(carpeta, nombre + ".mp4")
+    out = cv2.VideoWriter(ruta_video, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+    ponderada, simple = [], []
+    for k in range(N_FRAMES):
+        p = k / (N_FRAMES - 1)
+        fila = np.clip(0.15 + 0.6 * np.abs(lat) / 90 + 0.2 * p, 0, 1)          # valor por fila
+        campo = np.repeat(fila[:, None], mw, axis=1) + 0.03 * np.sin(np.arange(mw) / 9 + 4 * p)[None, :]
+        f = np.full((H, W, 3), 255, np.uint8)
+        f[y0:y1, x0:x1] = bgr(campo)
+        f[BARRA[1]:BARRA[3], BARRA[0]:BARRA[2]] = barra
+        out.write(f)
+        if k % 5 == 0:
+            ponderada.append(float((campo.mean(axis=1) * w).sum() / w.sum()))
+            simple.append(float(campo.mean()))
+    out.release()
+    ruta_fechas = os.path.join(carpeta, nombre + "_time.txt")
+    with open(ruta_fechas, "w") as fh:
+        fh.write("# comentario\n" + "\n".join(str(1900 + k) for k in range(N_FRAMES)) + "\n")
+    cfg = {"video": ruta_video, "mapa": MAPA, "barra": BARRA, "barra_vertical": True,
+           "barra_arriba_es_max": True, "vmin": 0.0, "vmax": 1.0, "umbral": 0.7, "fps_muestreo": 4}
+    ruta_cfg = os.path.join(carpeta, nombre + ".json")
+    with open(ruta_cfg, "w") as fh:
+        json.dump(cfg, fh)
+    return ruta_cfg, ponderada, simple, ruta_fechas
+
+
+def correr05(carpeta, ruta_cfg, **extra):
+    """Ejecuta 05 con claves extra añadidas al config; devuelve (lista de rasgos, salida estándar)."""
+    with open(ruta_cfg) as fh:
+        cfg = json.load(fh)
+    cfg.update(extra)
+    ruta = os.path.join(carpeta, "cfg_extra.json")
+    with open(ruta, "w") as fh:
+        json.dump(cfg, fh)
+    r = correr("05_video_a_rasgos.py", [ruta], carpeta)
+    if r.returncode != 0:
+        raise RuntimeError("05 falló: " + r.stderr.strip()[-150:])
+    return leer_json(os.path.join(carpeta, "salidas", "rasgos.json"))[0]["rasgos"], r.stdout
+
+
+def c4():
+    """ponderar_latitud: la media con cos(lat) sigue a la verdad ponderada y se aparta de la simple."""
+    with tempfile.TemporaryDirectory() as d:
+        cfg, pond, simple, _ = video_lat(d, "lat")
+        m_p = np.array([x["media"] for x in correr05(d, cfg, ponderar_latitud=True)[0]])
+        m_s = np.array([x["media"] for x in correr05(d, cfg)[0]])
+    e_p = np.abs(m_p - pond).max()
+    e_s = np.abs(m_s - simple).max()
+    sep = np.abs(m_p - m_s).min()
+    ok = e_p < UMBRAL_LAT and e_s < UMBRAL_LAT and sep > SEPARACION_LAT
+    return bool(ok), (f"error ponderada {e_p:.4f}, sin ponderar {e_s:.4f} (< {UMBRAL_LAT}); "
+                      f"separación mín. entre ambas {sep:.3f} (> {SEPARACION_LAT})")
+
+
+def c5():
+    """escala: reducir el recorte no cambia la media; el defecto == escala 1.0; fechas añade 'fecha'."""
+    with tempfile.TemporaryDirectory() as d:
+        cfg, _, _, fechas = video_lat(d, "esc")
+        base, _ = correr05(d, cfg)
+        uno, _ = correr05(d, cfg, escala=1.0)
+        mitad, _ = correr05(d, cfg, escala=0.5, fechas=fechas)
+    m = lambda R: np.array([x["media"] for x in R])
+    igual = base == uno
+    dif = np.abs(m(base) - m(mitad)).max()
+    fechas_ok = [x.get("fecha") for x in mitad] == [1900 + 5 * i for i in range(len(mitad))] \
+        and "fecha" not in base[0]
+    return bool(igual and dif < UMBRAL_ESCALA and fechas_ok), \
+        f"defecto = escala 1.0: {igual}; |Δmedia| escala 0,5 = {dif:.4f} (< {UMBRAL_ESCALA}); fechas: {fechas_ok}"
+
+
 # ============================================================ D) sincronía de 08
 def d1():
     if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
@@ -316,6 +402,8 @@ EVALUACIONES = [
     ("C1", "05 con tierra gris + costa", f"error media < {UMBRAL_MEDIA_C1}; validos ± {UMBRAL_VALIDOS_C1}", c1),
     ("C2", "05 y 06 con fotograma sin datos", "sin NaN, validos = 0, media anterior", c2),
     ("C3", "máscara robusta: negro + título", f"máscara ≥ {MASCARA_MIN_C3} %; error media < {UMBRAL_MEDIA_C1}", c3),
+    ("C4", "05 ponderar_latitud", f"error < {UMBRAL_LAT}; separación > {SEPARACION_LAT}", c4),
+    ("C5", "05 escala + fechas", f"|Δmedia| < {UMBRAL_ESCALA}; defecto = escala 1.0", c5),
     ("D1", "sincronía de 08", "PASA; desfase de inicio ≤ 0,15 s", d1),
 ]
 

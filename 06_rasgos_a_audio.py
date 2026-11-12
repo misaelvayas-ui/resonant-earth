@@ -6,7 +6,8 @@ Mapeo (el "contrato" sonoro, explícalo así en el pitch):
   area         -> VOLUMEN de la voz principal (en dB: -6 dB ... 0 dB)
   centroide_x  -> PANEO (izquierda/derecha = dónde está lo "caliente" en el mapa)
   cambio       -> "golpe" (pluck con ADSR) cuando la media cambia de nota
-  referencia   -> DRON grave fijo en la nota del valor medio del primer fotograma
+  referencia   -> DRON grave fijo en la nota del valor 'referencia' de rasgos.json (clave opcional
+                  del config de 05; p. ej. 0 = sin anomalía) o, si no existe, del primer fotograma
                   (escuchas cuánto se aleja el presente del inicio)
 
 Los rasgos llegan a ~4 por segundo; se interpolan a 44,1 kHz y se suavizan
@@ -70,7 +71,9 @@ for i in range(n_f):
         plucks[ini:fin] += 0.35 * seg[: fin - ini]
 
 # --- dron de referencia --------------------------------------------------
-dron = 0.08 * oscilador(np.full(N, midi_a_hz(midi[0] - 12)), "seno")
+ref = d.get("referencia")
+nota_ref = int(valor_a_nota(ref, d["vmin"], d["vmax"], notas)) if ref is not None else midi[0]
+dron = 0.08 * oscilador(np.full(N, midi_a_hz(nota_ref - 12)), "seno")
 
 estereo = paneo(lead + plucks, pan) + paneo(dron, 0.0)
 estereo = limitar(estereo)
