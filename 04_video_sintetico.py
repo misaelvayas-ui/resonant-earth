@@ -62,7 +62,7 @@ out.release()
 cfg = {"video": sal("04_video_sintetico.mp4"), "mapa": MAPA, "barra": BARRA,
        "barra_vertical": True, "barra_arriba_es_max": True, "vmin": VMIN, "vmax": VMAX,
        "umbral": 0.7, "fps_muestreo": 4,
-       "dist_max": 8.0, "mascara_estatica": True, "umbral_estatico": 3.0, "borde_px": 1}
+       "dist_max": 8.0, "mascara_estatica": True, "umbral_estatico": 3.0, "frac_estatico": 0.7, "borde_px": 1}
 with open(cfg_ruta("config_video.json"), "w") as fh:
     json.dump(cfg, fh, indent=2)
 print(f"Video: {sal('04_video_sintetico.mp4')} ({n_frames} fotogramas). Config: {cfg_ruta('config_video.json')}")

@@ -9,8 +9,11 @@ Pasos:
      CIE Lab (Lab es perceptual: la distancia euclídea ahí ≈ diferencia que ve el ojo).
      No cuentan (NaN):
        - píxeles demasiado lejos de cualquier color de la barra (texto, costas oscuras);
-       - píxeles ESTÁTICOS durante todo el video (tierra gris, máscaras, logos): en una
-         paleta divergente el gris claro se parece al blanco del centro y se colaría;
+       - píxeles ESTÁTICOS (tierra gris, máscaras, logos): en una paleta divergente el gris
+         claro se parece al blanco del centro y se colaría. Un píxel es estático si, en al menos
+         'frac_estatico' de los fotogramas muestreados, queda a <= 'umbral_estatico' niveles de
+         su MEDIANA temporal. La mediana ignora los fotogramas atípicos (negros, sin datos,
+         fundidos, títulos): tolera hasta un (1 - frac_estatico) de ellos sin perder la máscara;
        - un borde de 'borde_px' alrededor de todo lo anterior (antialias de costas/texto).
   4. Rasgos: media, fracción de área sobre umbral, centroide x de lo caliente, cambio.
 
@@ -20,8 +23,10 @@ mide los rectángulos del mapa y de la barra en píxeles y edita el config.
 
 Claves opcionales del config (valores por defecto):
   "dist_max": 8.0           distancia Lab máxima para aceptar un color de la barra
-  "mascara_estatica": true  descartar píxeles que no cambian en todo el video
-  "umbral_estatico": 3.0    desviación estándar (niveles 0-255) bajo la cual un píxel es estático
+  "mascara_estatica": true  descartar píxeles que casi nunca cambian
+  "umbral_estatico": 3.0    distancia máxima por canal (niveles 0-255) a la mediana para 'no cambiar'
+  "frac_estatico": 0.7      fracción mínima de fotogramas cerca de la mediana para ser estático
+                            (0,7 tolera hasta 30 % de fotogramas atípicos)
   "borde_px": 1             píxeles extra descartados alrededor de lo no válido
   "mascara_imagen": null    PNG del tamaño del recorte: negro = descartar (máscara a mano)
 """
@@ -35,6 +40,7 @@ from rutas import sal, cfg_ruta
 with open(sys.argv[1] if len(sys.argv) > 1 else cfg_ruta("config_video.json")) as fh:
     cfg = json.load(fh)
 DIST_MAX = cfg.get("dist_max", 8.0)
+MAX_REF = 31   # fotogramas de referencia para la máscara estática (se guardan hasta 2*MAX_REF)
 
 
 def a_lab(bgr):
@@ -84,13 +90,19 @@ def mascara_fija(paso):
             sys.exit(f"No se pudo leer la máscara '{cfg['mascara_imagen']}'.")
         fija |= m == 0
     if cfg.get("mascara_estatica", True):
-        n, suma, suma2 = 0, 0.0, 0.0
+        # Referencia: hasta ~2*MAX_REF fotogramas repartidos a lo largo del video (acota la memoria)
+        ref, cada, i = [], 1, 0
         for _, frame in fotogramas_muestreados(cfg["video"], paso):
-            z = frame[y0:y1, x0:x1].astype(float)
-            n, suma, suma2 = n + 1, suma + z, suma2 + z ** 2
-        if n >= 2:
-            std = np.sqrt(np.maximum(suma2 / n - (suma / n) ** 2, 0)).max(axis=2)
-            fija |= std < cfg.get("umbral_estatico", 3.0)
+            if i % cada == 0:
+                ref.append(frame[y0:y1, x0:x1].copy())
+            i += 1
+            if len(ref) > 2 * MAX_REF:
+                ref, cada = ref[::2], cada * 2
+        if len(ref) >= 3:
+            pila = np.stack(ref).astype(np.int16)
+            mediana = np.median(pila, axis=0)
+            cerca = (np.abs(pila - mediana).max(axis=3) <= cfg.get("umbral_estatico", 3.0)).mean(axis=0)
+            fija |= cerca >= cfg.get("frac_estatico", 0.7)
     return fija
 
 

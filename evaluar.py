@@ -31,12 +31,17 @@ from scipy.io import wavfile
 from sintesis import (FS, adsr, escala, guardar_wav, hz_a_midi, limitar, midi_a_hz,
                       oscilador, paneo, tono, valor_a_nota)
 
-# --- Umbrales de la prueba de tierra gris (C1), medidos una vez a 320x180 con 8 fotogramas ---
-# Medido: error máx |media - verdad| = 0.0031 (umbral 0.01, margen x3,2);
-#         |mediana de validos - fracción real de datos| = 0.0272 (umbral 0.05, margen x1,8).
-# La fracción real descuenta la tierra (11,3 %); 05 descarta además la costa y 1 px de borde.
+# --- Umbrales de las pruebas C, medidos a 320x180 con 8 fotogramas muestreados (máscara estática
+# por mediana, umbral_estatico = 3, frac_estatico = 0,7) ---
+# C1 (video limpio): error máx |media - verdad| = 0.0049 -> umbral 0.01 (margen x2,0);
+#     |mediana de validos - fracción real de datos| = 0.057 -> umbral 0.10 (margen x1,8).
+#     La fracción real solo descuenta la tierra (11,3 %); 05 descarta además la costa, 1 px de
+#     borde y algo de dato casi inmóvil, por eso 'validos' queda ~0,06 por debajo.
+# C3 (negro + título): máscara fija medida 7,5 % (video limpio: 9,7 %); error de media 0.0036.
+#     Con la máscara desactivada la prueba mediría 0 %: el umbral 5 % las separa (margen x1,5).
 UMBRAL_MEDIA_C1 = 0.01
-UMBRAL_VALIDOS_C1 = 0.05
+UMBRAL_VALIDOS_C1 = 0.10
+MASCARA_MIN_C3 = 5.0
 
 # Video sintético de las pruebas C (misma geometría que usa 04, en pequeño)
 W, H, FPS, N_FRAMES = 320, 180, 20, 40
@@ -65,7 +70,7 @@ def leer_json(ruta):
     return d, bool(hay)
 
 
-def video_c(carpeta, nombre, vacio_en=None):
+def video_c(carpeta, nombre, vacio_en=None, negro_en=None, titulo_en=None):
     """Genera un video RdBu_r con tierra gris fija y costa negra. Devuelve (ruta_cfg, verdad).
     'verdad' = media del campo sin tierra de cada fotograma muestreado (1 de cada 5)."""
     cm = colormaps["RdBu_r"]
@@ -88,6 +93,11 @@ def video_c(carpeta, nombre, vacio_en=None):
         cv2.polylines(z, [np.array([[0, 80], [100, 95], [200, 60], [259, 70]])], False, (0, 0, 0), 1, cv2.LINE_AA)
         if k == vacio_en:
             z[:] = (128, 128, 128)
+        if k == negro_en:                                  # fotograma negro (p. ej. inicio del video)
+            z[:] = 0
+        if k == titulo_en:                                 # tarjeta de título (fondo blanco, texto negro)
+            z[:] = 255
+            cv2.putText(z, "TITULO", (40, 80), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 0), 3, cv2.LINE_AA)
         f = np.full((H, W, 3), 255, np.uint8)
         f[y0:y1, x0:x1] = z
         f[BARRA[1]:BARRA[3], BARRA[0]:BARRA[2]] = barra
@@ -250,6 +260,24 @@ def c2():
                       f"media={R[i]['media']} (anterior {R[i - 1]['media']}); NaN={nan}")
 
 
+def c3():
+    """Un fotograma negro al inicio (k=0) y una tarjeta de título al final (k=35, último muestreado)
+    no deben desactivar la máscara de píxeles estáticos."""
+    with tempfile.TemporaryDirectory() as d:
+        cfg, verdad, f_tierra = video_c(d, "c3", negro_en=0, titulo_en=35)
+        r = correr("05_video_a_rasgos.py", [cfg], d)
+        if r.returncode != 0:
+            return False, "05 falló: " + r.stderr.strip()[-120:]
+        R = leer_json(os.path.join(d, "salidas", "rasgos.json"))[0]["rasgos"]
+    linea = next((x for x in r.stdout.splitlines() if x.startswith("Máscara fija")), "")
+    pct = float(linea.split(":")[1].split("%")[0]) if linea else 0.0
+    normales = slice(1, len(R) - 1)                      # sin el negro ni el título
+    m = np.array([x["media"] for x in R])[normales]
+    err = np.abs(m - np.array(verdad)[normales]).max()
+    ok = pct >= MASCARA_MIN_C3 and err < UMBRAL_MEDIA_C1
+    return bool(ok), f"máscara fija {pct:.1f} % (≥ {MASCARA_MIN_C3}); error media {err:.4f} (<{UMBRAL_MEDIA_C1})"
+
+
 # ============================================================ D) sincronía de 08
 def d1():
     if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
@@ -284,6 +312,7 @@ EVALUACIONES = [
     ("B4", "validación 07", "4 × [PASA], 0 × [FALLA]", b4),
     ("C1", "05 con tierra gris + costa", f"error media < {UMBRAL_MEDIA_C1}; validos ± {UMBRAL_VALIDOS_C1}", c1),
     ("C2", "05 y 06 con fotograma sin datos", "sin NaN, validos = 0, media anterior", c2),
+    ("C3", "máscara robusta: negro + título", f"máscara ≥ {MASCARA_MIN_C3} %; error media < {UMBRAL_MEDIA_C1}", c3),
     ("D1", "sincronía de 08", "PASA; primer pts < 0,05 s", d1),
 ]
 

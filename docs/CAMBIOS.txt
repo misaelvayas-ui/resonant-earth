@@ -290,3 +290,55 @@ en los demás fotogramas y 05 no imprime la línea de máscara. Por eso C1 y C2 
 videos distintos (el plan decía uno compartido). Corrección propuesta: decidir "estático"
 con una estadística robusta (mediana por píxel o fracción de pares de fotogramas sin
 cambio >= 70 %) en vez de la desviación estándar.
+-> CORREGIDO en la ronda 6.
+
+
+======================================================================
+RONDA 6 - máscara estática robusta en 05 + prueba C3   (2026-11-12)
+======================================================================
+
+PROBLEMA (hallazgo de la ronda 5): la máscara de píxeles estáticos usaba la desviación
+estándar de TODO el video; un solo fotograma atípico (sin datos, negro, título, fundido)
+la disparaba y la tierra gris dejaba de enmascararse (máscara 0 %, validos 0,96 en vez de 0,86).
+
+MÉTODOS MEDIDOS (320x180, 8 fotogramas muestreados; rec = % de la tierra detectada,
+fp = % de píxeles de DATOS enmascarados por error; casos: limpio / 1 vacío / negro+título /
+2 atípicos)
+  desviación estándar < 3 (anterior)  rec 78 / 0 / 0 / 0           fp 0 / 0 / 0 / 0
+  pares consecutivos sin cambio >=70 % (tol 3)  rec 70 / 51 / 54 / 0    fp 1,0 / 0 / 0,4 / 0
+  mediana temporal, tol 3, frac 0,7          rec 74 / 68 / 61 / 58    fp 1,5 / 0 / 0,6 / 0
+  mediana temporal, tol 5, frac 0,7          rec 92 / 87 / 80 / 77    fp 7,9 / 0,8 / 3,3 / 0
+Los pares consecutivos pierden la máscara con 2 atípicos (cada atípico rompe 2 pares);
+la mediana tolera hasta (1 - frac) = 30 % de fotogramas atípicos. Con tol 4-5 la mediana
+sube el recall pero enmascara dato casi inmóvil (error de media hasta 0,0225); con tol 3
+el error de media máximo fue 0,0049. Elegido: MEDIANA, tol = 3, frac = 0,7.
+
+CAMBIOS
+-------
+05_video_a_rasgos.py  mascara_fija(): referencia de hasta 2*31 fotogramas muestreados
+                      (se adelgaza a la mitad si hay más: memoria acotada); mediana por píxel;
+                      estático si queda a <= umbral_estatico (3) niveles de la mediana en
+                      >= frac_estatico (0,7) de los fotogramas. Requiere >= 3 fotogramas.
+                      Clave NUEVA del config: "frac_estatico" (0,7). "umbral_estatico" pasa a
+                      significar distancia a la mediana (mismo valor por defecto, 3).
+04_video_sintetico.py config_video.json incluye "frac_estatico": 0.7.
+evaluar.py            Nueva prueba C3 (video con tierra gris fija, 1 fotograma negro al inicio
+                      y 1 tarjeta de título al final): máscara fija >= 5 % y error de media
+                      < 0,01 en los demás fotogramas. Umbrales de C1 re-medidos con el método
+                      nuevo (|validos-real| 0,057 -> umbral 0,10; antes 0,027 -> 0,05); el
+                      error de media de C1 (0,0049, umbral 0,01) es la comprobación que importa.
+
+RESULTADOS
+----------
+05 ANTERIOR sobre el video de C3: máscara 0 %, error de media 0,0193 (C3 habría FALLADO).
+05 NUEVO: máscara 7,5 % (video limpio 9,7 %; con 1 vacío 7,7 %), error de media 0,0036.
+Video sintético de 10 s: sin tierra, máscara 0 %; rasgos.json idéntico al de salidas/ y
+07 con 4 x PASA.
+evaluar.py: 16 PASA, 0 FALLA, 0 OMITIDA en 6,7 s (C3 nueva: 7,5 % de máscara; error 0,0036).
+
+LIMITACIONES
+------------
+- Con 3 de 8 fotogramas atípicos (38 %) la máscara se pierde, como es de esperar (frac 0,7).
+- Dato casi inmóvil (p. ej. océano sin cambio en toda la serie) se enmascara como estático;
+  en el video de prueba de 8 fotogramas fue 1,5 % del dato. Desactivable con
+  "mascara_estatica": false o ajustable con umbral_estatico/frac_estatico.
