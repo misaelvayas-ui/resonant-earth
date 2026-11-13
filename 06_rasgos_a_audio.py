@@ -9,6 +9,8 @@ Mapeo (el "contrato" sonoro, explícalo así en el pitch):
   referencia   -> DRON grave fijo en la nota del valor 'referencia' de rasgos.json (clave opcional
                   del config de 05; p. ej. 0 = sin anomalía) o, si no existe, del primer fotograma
                   (escuchas cuánto se aleja el presente del inicio)
+  rango        -> media -> nota usa "vmin_sonido"/"vmax_sonido" de rasgos.json (opcionales; por
+                  defecto vmin/vmax), independiente del rango de la paleta de 05
 
 Los rasgos llegan a ~4 por segundo; se interpolan a 44,1 kHz y se suavizan
 (filtro de 1 polo) para que no haya escalones ni clics.
@@ -43,7 +45,8 @@ area = rellenar([r["area"] for r in R], 0.0)
 cx = rellenar([r["centroide_x"] for r in R], 0.5)
 
 notas = escala(tonica_midi=48, octavas=3)                   # Do3 ... Do6
-midi = valor_a_nota(media, d["vmin"], d["vmax"], notas)
+v0, v1 = d.get("vmin_sonido", d["vmin"]), d.get("vmax_sonido", d["vmax"])   # rango propio del sonido
+midi = valor_a_nota(media, v0, v1, notas)
 
 # --- de "un valor por fotograma" a "un valor por muestra" ----------------
 n_f = len(R)
@@ -72,7 +75,7 @@ for i in range(n_f):
 
 # --- dron de referencia --------------------------------------------------
 ref = d.get("referencia")
-nota_ref = int(valor_a_nota(ref, d["vmin"], d["vmax"], notas)) if ref is not None else midi[0]
+nota_ref = int(valor_a_nota(ref, v0, v1, notas)) if ref is not None else midi[0]
 dron = 0.08 * oscilador(np.full(N, midi_a_hz(nota_ref - 12)), "seno")
 
 estereo = paneo(lead + plucks, pan) + paneo(dron, 0.0)

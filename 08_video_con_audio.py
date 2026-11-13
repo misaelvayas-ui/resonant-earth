@@ -7,7 +7,7 @@ Por defecto (en salidas/): 04_video_sintetico.mp4, rocola.wav, demo_rocola.mp4
 1. Mide la duración del video y del audio con ffprobe; factor = dur_audio / dur_video.
 2. Estira el video con setpts=PTS*factor (el audio no se toca). Si 0,99 <= factor <= 1,01, no estira.
 3. libx264 + yuv420p (reproduce en cualquier lado), audio AAC, -shortest, -preset veryfast.
-4. Si existe rasgos.json y corresponde a este video, superpone "media = X" del fotograma
+4. Si existe rasgos.json y corresponde a este video, superpone la "fecha" (año, grande, arriba a la izquierda) o, si no hay, "media = X" del fotograma
    analizado que está en pantalla (cada valor se mantiene hasta el siguiente fotograma muestreado).
 5. Verifica con ffprobe que video y audio del resultado difieran < 0,1 s (PASA/FALLA).
 
@@ -94,11 +94,14 @@ def filtros_texto(video, factor, carpeta):
         fin = R[i + 1]["t"] * factor if i + 1 < len(R) else 1e9
         # el texto va en un archivo: así no hay que escapar '=', ',' ni espacios en el filtro
         ruta_txt = os.path.join(carpeta, f"media_{i:04d}.txt")
+        con_fecha = "fecha" in r
         with open(ruta_txt, "w") as fh:
-            fh.write(f"media = {r['media']:.3f}".replace(".", ","))
+            fh.write(str(r["fecha"]) if con_fecha else f"media = {r['media']:.3f}".replace(".", ","))
+        pos = "x=12:y=12" if con_fecha else "x=w-tw-12:y=h-th-12"
+        tam = "fontsize=h*0.06" if con_fecha else "fontsize=20"   # año: ~6 % de la altura
         filtros.append(
-            f"drawtext=fontfile={fuente}:textfile={ruta_txt}:x=w-tw-12:y=h-th-12:"
-            f"fontsize=20:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=6:"
+            f"drawtext=fontfile={fuente}:textfile={ruta_txt}:{pos}:"
+            f"{tam}:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=6:"
             f"enable='gte(t\\,{ini:.4f})*lt(t\\,{fin:.4f})'")
     return filtros
 

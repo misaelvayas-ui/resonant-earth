@@ -428,6 +428,20 @@ NOTAS
 - La base de la curva SVS/GISTEMP es 1951-1980; la tabla oficial descargada hoy incluye años
   posteriores a 2023, que no se usan.
 
-RONDA 9 - guía de colaboración   (2026-11-13)
+RONDA 9a - guía de colaboración   (2026-11-13)
 Se añade CONTRIBUTING.md (fork, ramas, evaluar.py, registro en CAMBIOS.txt, Pull Request).
 Sin cambios de código. Repositorio de GitHub recreado tras borrarlo por error.
+
+RONDA 9b - rango de sonido propio, dron de referencia y año en el video   (2026-11-13)
+1. Dron en MIDI 52: el rocola.wav anterior se generó con un rasgos.json sin "referencia", así que
+   06 usaba la nota del primer fotograma (64) - 12 = 52. El código de 06 sí aplicaba "referencia";
+   el config ya tenía "referencia": 0. Se regeneró todo con 05 -> 06 y ahora el dron sigue la referencia.
+2. 05/06: claves opcionales "vmin_sonido"/"vmax_sonido" (por defecto vmin/vmax); 05 las copia a
+   rasgos.json y 06 las usa para media -> nota y para la nota del dron. La paleta de 05 sigue en ±2 °C.
+   config_eic.json: -0,6 y 1,2.
+3. 08: si rasgos.json tiene "fecha", se dibuja el año (fontsize = 6 % de la altura, arriba a la
+   izquierda, fondo negro 60 %) en lugar de "media = X". Opciones de codificación sin tocar.
+Medido: dron 130,8 Hz = MIDI 48 (referencia 0 con rango -0,6..1,2 -> nota 60, -12; antes 52).
+Rango MIDI usado 48-81 (antes del cambio el rango era el de ±2 °C). Año visible (p. ej. 1978 en t=20 s).
+evaluar.py: 18 PASA, 0 FALLA en 8,5 s. 08: video y audio 30,067 s, diferencia 0,000 s.
+Archivos: 05_video_a_rasgos.py, 06_rasgos_a_audio.py, 08_video_con_audio.py, config/config_eic.json.

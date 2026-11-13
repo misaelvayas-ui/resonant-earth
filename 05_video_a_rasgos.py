@@ -38,6 +38,8 @@ Claves opcionales del config (valores por defecto):
   "fechas": null            ruta a un time.txt (una línea por fotograma del video): añade el
                             campo "fecha" a cada rasgo
   "referencia": null        valor que 06 usa para el dron (se copia a rasgos.json)
+  "vmin_sonido", "vmax_sonido": null   rango que 06 usa para mapear media -> nota (por defecto
+                            vmin/vmax; se copian a rasgos.json). No afectan a la paleta de 05
 """
 import json
 import sys
@@ -208,6 +210,9 @@ salida = {"fuente": cfg["video"], "vmin": cfg["vmin"], "vmax": cfg["vmax"],
           "fps_rasgos": fps_video / paso, "rasgos": rasgos}
 if cfg.get("referencia") is not None:
     salida["referencia"] = cfg["referencia"]
+for k in ("vmin_sonido", "vmax_sonido"):
+    if cfg.get(k) is not None:
+        salida[k] = cfg[k]
 with open(sal("rasgos.json"), "w") as fh:
     json.dump(salida, fh, indent=1)
 print(f"{len(rasgos)} fotogramas analizados -> {sal('rasgos.json')}  ({time.time() - t_inicio:.1f} s)")

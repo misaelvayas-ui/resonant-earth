@@ -23,5 +23,7 @@
   "ponderar_latitud": true,
   "dist_max": 17.0,
   "fechas": "datos/time.txt",
-  "referencia": 0.0
+  "referencia": 0.0,
+  "vmin_sonido": -0.6,
+  "vmax_sonido": 1.2
 }
