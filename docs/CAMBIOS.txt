@@ -601,3 +601,30 @@ RONDA 17 - "se siente desincronizado": retardo, suavizado, re-golpe y eventos   
 evaluar.py: E1 y E2 reescritas para los ataques nuevos (E2: cálculo independiente con tipos ataque/regolpe/fuerte
 y sus velocidades con humanizar), nueva E4 (retardo media -> notas <= 1 fotograma, sobre control.json y rocola.mid).
 Se comprobó que E4 falla (+2 fotogramas, r 0,72) con un suavizado causal de 7. evaluar.py: 26 PASA, 0 FALLA.
+
+RONDA 18 - auditoría de cumplimiento del motor de sonido (sin cambios de código)   (2026-11-13)
+Datos medidos sobre salidas/ del video GISTEMP (config_eic.json, ronda 17) y una corrida sintética temporal.
+ID  | Estado     | Evidencia
+A1  | CUMPLE     | evaluar.py 26 PASA, 0 FALLA, 0 OMITIDA en 18,0 s
+A2  | CUMPLE     | rasgos: t, fecha, media, area, centroide_x, cambio, validos; faltan centroide_y (opcional por "y/o") y
+    |            | eventos (opcional); no sobra ninguno
+A3  | CUMPLE     | 05:178 + 05:187 (cos lat); r = 0,992 con GISTEMP oficial (60 años); pendiente 1980-2023 0,207 vs 0,204
+    |            | °C/década (1880-1980: 0,042 vs 0,035); 2023: +1,06 vs +1,17 °C
+A4  | CUMPLE     | area = fracción > umbral 1,0 (05:211-212), 0,000-0,571; validos mín 0,826, prom 0,884, 0 fotogramas < 0,8
+A5  | PARCIAL    | nota pentatónica (06:101), volumen = velocidad por área (06:107), paneo por centroide_x (06:108, 06:256);
+    |            | sin filtro por área; dron = nota de 0 °C +12 (06:105, octava +1), no -12; limitador solo en el respaldo
+    |            | numpy (06:283); la ruta FluidSynth normaliza el pico a 0,85 (06:258)
+A6  | PARCIAL    | dron medido 524,0 Hz = MIDI 72,02; esperado por implementación 72 (0 °C -> 60, +12); por la guía (-12) 48
+A7  | CUMPLE     | nota base 60-93 (15 de 16 notas de la escala), con arpegios 60-96; registro 60-96 -> 92 % (base) / 100 %
+A8  | CUMPLE     | 08:105-108; fotograma t=20,25 s del demo: caja oscura arriba a la izquierda con 13,5 % de píxeles blancos
+    |            | (original 0 %); año 1981
+A9  | PARCIAL    | sin centroide_y ni paneo norte-sur; balance L/R real en los ataques -4,2 a +1,4 dB (pan -0,49 a +0,32)
+A10 | CUMPLE     | error de tono máx. 2,7 cents (GISTEMP) y 2,0 cents (sintético); en GISTEMP 07 marca FALLA "el tono no
+    |            | baja" y "paneo izq->der", pensadas solo para el video sintético
+B1  | no existe  | sin Web Audio / HTML / JS en el repo
+B2  | no existe  | sin FastAPI
+B3  | no existe  | sin WebSocket
+B4  | existe     | salidas/demo_gistemp.mp4 (30,067 s, ronda 17; no versionado)
+Mapeo real: paleta vmin/vmax -2/+2 °C; sonido vmin_sonido/vmax_sonido -0,6/+1,2 °C; umbral de área 1,0 °C; escala
+pentatónica de Do 48-84 + octava +1 = 60-96; nota base usada 60-93; dron 72 (Do5, 523 Hz); densidad 0,3/0,7 °C;
+umbral_evento 0,15 °C. La guía del equipo dice MIDI 55-86 (ilustrativo).
