@@ -41,7 +41,7 @@ Claves opcionales del config (valores por defecto):
   "vmin_sonido", "vmax_sonido": null   rango que 06 usa para mapear media -> nota (por defecto
                             vmin/vmax; se copian a rasgos.json). No afectan a la paleta de 05
   "dron_octava", "dron_nivel", "instrumento_melodia", "dron_programa", "reverb", "ligar", "suavizado",
-  "densidad", "octava", "humanizar", "densidad_umbrales": null   ajustes musicales de 06 (ver su cabecera; valores por defecto
+  "densidad", "octava", "humanizar", "densidad_umbrales", "regolpe_ligado", "regolpe_vel", "umbral_evento": null   ajustes musicales de 06 (ver su cabecera; valores por defecto
                             allí); se copian a rasgos.json
 """
 import json
@@ -246,7 +246,7 @@ if cfg.get("referencia") is not None:
     salida["referencia"] = cfg["referencia"]
 for k in ("vmin_sonido", "vmax_sonido", "densidad_umbrales", "dron_octava", "dron_nivel",
           "instrumento_melodia", "reverb", "ligar", "suavizado", "densidad", "octava", "dron_programa",
-          "humanizar"):
+          "humanizar", "regolpe_ligado", "regolpe_vel", "umbral_evento"):
     if cfg.get(k) is not None:
         salida[k] = cfg[k]
 with open(sal("rasgos.json"), "w") as fh:

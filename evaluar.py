@@ -400,39 +400,56 @@ def leer_mid(ruta):
     return ons, dron, fin, mid.ticks_per_beat
 
 
-def fundir(notas_por_fotograma, tpf):
-    """Ataques esperados (tick, nota) con las notas de cada fotograma repartidas en partes iguales y
-    las repetidas consecutivas ligadas (una sola nota)."""
-    atq = [(i * tpf + j * tpf / len(n), nota) for i, n in enumerate(notas_por_fotograma) for j, nota in enumerate(n)]
-    return atq, [a for k, a in enumerate(atq) if k == 0 or a[1] != atq[k - 1][1]]
-
-
 def e1():
     sal_ = os.path.join(pipeline()["dir"], "salidas")
     ctl = json.load(open(os.path.join(sal_, "control.json")))
     ons, dron, fin, tpb = leer_mid(os.path.join(sal_, "rocola.mid"))
     tpf = ctl["seg_por_fotograma"] * 2 * tpb                       # 120 bpm
-    atq, lig = fundir(ctl["notas"], tpf)
     tol = 0.010 * 2 * tpb + 1                                      # ±10 ms de humanización
-    notas_ok = [n for _, n, _ in ons] == [n for _, n in lig] and ctl["ataques"] == len(ons)
-    tiempos_ok = len(ons) == len(lig) and all(abs(o[0] - a[0]) <= tol + 0.5 for o, a in zip(ons, lig))
+    notas_ok = [n for _, n, _ in ons] == ctl["notas_ataque"] and ctl["ataques"] == len(ons)
+    tiempos_ok = len(ons) == len(ctl["inicio_ticks"]) and all(abs(o[0] - t) <= tol + 0.5 for o, t in zip(ons, ctl["inicio_ticks"]))
     base_ok = [n[0] for n in ctl["notas"]] == ctl["midi"]
     dron_ok = len(dron) == 1 and dron[0][0] == ctl["dron"]
     fs_, w = wavfile.read(os.path.join(sal_, "rocola.wav"))
     dur_ok = abs(w.shape[0] / fs_ - len(ctl["midi"]) * ctl["seg_por_fotograma"]) < 0.01 and abs(fin - len(ctl["midi"]) * tpf) <= 1
     return (notas_ok and tiempos_ok and base_ok and dron_ok and dur_ok,
-            f"modo {ctl['modo']}; {len(ons)} ataques (sin ligar {len(atq)}) = control.json: {notas_ok}; "
+            f"modo {ctl['modo']}; {len(ons)} ataques (sin ligar {ctl['ataques_sin_ligar']}) = control.json: {notas_ok}; "
             f"tiempos ±10 ms: {tiempos_ok}; dron {ctl['dron']}: {dron_ok}; wav {w.shape[0] / fs_:.3f} s: {dur_ok}")
 
 
+def esperados_e2(media):
+    """Cálculo independiente de los ataques de 06 con sus valores por defecto: [(tick nominal, nota, tipo)]."""
+    n = len(media)
+    ms = [float(np.mean(media[max(0, i - 1): i + 2])) for i in range(n)]            # suavizado 3, centrado
+    sc = escala(48, 3)
+    tpf = 480.0
+    fuerte = [i > 0 and abs(media[i] - media[i - 1]) > 0.15 for i in range(n)]
+    out, ult, notas_f = [], -1, []
+    for f, m in enumerate(ms):
+        k = 1 if m < 0.3 else (2 if m <= 0.7 else 4)
+        b = list(sc).index(int(valor_a_nota(m, -0.6, 1.2, sc)))
+        arp = [int(sc[min(b + j, len(sc) - 1)]) + 12 for j in range(k)]
+        notas_f.append(arp)
+        for j, nota in enumerate(arp):
+            tick, forzado = f * tpf + j * tpf / k, fuerte[f] and j == 0
+            if out and nota == out[-1][1] and not forzado:
+                if j == 0 and f - ult >= 2:
+                    out.append((tick, nota, "regolpe"))
+                    ult = f
+                continue
+            out.append((tick, nota, "fuerte" if forzado else "ataque"))
+            ult = f
+    return out, notas_f
+
+
 def e2():
-    """06 con sus valores por defecto frente a un cálculo independiente (suavizado 5, densidad,
-    arpegio ascendente, ligar, octava +1, humanizar ±10 ms, dron pad en la referencia)."""
-    media = [0.00, 0.10, 0.50, 1.20, 1.20, 1.20, 0.50, 0.00]    # tras suavizar (5) cubre 1, 2 y 4 notas
+    """06 con sus valores por defecto frente a un cálculo independiente (suavizado 3, densidad, arpegio,
+    ligar + re-golpe cada 2 fotogramas, ataque fuerte por evento, octava +1, humanizar, dron pad)."""
+    media = [0.00, 0.10, 0.50, 1.20, 1.20, 1.20, 1.15, 1.20]          # cubre 1, 2 y 4 notas, notas ligadas y un salto
     with tempfile.TemporaryDirectory() as d:
         R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]
         for r, m in zip(R["rasgos"], media):
-            r["media"] = m
+            r["media"], r["area"] = m, 0.0                            # área 0 -> velocidad base 64
         R.update(vmin_sonido=-0.6, vmax_sonido=1.2, referencia=0.0)
         os.makedirs(os.path.join(d, "salidas"))
         ruta = os.path.join(d, "salidas", "rasgos_e2.json")
@@ -442,29 +459,54 @@ def e2():
             return False, f"06 código {r.returncode}: {r.stderr.strip()[-120:]}"
         ons, dron, fin, tpb = leer_mid(os.path.join(d, "salidas", "rocola.mid"))
         ctl = json.load(open(os.path.join(d, "salidas", "control.json")))
-    h = 2                                                              # suavizado 5
-    ms = [float(np.mean(media[max(0, i - h): i + h + 1])) for i in range(len(media))]
-    sc = escala(48, 3)
-    esperado = []
-    for m in ms:
-        k = 1 if m < 0.3 else (2 if m <= 0.7 else 4)
-        b = list(sc).index(int(valor_a_nota(m, -0.6, 1.2, sc)))
-        esperado.append([int(sc[min(b + j, len(sc) - 1)]) + 12 for j in range(k)])
+    esp, notas_f = esperados_e2(media)
     tpf = 0.5 * 2 * tpb
-    atq, lig = fundir(esperado, tpf)
     tol = 0.010 * 2 * tpb + 1
-    notas_ok = [n for _, n, _ in ons] == [n for _, n in lig]
-    tiempos_ok = len(ons) == len(lig) and all(abs(o[0] - a[0]) <= tol + 0.5 for o, a in zip(ons, lig))
-    arp_ok = all(e == sorted(e) for e in esperado) and {len(e) for e in esperado} == {1, 2, 4}
-    ref = int(sc[list(sc).index(int(valor_a_nota(0.0, -0.6, 1.2, sc)))]) + 12
+    notas_ok = [n for _, n, _ in ons] == [n for _, n, _ in esp]
+    tiempos_ok = len(ons) == len(esp) and all(abs(o[0] - e[0]) <= tol + 0.5 for o, e in zip(ons, esp))
+    tipos = {t for _, _, t in esp}
+    # velocidad base 64 (área 0): ataque 64, re-golpe 40 % = 26, fuerte >= 100; humanizar ±10 %
+    rango = {"ataque": (57, 71), "regolpe": (23, 29), "fuerte": (90, 127)}
+    vel_ok = len(ons) == len(esp) and all(rango[e[2]][0] <= o[2] <= rango[e[2]][1] for o, e in zip(ons, esp))
+    arp_ok = all(e == sorted(e) for e in notas_f) and {len(e) for e in notas_f} >= {1, 4}
+    ref = int(escala(48, 3)[list(escala(48, 3)).index(int(valor_a_nota(0.0, -0.6, 1.2, escala(48, 3))))]) + 12
     dron_ok = dron == [(ref, 27)]
-    ctl_ok = (ctl["midi"] == [e[0] for e in esperado] and ctl["notas"] == esperado
-              and ctl["ataques"] == len(ons) and ctl["ataques_sin_ligar"] == len(atq) and ctl["dron"] == ref)
+    ctl_ok = (ctl["midi"] == [e[0] for e in notas_f] and ctl["notas"] == notas_f
+              and ctl["ataques"] == len(ons) and ctl["tipo_ataque"] == [t for _, _, t in esp] and ctl["dron"] == ref)
     dur_ok = abs(fin - len(media) * tpf) <= 1
-    ok = notas_ok and tiempos_ok and arp_ok and dron_ok and ctl_ok and dur_ok
-    return ok, (f"ataques {len(ons)} (sin ligar {len(atq)}); notas: {notas_ok}; ±10 ms: {tiempos_ok}; "
-                f"arpegio 1/2/4: {arp_ok}; dron {dron[0][0] if dron else None}: {dron_ok}; control.json: {ctl_ok}; "
-                f"duración: {dur_ok}")
+    ok = notas_ok and tiempos_ok and vel_ok and arp_ok and dron_ok and ctl_ok and dur_ok and tipos == {"ataque", "regolpe", "fuerte"}
+    return ok, (f"ataques {len(ons)} ({sorted(tipos)}); notas: {notas_ok}; ±10 ms: {tiempos_ok}; velocidades: {vel_ok}; "
+                f"arpegio: {arp_ok}; dron {dron[0][0] if dron else None}: {dron_ok}; control.json: {ctl_ok}; duración: {dur_ok}")
+
+
+def e4():
+    """Retardo entre la media cruda y las notas de salida: correlación cruzada por fotograma, |retardo| <= 1."""
+    n = 40
+    t = np.arange(n)
+    media = 0.5 + 0.5 * np.sin(2 * np.pi * t / 17) + 0.3 * np.sin(2 * np.pi * t / 6) + 0.2 * np.sin(2 * np.pi * t / 3.4)
+    with tempfile.TemporaryDirectory() as d:
+        R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]
+        R["rasgos"] = [{**R["rasgos"][i % len(R["rasgos"])], "t": i * 0.25, "media": float(media[i])} for i in range(n)]
+        R.update(vmin_sonido=-0.3, vmax_sonido=1.3)
+        os.makedirs(os.path.join(d, "salidas"))
+        ruta = os.path.join(d, "salidas", "rasgos_e4.json")
+        json.dump(R, open(ruta, "w"))
+        r = correr("06_rasgos_a_audio.py", [ruta, "--sintetico"], d)
+        if r.returncode != 0:
+            return False, f"06 código {r.returncode}: {r.stderr.strip()[-120:]}"
+        ons, _, _, tpb = leer_mid(os.path.join(d, "salidas", "rocola.mid"))
+        base = np.array(json.load(open(os.path.join(d, "salidas", "control.json")))["midi"], float)
+    tpf = 0.5 * 2 * tpb
+    sonando = np.array([[nt for tk, nt, _ in ons if tk <= i * tpf + 0.2 * tpf][-1] for i in range(n)], float)
+
+    def retardo(serie):
+        a, b = (media - media.mean()) / media.std(), (serie - serie.mean()) / serie.std()
+        c = {L: float(np.mean((a[:n - L] * b[L:]) if L >= 0 else (a[-L:] * b[:n + L]))) for L in range(-4, 5)}
+        return max(c, key=c.get), c
+    l1, c1_ = retardo(base)
+    l2, c2_ = retardo(sonando)
+    return abs(l1) <= 1 and abs(l2) <= 1 and c1_[l1] > 0.8, \
+        f"retardo control.json {l1:+d} fotogramas (r {c1_[l1]:.2f}); notas de rocola.mid {l2:+d} (r {c2_[l2]:.2f})"
 
 
 def e3():
@@ -594,6 +636,7 @@ EVALUACIONES = [
     ("F2", "05: video que abre en negro", "validos > 0,9 y media creciente", f2),
     ("F3", "05: errores claros", "mensaje y rasgos.json intacto (sin video / mapa fuera)", f3),
     ("F4", "08: 600 rasgos con texto", "08 PASA (sin 'Argument list too long')", f4),
+    ("E4", "06: retardo media → notas", "|retardo| ≤ 1 fotograma (correlación cruzada), r > 0,8", e4),
     ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]
 

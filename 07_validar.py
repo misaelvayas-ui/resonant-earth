@@ -52,15 +52,14 @@ esperado = hz(ctl["midi"])
 nota_ok = np.where(con)[0]
 print(f"Tono medido en {len(nota_ok)} fotogramas con ataque de {n_f} (los {n_f - len(nota_ok)} ligados se excluyen)")
 
-# notas exactas: el .mid debe contener justo las notas esperadas por control.json (arpegios y ligaduras)
+# notas exactas: el .mid debe contener justo los ataques que control.json declara (arpegios, ligaduras, re-golpes)
 import mido
 atq_mid, esp_mid = [], []
 for m in mido.merge_tracks(mido.MidiFile(sal("rocola.mid")).tracks):
     if m.type == "note_on" and m.velocity > 0 and m.channel == 0:
         atq_mid.append(m.note)
-plano = [n for fot in ctl["notas"] for n in fot]
-esp_mid = [n for j, n in enumerate(plano) if j == 0 or n != plano[j - 1]] if ctl.get("ataques") != ctl.get("ataques_sin_ligar") else plano
-notas_exactas = atq_mid == esp_mid and len(atq_mid) == ctl.get("ataques", len(atq_mid))
+esp_mid = ctl["notas_ataque"]
+notas_exactas = atq_mid == esp_mid and len(atq_mid) == ctl["ataques"]
 
 # 2) balance L/R en dB por fotograma, medido en el ATAQUE (20-100 ms): la marimba decae y después solo
 #    queda el dron, que es central. Un fotograma con la nota ligada (sin golpe nuevo) no informa del

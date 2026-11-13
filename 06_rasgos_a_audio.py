@@ -21,8 +21,12 @@ dirigida por las MISMAS notas: mismo .mid, misma duración, otro timbre.
 
 Claves opcionales (van en el config de 05 y se copian a rasgos.json); entre paréntesis, el valor por defecto:
   "ligar" (true)           misma nota que la anterior -> se extiende en vez de re-atacar
-  "suavizado" (5)          media móvil centrada de N fotogramas sobre la media (0 o 1 = sin suavizar)
+  "suavizado" (3)          media móvil centrada de N fotogramas sobre la media (0 o 1 = sin suavizar)
   "densidad" (true)        notas por fotograma según la anomalía; false = una nota por fotograma
+  "regolpe_ligado" (2)     en una nota ligada, la vuelve a tocar cada N fotogramas (0 = nunca)
+  "regolpe_vel" (0.4)      velocidad del re-golpe como fracción de la de la nota
+  "umbral_evento" (0.15)   si la media CRUDA cambia más que esto entre fotogramas, ataque fuerte (vel >= 100)
+                           aunque la nota no cambie
   "octava" (1)             desplaza melodía y dron (+1 = una octava arriba)
   "humanizar" (true)       velocidad ±10 %, tiempo ±10 ms, semilla fija (12345)
   "instrumento_melodia" (13), "dron_programa" (89)   programas GM, numerados desde 1
@@ -55,9 +59,9 @@ TICKS_F = int(SEG_POR_FOTOGRAMA * TPB * BPM / 60)
 SF2 = [os.environ.get("ROCOLA_SF2", ""), "/usr/share/sounds/sf2/FluidR3_GM.sf2",
        "/usr/share/sounds/sf2/default-GM.sf2"]
 APT = "sudo apt install fluidsynth fluid-soundfont-gm"
-DEFECTOS = {"ligar": True, "suavizado": 5, "densidad": True, "octava": 1, "humanizar": True,
+DEFECTOS = {"ligar": True, "suavizado": 3, "densidad": True, "octava": 1, "humanizar": True,
             "instrumento_melodia": 13, "dron_programa": 89, "dron_octava": 0, "dron_nivel": 0.048,
-            "reverb": 50}
+            "reverb": 50, "regolpe_ligado": 2, "regolpe_vel": 0.4, "umbral_evento": 0.15}
 
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 with open(args[0] if args else sal("rasgos.json")) as fh:
@@ -130,18 +134,38 @@ for i in range(n_f):
     lim = [round(j * TICKS_F / k) for j in range(k + 1)]
     for j in range(k):
         ini = i * TICKS_F + lim[j]
-        mel.append([ini, ini + int((lim[j + 1] - lim[j]) * 0.95), arp[j], int(vel[i])])
+        mel.append([ini, ini + int((lim[j + 1] - lim[j]) * 0.95), arp[j], int(vel[i]), i, j])
 ataques_sin_ligar = len(mel)
-if cfg["ligar"]:                                  # misma nota que la anterior: se extiende
-    fusion = [mel[0]]
-    for ini, fin, nota, v in mel[1:]:
-        if nota == fusion[-1][2]:
-            fusion[-1][1] = fin
+# eventos bruscos de la media CRUDA (sin suavizar): siempre llevan un ataque fuerte, aunque la nota no cambie
+fuerte = [bool(i > 0 and abs(media[i] - media[i - 1]) > cfg["umbral_evento"]) for i in range(n_f)]
+VEL_FUERTE = 100
+meta = []                                         # por cada ataque: (fotograma, tipo, inicio nominal en ticks)
+fusion = []
+ult_f = -1                                        # fotograma del último ataque
+for ini, fin, nota, v, f, j in mel:
+    forzado = fuerte[f] and j == 0
+    if forzado:
+        v = max(v, VEL_FUERTE)
+    if cfg["ligar"] and fusion and nota == fusion[-1][2] and not forzado:
+        rg = int(cfg["regolpe_ligado"])
+        if rg > 0 and j == 0 and f - ult_f >= rg:           # nota larga ligada: se vuelve a tocar, suave
+            fusion.append([ini, fin, nota, max(1, round(v * cfg["regolpe_vel"]))])
+            meta.append((f, "regolpe", ini))
+            ult_f = f
         else:
-            fusion.append([ini, fin, nota, v])
-    mel = fusion
-inicios_ataque = {m[0] for m in mel}
-ataque_en_fotograma = [i * TICKS_F in inicios_ataque for i in range(n_f)]   # False = nota ligada (sin golpe)
+            fusion[-1][1] = fin                              # se extiende en vez de re-atacar
+        continue
+    fusion.append([ini, fin, nota, v])
+    meta.append((f, "fuerte" if forzado else "ataque", ini))
+    ult_f = f
+mel = fusion
+# ataque_en_fotograma: golpe NUEVO (nota nueva o evento brusco) en el arranque del fotograma;
+# False = nota ligada o solo un re-golpe suave (no sirve para medir tono ni paneo)
+ataque_en_fotograma = [False] * n_f
+for f, tipo, ini in meta:
+    if tipo != "regolpe" and ini == f * TICKS_F:
+        ataque_en_fotograma[f] = True
+regolpe_en_fotograma = [any(t == "regolpe" and f == i for f, t, _ in meta) for i in range(n_f)]
 if cfg["humanizar"]:                              # semilla fija: mismo resultado en cada ejecución
     rng = np.random.default_rng(12345)
     ms = round(0.010 * TPB * BPM / 60)            # 10 ms en ticks
@@ -249,11 +273,11 @@ def sintetizar_numpy():
     lead = 0.5 * amp * oscilador(f_lead, "suave")
     plucks = np.zeros(N)                                       # un golpe en cada ataque
     n_pl = int(0.35 * FS)
-    for (ini_t, _, nota, _), ini in zip(mel, inicios):
+    for (ini_t, _, nota, vl), ini in zip(mel, inicios):
         seg = oscilador(np.full(n_pl, midi_a_hz(nota + 12)), "triangular")
         seg *= adsr(n_pl, a=0.003, d=0.12, s=0.0, r=0.05)
         fin = min(ini + n_pl, N)
-        plucks[ini:fin] += 0.35 * seg[: fin - ini]
+        plucks[ini:fin] += 0.35 * (vl / 90) * seg[: fin - ini]
     dron = cfg["dron_nivel"] * oscilador(np.full(N, midi_a_hz(nota_dron)), "seno")
     p = suavizar_rapido(lineal(2 * cx - 1), 0.15)
     return limitar(paneo(lead + plucks, p) + paneo(dron, 0.0))
@@ -277,6 +301,9 @@ with open(sal("control.json"), "w") as fh:
                "midi": voz.tolist(),                          # NOTA BASE por fotograma (ya con octava)
                "notas": [[n + 12 * octava for n in a_] for a_ in por_fotograma],   # arpegio por fotograma
                "pan": (2 * cx - 1).tolist(), "ataque_en_fotograma": ataque_en_fotograma, "dron": nota_dron, "cruce_dron": cruce,
+               "regolpe_en_fotograma": regolpe_en_fotograma, "evento_fuerte": fuerte,
+               "notas_ataque": [m[2] for m in mel], "inicio_ticks": [t for _, _, t in meta],
+               "tipo_ataque": [t for _, t, _ in meta],
                "ataques": len(mel), "ataques_sin_ligar": ataques_sin_ligar,
                "nota_min": min(m[2] for m in mel), "nota_max": max(m[2] for m in mel),
                "modo": modo}, fh)

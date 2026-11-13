@@ -578,3 +578,26 @@ Falsos: ninguno. Nada marcado [PUEDE ESPERAR] se tocó (barra horizontal en cali
 evaluar.py: pruebas nuevas F1 (densidad con datos 270-310), F2 (video que abre en negro), F3 (video
 inexistente / mapa fuera, rasgos.json intacto), F4 (08 con 600 rasgos). Con los 05/06/08 de antes de la ronda,
 las 4 FALLAN; con los nuevos PASAN. evaluar.py: 25 PASA, 0 FALLA.
+
+RONDA 17 - "se siente desincronizado": retardo, suavizado, re-golpe y eventos   (2026-11-13)
+1. Medición (video GISTEMP, 60 fotogramas): correlación cruzada de la media cruda de rasgos.json con la nota
+   base de control.json y con la nota que suena en rocola.mid: retardo 0 fotogramas (0,0 s), r = 0,978.
+   Ataques del audio frente a la rejilla del MIDI: mediana -1 ms (p10 -47, p90 +8; ±10 ms por humanizar).
+   Único desfase real: el video de 08 empieza 0,067 s después del audio (retardo de B-frames; ronda 7).
+   -> No había retardo. Lo que se sentía era escasez de respuesta: 89 ataques posibles, 46 tocados (ligar +
+   suavizado 5): los cambios del mapa quedaban sin golpe durante varios fotogramas.
+2. Suavizado: ya era CENTRADO (ventana [i-h, i+h]) con bordes de ventana acortada (sin retardo ni sesgo
+   en los extremos); no se tocó la lógica. Valor por defecto 5 -> 3.
+3. 06: "regolpe_ligado" (2): una nota ligada se vuelve a tocar cada 2 fotogramas con velocidad
+   "regolpe_vel" (0,4) x la de la nota; "umbral_evento" (0,15): si la media CRUDA cambia más que eso entre
+   fotogramas hay un ataque fuerte (velocidad >= 100) aunque la nota no cambie (y también si cambia).
+   Claves copiadas por 05 a rasgos.json; README actualizado. control.json nuevo: regolpe_en_fotograma,
+   evento_fuerte, notas_ataque, inicio_ticks, tipo_ataque; "ataque_en_fotograma" = golpe nuevo (excluye re-golpes
+   suaves, que no sirven para medir tono ni paneo). 07 compara el .mid con notas_ataque. Respaldo numpy:
+   la amplitud del golpe sigue la velocidad.
+4. Después: retardo 0 fotogramas (r = 0,978), igual. Ataques 46 -> 69 (45 normales, 19 fuertes, 5 re-golpes;
+   89 sin ligar). Notas 60-96, dron 72, cruce del dron 1976.
+5. Regenerados salidas/rocola.wav, rocola.mid y demo_gistemp.mp4 (30,067 s, video-audio 0,000 s, PASA).
+evaluar.py: E1 y E2 reescritas para los ataques nuevos (E2: cálculo independiente con tipos ataque/regolpe/fuerte
+y sus velocidades con humanizar), nueva E4 (retardo media -> notas <= 1 fotograma, sobre control.json y rocola.mid).
+Se comprobó que E4 falla (+2 fotogramas, r 0,72) con un suavizado causal de 7. evaluar.py: 26 PASA, 0 FALLA.

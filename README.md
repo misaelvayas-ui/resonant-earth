@@ -95,7 +95,7 @@ Obligatorias: `video`, `mapa` y `barra` (rectángulos `[x0, y0, x1, y1]` en píx
 | `ponderar_latitud` | false | media ponderada por cos(latitud) en mapas equirectangulares completos |
 | `fechas` | — | `time.txt` → añade `fecha` a cada rasgo |
 | `referencia` | primer fotograma | valor en el que suena el dron (0 = sin anomalía) |
-| `ligar`, `suavizado`, `densidad`, `octava`, `humanizar`, `dron_nivel`, `dron_programa`, `instrumento_melodia`, `reverb` | ver cabecera de 06 | musicalidad de 06 (por defecto: ligar, suavizado 5, densidad, octava +1, humanizar, dron pad 89, marimba 13); `ligar: false, suavizado: 0, densidad: false, octava: 0, humanizar: false` = sonido simple |
+| `ligar`, `suavizado`, `densidad`, `regolpe_ligado`, `regolpe_vel`, `umbral_evento`, `octava`, `humanizar`, `dron_nivel`, `dron_programa`, `instrumento_melodia`, `reverb` | ver cabecera de 06 | musicalidad de 06 (por defecto: ligar, suavizado 3, densidad, octava +1, humanizar, re-golpe de notas ligadas cada 2 fotogramas, ataque fuerte si la media cruda cambia > 0,15, dron pad 89, marimba 13); `ligar: false, suavizado: 0, densidad: false, octava: 0, humanizar: false` = sonido simple |
 | `dist_max` | 8.0 | distancia de color (Lab) máxima para aceptar un píxel |
 | `mascara_estatica`, `umbral_estatico`, `frac_estatico` | true, 3.0, 0.7 | descartar tierra, costas y logos que no cambian |
 | `mascara_imagen` | — | máscara a mano (PNG, negro = descartar) |
