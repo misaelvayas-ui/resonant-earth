@@ -19,6 +19,7 @@ const el = {
   viva: $("descripcion-viva"),
   anuncio: $("anuncio"),
   anunciar: $("anunciar"),
+  subtitulos: $("subtitulos"),
   leyendaColores: $("leyenda-colores"),
 };
 
@@ -31,6 +32,7 @@ const estado = {
   ultimoAnuncio: 0,
   turno: 0,          // descarta respuestas viejas si describir() es asíncrona
   arrastrando: false,
+  urlVideo: null,    // URL del Blob del video actual
 };
 
 /* ---------- utilidades ---------- */
@@ -127,19 +129,57 @@ async function elegir(v, { reproducir }) {
   el.leyendaColores.textContent = v.leyenda ? `Colores de este video: ${v.leyenda}` : "";
   el.video.setAttribute("aria-label", `Video: ${v.titulo}`);
   el.viva.textContent = "Cargando…";
+  el.play.disabled = true;
+  el.progreso.disabled = true;
 
-  el.video.src = v.video;
-  el.video.load();
+  await Promise.all([cargarVideo(v), cargarRasgos(v)]);
+  if (estado.actual !== v) return; // el usuario eligió otra mientras cargaba
+  if (el.video.error) {
+    el.viva.textContent = `No pude cargar el video «${v.video}».`;
+    return;
+  }
   el.play.disabled = false;
   el.progreso.disabled = false;
-
-  await cargarRasgos(v);
-  if (estado.actual !== v) return; // el usuario eligió otra mientras cargaba
   actualizarDescripcion(true);
+  ponerSubtitulos(v);
   if (reproducir) {
     el.video.play().catch(() => {});
     anunciar(`Elegiste ${v.titulo}.`, true);
   }
+}
+
+/* El video se descarga entero y se reproduce desde un Blob: así se puede saltar a cualquier
+   punto aunque el servidor no acepte peticiones por rangos (python -m http.server no las acepta). */
+async function cargarVideo(v) {
+  if (estado.urlVideo) URL.revokeObjectURL(estado.urlVideo);
+  estado.urlVideo = null;
+  let src = v.video;
+  try {
+    const r = await fetch(v.video);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const total = Number(r.headers.get("Content-Length")) || 0;
+    const partes = [];
+    let recibido = 0;
+    const lector = r.body.getReader();
+    for (;;) {
+      const { done, value } = await lector.read();
+      if (done) break;
+      if (estado.actual !== v) { lector.cancel(); return; }
+      partes.push(value);
+      recibido += value.length;
+      if (total) el.viva.textContent = `Cargando video… ${Math.round((100 * recibido) / total)} %`;
+    }
+    src = estado.urlVideo = URL.createObjectURL(new Blob(partes, { type: "video/mp4" }));
+  } catch (e) {
+    // sin fetch (p. ej. file://) se intenta igual con la ruta directa
+  }
+  if (estado.actual !== v) return;
+  el.video.src = src;
+  el.video.load();
+  await new Promise((ok) => {
+    el.video.addEventListener("loadedmetadata", ok, { once: true });
+    el.video.addEventListener("error", ok, { once: true });
+  });
 }
 
 async function cargarRasgos(v) {
@@ -163,10 +203,39 @@ async function cargarRasgos(v) {
       vmin: d.vmin,
       vmax: d.vmax,
       referencia: d.referencia ?? (primero ? primero.media : null), // igual que el dron de 06
+      seg: d.seg_por_fotograma,
     };
   } catch (e) {
     el.viva.textContent = `No pude leer los rasgos (${e.message}).`;
   }
+}
+
+/* ---------- subtítulos: la misma descripción como pista WebVTT ---------- */
+
+function vttTiempo(s) {
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), seg = (s % 60).toFixed(3);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${seg.padStart(6, "0")}`;
+}
+
+async function ponerSubtitulos(v) {
+  el.video.querySelectorAll("track").forEach((t) => { URL.revokeObjectURL(t.src); t.remove(); });
+  const R = estado.rasgos;
+  if (!R.length) return;
+  const textos = await Promise.all(R.map((r) => Promise.resolve(describir(r, estado.contexto)).catch(() => "")));
+  if (estado.actual !== v) return;
+  const escapar = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/-->/g, "→");
+  const cues = R.map((r, i) => {
+    const fin = i + 1 < R.length ? R[i + 1]._t : r._t + (estado.contexto.seg ?? 0.5);
+    // -1 ms: en el borde exacto el navegador activaría también el subtítulo anterior
+    return `${vttTiempo(r._t)} --> ${vttTiempo(Math.max(r._t, fin - 0.001))}\n${escapar(textos[i])}`;
+  });
+  const pista = document.createElement("track");
+  pista.kind = "captions";
+  pista.srclang = "es";
+  pista.label = "Descripción automática";
+  pista.src = URL.createObjectURL(new Blob(["WEBVTT\n\n" + cues.join("\n\n") + "\n"], { type: "text/vtt" }));
+  el.video.append(pista);
+  pista.track.mode = el.subtitulos.checked ? "showing" : "hidden";
 }
 
 /* ---------- sincronía de la descripción ---------- */
@@ -242,11 +311,6 @@ el.video.addEventListener("ended", pintarPlay);
 el.video.addEventListener("loadedmetadata", pintarProgreso);
 el.video.addEventListener("timeupdate", () => { pintarProgreso(); actualizarDescripcion(); });
 el.video.addEventListener("seeked", () => { pintarProgreso(); actualizarDescripcion(true); });
-el.video.addEventListener("error", () => {
-  if (!el.video.getAttribute("src")) return;
-  el.viva.textContent = `No pude cargar el video «${estado.actual?.video}».`;
-  el.play.disabled = true;
-});
 
 el.progreso.addEventListener("input", () => {
   estado.arrastrando = true;
@@ -263,6 +327,9 @@ el.progreso.addEventListener("keydown", (e) => {
 
 el.volumen.addEventListener("input", pintarVolumen);
 el.anunciar.addEventListener("change", () => { if (!el.anunciar.checked) el.anuncio.textContent = ""; });
+el.subtitulos.addEventListener("change", () => {
+  for (const t of el.video.textTracks) t.mode = el.subtitulos.checked ? "showing" : "hidden";
+});
 
 /* atajos globales: Espacio = play/pausa, ← → = ±5 s */
 document.addEventListener("keydown", (e) => {

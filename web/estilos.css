@@ -173,6 +173,12 @@ section {
   aspect-ratio: 16 / 9;
 }
 .pantalla video { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pantalla video::cue {
+  font-family: var(--fuente-texto);
+  font-size: 1.1rem;
+  color: var(--texto);
+  background: rgba(14, 20, 48, 0.9);
+}
 
 .controles {
   display: grid;

@@ -10,6 +10,7 @@
 function describir(rasgo, contexto = {}) {
   const unidad = contexto.unidad ? " " + contexto.unidad : "";
   const num = (x) => x.toLocaleString("es", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const corto = (x) => x.toLocaleString("es", { maximumFractionDigits: 2 });
   const partes = [];
 
   if (rasgo.fecha != null) partes.push(`Año ${rasgo.fecha}.`);
@@ -18,9 +19,14 @@ function describir(rasgo, contexto = {}) {
     const nombre = contexto.unidad === "°C" ? "Temperatura media" : "Valor medio";
     let frase = `${nombre}: ${num(rasgo.media)}${unidad}`;
     if (contexto.vmin != null && contexto.vmax != null && !contexto.unidad) {
-      frase += ` (en una escala de ${num(contexto.vmin)} a ${num(contexto.vmax)})`;
+      frase += ` (en una escala de ${corto(contexto.vmin)} a ${corto(contexto.vmax)})`;
     }
-    if (contexto.referencia != null) {
+    if (contexto.referencia === 0) {
+      // los datos ya son diferencias con la referencia (p. ej. anomalías): no repetir el número
+      frase = `${nombre}: ${num(Math.abs(rasgo.media))}${unidad} ` +
+        (Math.abs(rasgo.media) < 0.005 ? "(igual a la referencia)"
+          : rasgo.media > 0 ? "por encima de la referencia" : "por debajo de la referencia");
+    } else if (contexto.referencia != null) {
       const dif = rasgo.media - contexto.referencia;
       if (Math.abs(dif) < 0.005) frase += ", igual a la referencia";
       else frase += `, ${num(Math.abs(dif))}${unidad} ${dif > 0 ? "por encima" : "por debajo"} de la referencia`;
