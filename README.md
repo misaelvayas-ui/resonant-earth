@@ -44,7 +44,7 @@ python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 | `07_validar.py` | comprueba tono y paneo del WAV → `salidas/validacion.png` + PASA/FALLA |
 | `08_video_con_audio.py [video] [wav] [mp4]` | une video y audio sincronizados → `salidas/demo_rocola.mp4` |
 
-`sintesis.py` es el motor de audio (osciladores, ADSR, escalas, paneo). Los scripts `01`–`03` son ejercicios de síntesis básica.
+`sintesis.py` es el motor de audio (osciladores, ADSR, escalas, paneo). Los ejercicios de síntesis básica (`01`–`03`) están en `archivo/`.
 
 ## Video real (NASA SVS 5207)
 
@@ -85,15 +85,30 @@ Obligatorias: `video`, `mapa` y `barra` (rectángulos `[x0, y0, x1, y1]` en píx
 
 `validos` es la fracción de píxeles reconocidos en la paleta; si baja de 0,8, revisa el recorte. Otros módulos pueden **añadir** campos (p. ej. `"evento": "huracan"`) sin romper el motor de sonido.
 
+## Uso en el hackathon
+
+Con el video ya descargado en `datos/` (ver "Video real"), en este orden:
+
+```bash
+python -m herramientas.calibrar --vmin -2 --vmax 2   # 1. calibrar → config/config_eic.json
+python 05_video_a_rasgos.py config/config_eic.json   # 2. video → salidas/rasgos.json
+python 06_rasgos_a_audio.py                          # 3. rasgos → salidas/rocola.wav
+python 08_video_con_audio.py datos/2023GISTEMP_Map_SOS.mp4 salidas/rocola.wav salidas/demo_gistemp.mp4   # 4. video + audio
+```
+
+Después de **cada cambio** de código o de config: `python evaluar.py` (debe dar todo PASA).
+
 ## Estructura
 
 ```
-sintesis.py  rutas.py  01…08_*.py  evaluar.py    código (raíz)
+sintesis.py  rutas.py  04…08_*.py  evaluar.py    código (raíz)
 config/        configuraciones de 05
 datos/         videos y barras descargados (ignorado por git)
 salidas/       todo lo generado (WAV, MP4, PNG, JSON)
-herramientas/  calibrar.py, verificar_01.py, graficar_01.py   →  python -m herramientas.<nombre>
-docs/          CAMBIOS.txt (historial de cambios y verificaciones), PLAN.md
+herramientas/  calibrar.py   →  python -m herramientas.calibrar
+docs/          CAMBIOS.txt (historial de cambios y verificaciones)
+archivo/       ejercicios 01–03, verificar_01/graficar_01, PLAN.md y sus salidas (nada se borró;
+               también está en el tag git "practica-completa")
 ```
 
 Variables de entorno: `ROCOLA_SALIDAS` y `ROCOLA_CONFIG` redirigen las carpetas; con `ROCOLA_SIN_AUDIO=1` no se reproduce sonido.

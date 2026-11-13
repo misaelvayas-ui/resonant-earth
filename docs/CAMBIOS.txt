@@ -445,3 +445,13 @@ Medido: dron 130,8 Hz = MIDI 48 (referencia 0 con rango -0,6..1,2 -> nota 60, -1
 Rango MIDI usado 48-81 (antes del cambio el rango era el de ±2 °C). Año visible (p. ej. 1978 en t=20 s).
 evaluar.py: 18 PASA, 0 FALLA en 8,5 s. 08: video y audio 30,067 s, diferencia 0,000 s.
 Archivos: 05_video_a_rasgos.py, 06_rasgos_a_audio.py, 08_video_con_audio.py, config/config_eic.json.
+
+RONDA 10 - simplificación para el hackathon   (2026-11-13)
+Antes: commit + tag "practica-completa". grep: ni evaluar.py ni 04-08 ni README importan o ejecutan
+01-03, verificar_01 ni graficar_01 (solo los mencionan README y CAMBIOS/PLAN); evaluar.py usa
+04, 05, 06, 07, 08, sintesis.py y rutas.py, que no se tocaron.
+Movido a archivo/ (sin borrar): 01_tono_prueba.py, 02_clics_y_fase.py, 03_datos_a_melodia.py,
+herramientas/verificar_01.py, herramientas/graficar_01.py, docs/PLAN.md, y las salidas
+01_tono_prueba.wav, 02a_mal.wav, 02b_bien.wav, 03_datos_a_melodia.wav, grafica_01_v2.png.
+Para ejecutar los scripts archivados, vuelve a copiarlos a la raíz (importan sintesis.py y rutas.py).
+README: estructura nueva y sección "Uso en el hackathon" (calibrar -> 05 -> 06 -> 08 + evaluar.py).
