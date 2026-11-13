@@ -73,6 +73,11 @@ def fuente_tipografica():
         return None
 
 
+def alto_video(ruta):
+    return int(ejecutar(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                         "-show_entries", "stream=height", "-of", "csv=p=0", ruta]).strip())
+
+
 def filtros_texto(video, factor, carpeta):
     """Lista de filtros drawtext ('media = X' por intervalo) o [] si no aplica."""
     if not os.path.exists(sal("rasgos.json")):
@@ -88,6 +93,7 @@ def filtros_texto(video, factor, carpeta):
         print("No encontré DejaVuSans.ttf: sin texto superpuesto.")
         return []
     R = d["rasgos"]
+    margen = round(0.02 * alto_video(video))          # ~2 % de la altura, para el texto del año
     filtros = []
     for i, r in enumerate(R):
         ini = r["t"] * factor                                        # tiempos del video ESTIRADO
@@ -97,11 +103,11 @@ def filtros_texto(video, factor, carpeta):
         con_fecha = "fecha" in r
         with open(ruta_txt, "w") as fh:
             fh.write(str(r["fecha"]) if con_fecha else f"media = {r['media']:.3f}".replace(".", ","))
-        pos = "x=12:y=12" if con_fecha else "x=w-tw-12:y=h-th-12"
+        pos = f"x={2 * margen}:y={2 * margen}" if con_fecha else "x=w-tw-12:y=h-th-12"
         tam = "fontsize=h*0.06" if con_fecha else "fontsize=20"   # año: ~6 % de la altura
         filtros.append(
             f"drawtext=fontfile={fuente}:textfile={ruta_txt}:{pos}:"
-            f"{tam}:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=6:"
+            f"{tam}:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw={margen if con_fecha else 6}:"
             f"enable='gte(t\\,{ini:.4f})*lt(t\\,{fin:.4f})'")
     return filtros
 

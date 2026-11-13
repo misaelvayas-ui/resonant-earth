@@ -6,7 +6,7 @@ Mapeo (el "contrato" sonoro, explícalo así en el pitch):
   area         -> VOLUMEN de la voz principal (en dB: -6 dB ... 0 dB)
   centroide_x  -> PANEO (izquierda/derecha = dónde está lo "caliente" en el mapa)
   cambio       -> "golpe" (pluck con ADSR) cuando la media cambia de nota
-  referencia   -> DRON grave fijo en la nota del valor 'referencia' de rasgos.json (clave opcional
+  referencia   -> DRON fijo (seno puro, nivel bajo) en la nota del valor 'referencia' de rasgos.json (clave opcional
                   del config de 05; p. ej. 0 = sin anomalía) o, si no existe, del primer fotograma
                   (escuchas cuánto se aleja el presente del inicio)
   rango        -> media -> nota usa "vmin_sonido"/"vmax_sonido" de rasgos.json (opcionales; por
@@ -76,7 +76,9 @@ for i in range(n_f):
 # --- dron de referencia --------------------------------------------------
 ref = d.get("referencia")
 nota_ref = int(valor_a_nota(ref, v0, v1, notas)) if ref is not None else midi[0]
-dron = 0.08 * oscilador(np.full(N, midi_a_hz(nota_ref - 12)), "seno")
+# seno puro (la voz es "suave": seno + armónicos) y nivel bajo; "dron_octava" 0 = la nota exacta
+dron = d.get("dron_nivel", 0.08) * oscilador(
+    np.full(N, midi_a_hz(nota_ref + 12 * d.get("dron_octava", 0))), "seno")
 
 estereo = paneo(lead + plucks, pan) + paneo(dron, 0.0)
 estereo = limitar(estereo)

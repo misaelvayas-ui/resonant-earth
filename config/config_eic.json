@@ -25,5 +25,7 @@
   "fechas": "datos/time.txt",
   "referencia": 0.0,
   "vmin_sonido": -0.6,
-  "vmax_sonido": 1.2
+  "vmax_sonido": 1.2,
+  "dron_octava": 0,
+  "dron_nivel": 0.08
 }

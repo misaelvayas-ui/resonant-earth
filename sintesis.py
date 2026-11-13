@@ -120,8 +120,8 @@ def paneo(mono, pan):
     return np.stack([mono * np.cos(th), mono * np.sin(th)], axis=1)
 
 
-def limitar(x, techo=0.9):
-    """Limitador suave (tanh) + normalización al techo."""
+def limitar(x, techo=0.85):
+    """Limitador suave (tanh) + normalización al techo (0,85: margen para que el AAC no sature)."""
     y = np.tanh(1.5 * x)
     return techo * y / (np.max(np.abs(y)) + 1e-12)
 

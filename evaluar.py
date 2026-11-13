@@ -170,7 +170,7 @@ def a7():
 def a8():
     t = np.linspace(0, 1, FS)
     pico = np.abs(limitar(3 * np.sin(2 * np.pi * 5 * t))).max()
-    ok = pico <= 0.9 + 1e-9
+    ok = pico <= 0.85 + 1e-9
     with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
         for forma in ((1000,), (1000, 2)):
             x = np.random.default_rng(1).uniform(-1, 1, forma)
@@ -394,7 +394,7 @@ EVALUACIONES = [
     ("A5", "MIDI ↔ Hz", "440, 880, 60 (±1e-9)", a5),
     ("A6", "cuantización en la escala", "todas ∈ escala, extremos", a6),
     ("A7", "paneo potencia constante", "error < 1e-9", a7),
-    ("A8", "limitador y guardar_wav", "pico ≤ 0,9; int16 ida y vuelta", a8),
+    ("A8", "limitador y guardar_wav", "pico ≤ 0,85; int16 ida y vuelta", a8),
     ("B1", "pipeline 04→07 (video 2 s)", "4 códigos de salida = 0", b1),
     ("B2", "rasgos.json", "8 fotogramas, media y cx crecientes, validos ≥ 0,99, sin NaN", b2),
     ("B3", "rocola.wav", "estéreo, 44100 Hz, 4,0 ± 0,01 s, pico < 1", b3),

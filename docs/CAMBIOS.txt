@@ -455,3 +455,15 @@ herramientas/verificar_01.py, herramientas/graficar_01.py, docs/PLAN.md, y las s
 01_tono_prueba.wav, 02a_mal.wav, 02b_bien.wav, 03_datos_a_melodia.wav, grafica_01_v2.png.
 Para ejecutar los scripts archivados, vuelve a copiarlos a la raíz (importan sintesis.py y rutas.py).
 README: estructura nueva y sección "Uso en el hackathon" (calibrar -> 05 -> 06 -> 08 + evaluar.py).
+
+RONDA 11 - ajustes de percepción (dron, techo del limitador, margen del año)   (2026-11-13)
+1. 06: el dron suena EN la nota de "referencia" (antes -12). Claves opcionales "dron_octava"
+   (0 por defecto; -1 = comportamiento anterior) y "dron_nivel" (0,08); 05 las copia a rasgos.json.
+   Timbre: seno puro (la voz es "suave"). config_eic.json: dron_octava 0, dron_nivel 0,08.
+2. sintesis.limitar: techo 0,9 -> 0,85 (margen para el AAC). evaluar.py A8 ajustado a ≤ 0,85.
+3. 08: el año lleva margen ~2 % de la altura (ffprobe): caja con relleno y distancia al borde.
+   Opciones de codificación sin tocar.
+Medido (video GISTEMP): dron = nota 60 (261,6 Hz). Voz MIDI 48-81. Voz < dron en 29 de 32
+fotogramas anteriores a 1960 y >= dron en 22 de 28 desde 1960; la voz queda por encima del dron
+de forma estable desde 1978 (1976: 57; 1978: 60). Antes hay roces (1941: 62, 1958: 60, 1973: 60).
+Pico de rocola.wav 0,8500. evaluar.py: 18 PASA, 0 FALLA en 8,7 s.
