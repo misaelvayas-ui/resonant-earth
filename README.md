@@ -19,12 +19,32 @@ Con el video real, la media extraída sigue la curva oficial de GISTEMP con una 
 
 ## Instalación
 
+**Ubuntu / Debian**
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 sudo apt install ffmpeg                          # 08 (video + audio)
 sudo apt install fluidsynth fluid-soundfont-gm   # 06: instrumentos reales (sin esto, 06 usa un respaldo numpy)
 ```
+
+**macOS**
+```bash
+python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+brew install ffmpeg fluid-synth
+export ROCOLA_SF2=/ruta/a/FluidR3_GM.sf2         # descarga una SoundFont General MIDI (.sf2)
+```
+
+**Windows (PowerShell)** — no probado en este proyecto; los nombres de paquete pueden variar
+```powershell
+py -m venv .venv; .venv\Scripts\Activate.ps1; pip install -r requirements.txt
+winget install Gyan.FFmpeg                       # 08 (reinicia la terminal para que lo vea el PATH)
+winget install FluidSynth.FluidSynth             # opcional
+$env:ROCOLA_SF2 = "C:\ruta\FluidR3_GM.sf2"      # SoundFont GM (.sf2) para FluidSynth
+```
+
+Sin fluidsynth o sin SoundFont, **06 sigue funcionando** con un respaldo numpy (mismas notas, otro timbre) y
+lo avisa. Sin ffmpeg solo falla 08 (el video con audio). `ROCOLA_SF2` apunta a otra SoundFont en cualquier
+sistema; `ROCOLA_SIN_AUDIO=1` evita que 06 reproduzca el resultado por los altavoces.
 
 Todos los comandos se ejecutan **desde la raíz del proyecto**; si no, el script lo avisa.
 

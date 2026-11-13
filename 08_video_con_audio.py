@@ -122,7 +122,8 @@ def main():
 
     faltan = [p for p in ("ffmpeg", "ffprobe") if shutil.which(p) is None]
     if faltan:
-        sys.exit(f"No encontré {' y '.join(faltan)}. Instálalo con:  sudo apt install ffmpeg")
+        sys.exit(f"No encontré {' y '.join(faltan)}. Instálalo con:  sudo apt install ffmpeg\n"
+                 "(macOS: brew install ffmpeg; Windows: winget install Gyan.FFmpeg y reinicia la terminal)")
     for ruta in (video, audio):
         if not os.path.exists(ruta):
             sys.exit(f"No existe el archivo: {ruta}")

@@ -217,7 +217,8 @@ def renderizar_fluidsynth():
     sf2 = next((s for s in SF2 if s and os.path.exists(s)), None)
     if fs_bin is None or sf2 is None:
         print(f"AVISO: falta {'fluidsynth' if fs_bin is None else 'la SoundFont GM'}; uso la síntesis "
-              f"numpy de respaldo (suena distinto, mismas notas).\n       Para instrumentos reales:  {APT}")
+              f"numpy de respaldo (suena distinto, mismas notas).\n       Para instrumentos reales:  {APT}\n"
+              "       (macOS: brew install fluid-synth; otra SoundFont o Windows: ver README, variable ROCOLA_SF2)")
         return None
     melodia, err1 = renderizar_canal(fs_bin, sf2, 0)
     dron_x, err2 = renderizar_canal(fs_bin, sf2, 1)
