@@ -41,7 +41,7 @@ Claves opcionales del config (valores por defecto):
   "vmin_sonido", "vmax_sonido": null   rango que 06 usa para mapear media -> nota (por defecto
                             vmin/vmax; se copian a rasgos.json). No afectan a la paleta de 05
   "dron_octava", "dron_nivel", "instrumento_melodia", "dron_programa", "reverb", "ligar", "suavizado",
-  "densidad", "octava", "humanizar", "densidad_umbrales", "regolpe_ligado", "regolpe_vel", "umbral_evento": null   ajustes musicales de 06 (ver su cabecera; valores por defecto
+  "densidad", "octava", "humanizar", "densidad_umbrales", "regolpe_ligado", "regolpe_vel", "umbral_evento", "paneo": null   ajustes musicales de 06 (ver su cabecera; valores por defecto
                             allí); se copian a rasgos.json
 """
 import json
@@ -199,7 +199,7 @@ def barra_con_degradado(frame):
     return np.ptp(tira.mean(axis=1 if cfg["barra_vertical"] else 0), axis=0).max() > 30
 
 
-rasgos, arbol, previo, cx_previo = [], None, None, 0.5
+rasgos, arbol, previo, cx_previo, cy_previo = [], None, None, 0.5, 0.5
 for k, frame in fotogramas_muestreados(cfg["video"], paso):
     if arbol is None:
         if not cfg.get("barra_imagen") and not barra_con_degradado(frame):
@@ -210,6 +210,14 @@ for k, frame in fotogramas_muestreados(cfg["video"], paso):
     validos = ~np.isnan(campo)
     caliente = (campo > cfg["umbral"]) & validos
     area = caliente.sum() / max(validos.sum(), 1)
+    # centroide_y: latitud media (ponderada por cos(lat), el área real de cada píxel) de lo que está sobre el
+    # umbral; 0 = sur, 1 = norte, 0,5 si no hay nada. Supone que el recorte va de +90 a -90.
+    if caliente.any():
+        lat = 90 - (np.arange(caliente.shape[0]) + 0.5) * 180 / caliente.shape[0]
+        w = caliente.sum(axis=1) * np.cos(np.deg2rad(lat))
+        cy = float((w * lat).sum() / w.sum() + 90) / 180
+    else:
+        cy = 0.5
     if validos.any():
         media = media_campo(campo)
         # centroide de lo que está POR ENCIMA de la media, ponderado por el exceso AL
@@ -228,6 +236,7 @@ for k, frame in fotogramas_muestreados(cfg["video"], paso):
         "media": round(media, 4),
         "area": round(float(area), 4),
         "centroide_x": round(float(cx), 4),            # 0 = izquierda, 1 = derecha
+        "centroide_y": round(float(cy), 4),            # 0 = sur, 1 = norte
         "cambio": round(0.0 if previo is None else media - previo, 4),
         "validos": round(float(validos.mean()), 3),
     })
@@ -246,7 +255,7 @@ if cfg.get("referencia") is not None:
     salida["referencia"] = cfg["referencia"]
 for k in ("vmin_sonido", "vmax_sonido", "densidad_umbrales", "dron_octava", "dron_nivel",
           "instrumento_melodia", "reverb", "ligar", "suavizado", "densidad", "octava", "dron_programa",
-          "humanizar", "regolpe_ligado", "regolpe_vel", "umbral_evento"):
+          "humanizar", "regolpe_ligado", "regolpe_vel", "umbral_evento", "paneo"):
     if cfg.get(k) is not None:
         salida[k] = cfg[k]
 with open(sal("rasgos.json"), "w") as fh:

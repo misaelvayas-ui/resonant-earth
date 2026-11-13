@@ -628,3 +628,19 @@ B4  | existe     | salidas/demo_gistemp.mp4 (30,067 s, ronda 17; no versionado)
 Mapeo real: paleta vmin/vmax -2/+2 °C; sonido vmin_sonido/vmax_sonido -0,6/+1,2 °C; umbral de área 1,0 °C; escala
 pentatónica de Do 48-84 + octava +1 = 60-96; nota base usada 60-93; dron 72 (Do5, 523 Hz); densidad 0,3/0,7 °C;
 umbral_evento 0,15 °C. La guía del equipo dice MIDI 55-86 (ilustrativo).
+
+RONDA 19 - correcciones de la auditoría (ronda 18)   (2026-11-13)
+Antes: commit de la ronda 18.
+1. Dron: nota_dron = melodía(referencia) - 12 = nota_ref + 12*octava - 12 (+ 12*dron_octava, 0 por defecto); se quita el
+   +12 fijo. Medido: melodía en 0 °C = MIDI 72, dron = MIDI 60 (260,6 Hz medidos en rocola.wav). Antes 72.
+2. 05: nuevo campo centroide_y (latitud media de los píxeles sobre el umbral, ponderada por cos(lat); 0 = sur, 1 = norte,
+   0,5 si no hay ninguno; supone recorte de +90 a -90). 06: clave "paneo" "x" (defecto) | "y" (config_eic.json = "y");
+   el centroide se suaviza (media móvil de 3), se normaliza con los percentiles 5-95 y control.json trae "paneo".
+   GISTEMP con "y": centroide_y 0,086-0,915; pan -1,0 a +1,0; balance L/R medido en los ataques: -18,8 a +27,9 dB.
+3. Ruta FluidSynth de 06: sintesis.limitar() en lugar de normalizar el pico (pico 0,8499).
+4. 07: "el tono no baja" y "paneo izq->der" salen NO APLICA si la fuente no es 04_video_sintetico.mp4; no cuentan
+   como FALLA (con GISTEMP: tono máx. 2,6 cents; 3 PASA + 2 NO APLICA).
+5. evaluar.py: G1 (dron = melodía(0 °C) - 12 medido en el .mid), G2 (centroide_y presente, 0-1 y ≈ 0,5 en el video
+   sintético), G3 (paneo "y" sigue a centroide_y: -1,0 -> +1,0); E1/E2 ajustadas al dron nuevo.
+05 copia "paneo" a rasgos.json. Regenerados rocola.wav, rocola.mid y demo_gistemp.mp4 (08 sin tocar).
+evaluar.py: 29 PASA, 0 FALLA.

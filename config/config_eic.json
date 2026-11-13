@@ -32,5 +32,6 @@
   "densidad_umbrales": [
     0.3,
     0.7
-  ]
+  ],
+  "paneo": "y"
 }

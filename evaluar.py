@@ -470,9 +470,9 @@ def e2():
     vel_ok = len(ons) == len(esp) and all(rango[e[2]][0] <= o[2] <= rango[e[2]][1] for o, e in zip(ons, esp))
     arp_ok = all(e == sorted(e) for e in notas_f) and {len(e) for e in notas_f} >= {1, 4}
     ref = int(escala(48, 3)[list(escala(48, 3)).index(int(valor_a_nota(0.0, -0.6, 1.2, escala(48, 3))))]) + 12
-    dron_ok = dron == [(ref, 27)]
+    dron_ok = dron == [(ref - 12, 27)]            # ref = melodía(0 °C) con octava +1; dron = ref - 12
     ctl_ok = (ctl["midi"] == [e[0] for e in notas_f] and ctl["notas"] == notas_f
-              and ctl["ataques"] == len(ons) and ctl["tipo_ataque"] == [t for _, _, t in esp] and ctl["dron"] == ref)
+              and ctl["ataques"] == len(ons) and ctl["tipo_ataque"] == [t for _, _, t in esp] and ctl["dron"] == ref - 12)
     dur_ok = abs(fin - len(media) * tpf) <= 1
     ok = notas_ok and tiempos_ok and vel_ok and arp_ok and dron_ok and ctl_ok and dur_ok and tipos == {"ataque", "regolpe", "fuerte"}
     return ok, (f"ataques {len(ons)} ({sorted(tipos)}); notas: {notas_ok}; ±10 ms: {tiempos_ok}; velocidades: {vel_ok}; "
@@ -611,6 +611,53 @@ def f4():
     return r.returncode == 0 and "[PASA]" in r.stdout, f"08 con 600 rasgos: código {r.returncode}; {r.stdout.strip().splitlines()[-1:] or r.stderr.strip()[-100:]}"
 
 
+def g1():
+    """Dron = nota que la melodía toca con 0 °C - 12 (medido en el .mid: una serie constante en 0 °C)."""
+    with tempfile.TemporaryDirectory() as d:
+        R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]
+        for r in R["rasgos"]:
+            r["media"] = 0.0
+        R.update(vmin=-2.0, vmax=2.0, vmin_sonido=-0.6, vmax_sonido=1.2, referencia=0.0)
+        os.makedirs(os.path.join(d, "salidas"))
+        ruta = os.path.join(d, "salidas", "k.json")
+        json.dump(R, open(ruta, "w"))
+        r = correr("06_rasgos_a_audio.py", [ruta, "--sintetico"], d)
+        if r.returncode != 0:
+            return False, "06 falló: " + r.stderr.strip()[-120:]
+        ons, dron, _, _ = leer_mid(os.path.join(d, "salidas", "rocola.mid"))
+    mel = {n for _, n, _ in ons}
+    ok = len(mel) == 1 and len(dron) == 1 and dron[0][0] == min(mel) - 12
+    return ok, f"melodía en 0 °C = MIDI {sorted(mel)}; dron = MIDI {[x[0] for x in dron]} (esperado melodía - 12)"
+
+
+def g2():
+    """centroide_y en rasgos.json: presente en todos, entre 0 y 1 y ~0,5 con la tormenta sintética a media latitud."""
+    R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]["rasgos"]
+    cy = [r.get("centroide_y") for r in R]
+    ok = all(c is not None and 0 <= c <= 1 for c in cy) and abs(float(np.mean(cy)) - 0.5) < 0.03
+    return ok, f"{sum(c is not None for c in cy)}/{len(R)} con centroide_y; rango {min(cy):.3f}-{max(cy):.3f}; media {np.mean(cy):.3f} (≈ 0,5)"
+
+
+def g3():
+    """paneo 'y': el centroide_y (normalizado por percentiles) gobierna control.json y recorre casi todo el rango."""
+    with tempfile.TemporaryDirectory() as d:
+        R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]
+        n = len(R["rasgos"])
+        for i, r in enumerate(R["rasgos"]):
+            r["centroide_x"], r["centroide_y"] = 0.5, 0.2 + 0.6 * i / (n - 1)
+        R["paneo"] = "y"
+        os.makedirs(os.path.join(d, "salidas"))
+        ruta = os.path.join(d, "salidas", "k.json")
+        json.dump(R, open(ruta, "w"))
+        r = correr("06_rasgos_a_audio.py", [ruta, "--sintetico"], d)
+        if r.returncode != 0:
+            return False, "06 falló: " + r.stderr.strip()[-120:]
+        ctl = json.load(open(os.path.join(d, "salidas", "control.json")))
+    p = np.array(ctl["pan"])
+    return ctl["paneo"] == "y" and np.all(np.diff(p) >= -1e-9) and p[0] < -0.9 and p[-1] > 0.9, \
+        f"paneo {ctl['paneo']}: pan {p[0]:.2f} → {p[-1]:.2f}, creciente: {bool(np.all(np.diff(p) >= -1e-9))}"
+
+
 EVALUACIONES = [
     ("A1", "fase inicial = 0", "|x[0]| < 1e-12", a1),
     ("A2", "tono(440) → 440 Hz", "440 ± 1 Hz", a2),
@@ -636,6 +683,9 @@ EVALUACIONES = [
     ("F2", "05: video que abre en negro", "validos > 0,9 y media creciente", f2),
     ("F3", "05: errores claros", "mensaje y rasgos.json intacto (sin video / mapa fuera)", f3),
     ("F4", "08: 600 rasgos con texto", "08 PASA (sin 'Argument list too long')", f4),
+    ("G1", "06: dron = melodía(0 °C) - 12", "dron = nota de la melodía con 0 °C - 12 (medido en el .mid)", g1),
+    ("G2", "05: centroide_y", "presente, entre 0 y 1, ≈ 0,5 en el video sintético", g2),
+    ("G3", "06: paneo 'y' normalizado", "pan sigue a centroide_y y recorre < -0,9 … > 0,9", g3),
     ("E4", "06: retardo media → notas", "|retardo| ≤ 1 fotograma (correlación cruzada), r > 0,8", e4),
     ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]

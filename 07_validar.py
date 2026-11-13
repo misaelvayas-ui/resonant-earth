@@ -8,6 +8,7 @@
 Genera validacion.png.
 """
 import json
+import os
 import sys
 import numpy as np
 from rutas import sal
@@ -74,16 +75,18 @@ con = np.array(ctl.get("ataque_en_fotograma", [True] * n_f))
 bal_a, idx_a = bal[con], np.arange(n_f)[con]
 
 err_cents = 1200 * np.abs(np.log2(pico_hz[con] / esperado[con]))
+sintetico = os.path.basename(json.load(open(sal("rasgos.json"))).get("fuente", "")) == "04_video_sintetico.mp4"
 checks = {
     "tono de la nota base (fotogramas con ataque) = esperado (±50 cents)": bool(np.all(err_cents < 50)),
     "notas de rocola.mid = notas esperadas de control.json": bool(notas_exactas),
-    "el tono no baja (serie creciente)": bool(np.all(np.diff(esperado) >= 0)),
+    # solo tienen sentido con el video sintético (media creciente y tormenta de izquierda a derecha)
+    "el tono no baja (serie creciente)": bool(np.all(np.diff(esperado) >= 0)) if sintetico else None,
     # el dron central "diluye" el balance, así que se valida la TENDENCIA, no un valor fijo
-    "paneo va de izquierda a derecha": bool(bal_a[0] < 0 < bal_a[-1] and np.corrcoef(idx_a, bal_a)[0, 1] > 0.9),
+    "paneo va de izquierda a derecha": bool(bal_a[0] < 0 < bal_a[-1] and np.corrcoef(idx_a, bal_a)[0, 1] > 0.9) if sintetico else None,
     "media de rasgos crece": bool(r[-1]["media"] > r[0]["media"]),
 }
 for k, v in checks.items():
-    print(f"[{'PASA' if v else 'FALLA'}] {k}")
+    print(f"[{'NO APLICA' if v is None else 'PASA' if v else 'FALLA'}] {k}" + ("" if v is not None else " (solo para el video sintético)"))
 print(f"Error máximo de tono: {err_cents.max():.1f} cents | balance L/R (fotogramas con golpe): {bal_a[0]:.1f} dB -> {bal_a[-1]:.1f} dB, r = {np.corrcoef(idx_a, bal_a)[0, 1]:.2f}")
 
 fig, ax = plt.subplots(3, 1, figsize=(10, 9))
@@ -96,4 +99,4 @@ ax[2].plot(bal, "s--", alpha=0.4); ax[2].plot(idx_a, bal_a, "s-"); ax[2].axhline
 ax[2].set_ylabel("dB (R/L)"); ax[2].set_xlabel("fotograma"); ax[2].set_title("Balance estéreo (+ = derecha)")
 plt.tight_layout(); plt.savefig(sal("validacion.png"), dpi=110)
 print(f"Gráfica: {sal('validacion.png')}")
-sys.exit(0 if all(checks.values()) else 1)
+sys.exit(0 if all(v is not False for v in checks.values()) else 1)
