@@ -1,6 +1,7 @@
 # Rocola de la Tierra · versión web (Resonant Earth)
 
 > **Esta parte del proyecto (la carpeta `web/`) se hizo con ayuda de IA (Claude Code).**
+> **El logo de Resonant Earth (`assets/logo.jpg`) fue generado con IA.**
 > La descripción en texto que aparece en la página también es automática y está marcada como "Descripción automática".
 
 Página para elegir una visualización del clima, como en una rocola, y escucharla. Solo usa HTML, CSS y JavaScript puro: no tiene frameworks ni paso de compilación.
@@ -26,6 +27,8 @@ Teclado: `Tab` recorre los controles · `Enter` elige · `Espacio` reproduce o p
 | `describir.js` | `describir(rasgo, contexto)`: arma el texto de lo que se ve en cada momento |
 | `catalogo.json` | lista de visualizaciones |
 | `assets/` | videos (mp4 con el audio ya mezclado) y rasgos (.json) |
+| `assets/logo.jpg` | logo original (2048 px, generado con IA) |
+| `assets/logo-240.jpg`, `icono-64.png`, `icono-180.png` | versiones pequeñas del logo para la cabecera y la pestaña |
 | `preparar_datos.py` | genera los archivos de `assets/` con el pipeline de Python |
 
 ## Agregar una visualización
@@ -71,7 +74,9 @@ Cambia solo `describir.js`. La función recibe un rasgo y `{unidad, vmin, vmax, 
 - **ARIA**: todos los controles tienen etiqueta, y las barras de progreso y volumen anuncian sus valores en palabras.
 - **Lector de pantalla**: la descripción se anuncia en una región `aria-live`, como mucho cada 4 s mientras suena y enseguida al pausar o saltar. Se puede apagar con una casilla.
 - **Subtítulos**: hay una pista WebVTT generada desde `describir()` que se puede mostrar sobre el video.
-- **Contraste**: todos los textos tienen un contraste de 10,8:1 o más; el texto base es de 20 px.
+- **Colores**: la paleta sale del logo. Fondo azul marino `#08122D`, texto blanco cálido `#FCF9ED`, dorado `#F0CC7D`, menta `#53E8AA` y verde azulado `#4DAFC3`.
+- **Contraste**: todos los textos tienen un contraste de 6,3:1 o más (el peor caso es el verde azulado sobre el panel); el texto base es de 20 px.
+- **HTML válido**: el validador de la W3C (vnu) y html-validate no encuentran errores.
 - **Movimiento**: se respeta `prefers-reduced-motion`.
 - **Revisión automática**: axe-core 4.10 (WCAG 2.2 AA y buenas prácticas), en escritorio y móvil, da 0 violaciones. Solo marca como "incompletos" los símbolos decorativos, que no son texto.
 
