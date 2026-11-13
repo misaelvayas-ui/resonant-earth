@@ -28,5 +28,9 @@
   "vmax_sonido": 1.2,
   "dron_octava": 0,
   "instrumento_melodia": 13,
-  "reverb": 50
+  "reverb": 50,
+  "densidad_umbrales": [
+    0.3,
+    0.7
+  ]
 }

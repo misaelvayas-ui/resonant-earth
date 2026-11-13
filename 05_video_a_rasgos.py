@@ -41,7 +41,7 @@ Claves opcionales del config (valores por defecto):
   "vmin_sonido", "vmax_sonido": null   rango que 06 usa para mapear media -> nota (por defecto
                             vmin/vmax; se copian a rasgos.json). No afectan a la paleta de 05
   "dron_octava", "dron_nivel", "instrumento_melodia", "dron_programa", "reverb", "ligar", "suavizado",
-  "densidad", "octava", "humanizar": null   ajustes musicales de 06 (ver su cabecera; valores por defecto
+  "densidad", "octava", "humanizar", "densidad_umbrales": null   ajustes musicales de 06 (ver su cabecera; valores por defecto
                             allí); se copian a rasgos.json
 """
 import json
@@ -213,7 +213,7 @@ salida = {"fuente": cfg["video"], "vmin": cfg["vmin"], "vmax": cfg["vmax"],
           "fps_rasgos": fps_video / paso, "rasgos": rasgos}
 if cfg.get("referencia") is not None:
     salida["referencia"] = cfg["referencia"]
-for k in ("vmin_sonido", "vmax_sonido", "dron_octava", "dron_nivel",
+for k in ("vmin_sonido", "vmax_sonido", "densidad_umbrales", "dron_octava", "dron_nivel",
           "instrumento_melodia", "reverb", "ligar", "suavizado", "densidad", "octava", "dron_programa",
           "humanizar"):
     if cfg.get(k) is not None:
@@ -223,3 +223,6 @@ with open(sal("rasgos.json"), "w") as fh:
 print(f"{len(rasgos)} fotogramas analizados -> {sal('rasgos.json')}  ({time.time() - t_inicio:.1f} s)")
 for r in rasgos[:: max(1, len(rasgos) // 6)]:
     print(r)
+_m = [r["media"] for r in rasgos]
+print(f"media entre {min(_m):.3f} y {max(_m):.3f}: pon vmin_sonido/vmax_sonido en el config cerca de estos "
+      f"valores (y densidad_umbrales) para que la melodía use toda la escala")

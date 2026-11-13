@@ -6,7 +6,7 @@ Mapeo (el "contrato" sonoro, explícalo así en el pitch):
   area         -> VOLUMEN: velocidad MIDI 64...127 (= -6 dB ... 0 dB)
   centroide_x  -> PANEO izquierda/derecha = dónde está lo "caliente" en el mapa (CC10 en el .mid; en el
                   WAV se aplica tras el render, porque las muestras estéreo de la SoundFont ignoran CC10)
-  densidad     -> notas por fotograma según la anomalía: < 0,3 -> 1; 0,3-0,7 -> 2; > 0,7 -> 4
+  densidad     -> notas por fotograma según la anomalía: < u1 -> 1; u1-u2 -> 2; > u2 -> 4 (0,3 y 0,7 en GISTEMP)
                   (arpegio ascendente por la escala desde la nota del fotograma)
   referencia   -> DRON sostenido en la nota del valor 'referencia' (p. ej. 0 = sin anomalía) o, si no
                   existe, de la nota del primer fotograma: se oye si el presente está por encima o por debajo
@@ -30,6 +30,8 @@ Claves opcionales (van en el config de 05 y se copian a rasgos.json); entre par�
   "dron_nivel" (0.048)     volumen del dron (velocidad MIDI = 45 * dron_nivel / 0,08; amplitud en el respaldo)
   "reverb" (50)            CC91, 0..127
   "vmin_sonido"/"vmax_sonido" (vmin/vmax)   rango de la media que se reparte entre las notas
+  "densidad_umbrales" ([u1, u2])   media por debajo de u1 -> 1 nota; hasta u2 -> 2; más -> 4 (por defecto
+                           el 50 % y el 72 % del rango de sonido; GISTEMP usa [0.3, 0.7])
 Para el sonido sin adornos: ligar false, suavizado 0, densidad false, octava 0, humanizar false.
 
 Uso:  python 06_rasgos_a_audio.py [rasgos.json] [--sintetico]
@@ -106,8 +108,13 @@ n_f = len(R)
 total = n_f * TICKS_F
 
 
+# umbrales de densidad en las unidades de la media; por defecto, la misma fracción del rango de sonido
+# que 0,3 y 0,7 en GISTEMP (rango -0,6..1,2): 1/2 y 13/18 del rango
+u1, u2 = d.get("densidad_umbrales") or (v0 + 0.5 * (v1 - v0), v0 + 13 / 18 * (v1 - v0))
+
+
 def n_notas(m):                                   # densidad según la anomalía (media suavizada)
-    return 1 if m < 0.3 else (2 if m <= 0.7 else 4)
+    return 1 if m < u1 else (2 if m <= u2 else 4)
 
 
 # --- melodía: lista de [inicio, fin, nota, velocidad] en ticks -------------
