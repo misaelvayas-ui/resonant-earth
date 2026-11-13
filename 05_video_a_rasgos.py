@@ -133,8 +133,13 @@ def mascara_fija(paso):
                 ref, cada = ref[::2], cada * 2
         if len(ref) >= 3:
             pila = np.stack(ref).astype(np.int16)
-            mediana = np.median(pila, axis=0)
-            cerca = (np.abs(pila - mediana).max(axis=3) <= cfg.get("umbral_estatico", 3.0)).mean(axis=0)
+            # por bandas de filas: la mediana y la resta nunca se materializan para todo el recorte
+            # (a 1080p sin bandas, la resta en float64 pedía ~3 GB); el resultado es el mismo
+            cerca = np.empty(pila.shape[1:3])
+            for y in range(0, pila.shape[1], 32):
+                sub = pila[:, y:y + 32]
+                dif = np.abs(sub - np.median(sub, axis=0)).max(axis=3)
+                cerca[y:y + 32] = (dif <= cfg.get("umbral_estatico", 3.0)).mean(axis=0)
             fija |= cerca >= cfg.get("frac_estatico", 0.7)
     return fija
 

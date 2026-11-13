@@ -5,7 +5,7 @@ Uso (desde la raíz):  python -m herramientas.calibrar [opciones]
   --barra   datos/giss_navy_anomaly_Vertical-both.png
   --vmin/--vmax   rango de la barra en °C (si no se dan, se usan los de LECTURA_BARRA; ver abajo)
   --cuadro  posición del fotograma de referencia, 0-1 (0.6)
-  --fps-muestreo 2   --escala AUTO (0.25 si el video mide > 2000 px de ancho)
+  --fps-muestreo 2   --escala AUTO (deja el mapa en ~1024 px de ancho: 0.25 para 4096, 0.533 para 1920)
   --umbral  valor sobre el que se mide 'area'     --referencia  valor del dron (06)
 Genera ese config (conserva las claves musicales que ya tuviera) y salidas/calibracion.png (revísalo: rectángulos y cuadrícula).
 
@@ -170,7 +170,7 @@ def main():
            "barra_vertical": True, "barra_arriba_es_max": True, "vmin": vmin, "vmax": vmax,
            "umbral": a.umbral if a.umbral is not None else (1.0 if vmax >= 2 else round(0.5 * vmax, 3)),
            "fps_muestreo": a.fps_muestreo,
-           "escala": a.escala if a.escala is not None else (0.25 if ancho > 2000 else 1.0),
+           "escala": a.escala if a.escala is not None else round(min(1.0, 1024 / ancho), 3),
            "ponderar_latitud": bool(lat_ok), "dist_max": dist_max}
     if a.fechas:
         if not os.path.exists(a.fechas):
