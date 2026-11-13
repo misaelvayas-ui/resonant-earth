@@ -63,6 +63,8 @@ args = [a for a in sys.argv[1:] if not a.startswith("--")]
 with open(args[0] if args else sal("rasgos.json")) as fh:
     d = json.load(fh)
 R = d["rasgos"]
+if not R:
+    sys.exit("rasgos.json no tiene fotogramas: vuelve a ejecutar 05 y revisa su configuración.")
 cfg = {**DEFECTOS, **{k: d[k] for k in DEFECTOS if d.get(k) is not None}}
 
 

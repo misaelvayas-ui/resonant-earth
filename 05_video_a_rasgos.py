@@ -152,7 +152,17 @@ def invertir(frame, arbol, vals, fija):
 
 
 t_inicio = time.time()
-fps_video = cv2.VideoCapture(cfg["video"]).get(cv2.CAP_PROP_FPS) or 30
+_cap = cv2.VideoCapture(cfg["video"])
+if not _cap.isOpened():
+    sys.exit(f"No se pudo abrir el video '{cfg['video']}'. Revisa la ruta (se ejecuta desde la raíz del proyecto).")
+fps_video = _cap.get(cv2.CAP_PROP_FPS) or 30
+ANCHO_V, ALTO_V = int(_cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+_cap.release()
+for _nombre in ("mapa",) + (() if cfg.get("barra_imagen") else ("barra",)):
+    _x0, _y0, _x1, _y1 = cfg[_nombre]
+    if not (0 <= _x0 < _x1 <= ANCHO_V and 0 <= _y0 < _y1 <= ALTO_V):
+        sys.exit(f"'{_nombre}' = {cfg[_nombre]} se sale del video ({ANCHO_V}x{ALTO_V}). Los rectángulos van "
+                 "en píxeles del video original [x0, y0, x1, y1]; mídelos en salidas/fotograma_ref.png.")
 paso = max(1, round(fps_video / cfg["fps_muestreo"]))
 fija = mascara_fija(paso)
 if fija.any():
