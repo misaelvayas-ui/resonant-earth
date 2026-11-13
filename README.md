@@ -54,7 +54,7 @@ python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 2. Calibra: detecta el mapa y el degradado de la barra y guarda `salidas/calibracion.png` para revisarlos.
    ```bash
    python -m herramientas.calibrar                     # muestra la imagen y pide el rango
-   python -m herramientas.calibrar --vmin -2 --vmax 2  # rango leído en la barra → config/config_eic.json
+   python -m herramientas.calibrar --vmin -2 --vmax 2 --fechas datos/time.txt --salida config/config_eic.json   # rango leído en la barra
    ```
 3. Procesa (≈25 s para 60 fotogramas):
    ```bash
@@ -93,7 +93,7 @@ Obligatorias: `video`, `mapa` y `barra` (rectángulos `[x0, y0, x1, y1]` en píx
 Con el video ya descargado en `datos/` (ver "Video real"), en este orden:
 
 ```bash
-python -m herramientas.calibrar --vmin -2 --vmax 2   # 1. calibrar → config/config_eic.json
+python -m herramientas.calibrar --vmin -2 --vmax 2 --fechas datos/time.txt --salida config/config_eic.json   # 1. calibrar
 python 05_video_a_rasgos.py config/config_eic.json   # 2. video → salidas/rasgos.json
 python 06_rasgos_a_audio.py                          # 3. rasgos → salidas/rocola.wav
 python 08_video_con_audio.py datos/2023GISTEMP_Map_SOS.mp4 salidas/rocola.wav salidas/demo_gistemp.mp4   # 4. video + audio
