@@ -1,14 +1,19 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Rocola de la Tierra · Resonant Earth</title>
   <meta name="description" content="Rocola de la Tierra: escucha visualizaciones del clima convertidas en sonido.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230E1430'/%3E%3Cpath d='M6 18c3-8 5 8 8 0s5 8 8 0 3 4 4 2' stroke='%23E6F03A' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#08122D">
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/icono-64.png">
+  <link rel="apple-touch-icon" href="assets/icono-180.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700&family=Rubik:wght@500;700&display=swap">
+  <!-- fuentes sin bloquear: si Google Fonts tarda o no hay internet, la página funciona con la fuente del sistema -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700&family=Rubik:wght@500;700&display=swap"
+        media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700&family=Rubik:wght@500;700&display=swap"></noscript>
   <link rel="stylesheet" href="estilos.css">
   <script src="describir.js" defer></script>
   <script src="app.js" defer></script>
@@ -17,9 +22,13 @@
   <a class="saltar" href="#reproductor">Saltar al reproductor</a>
 
   <header class="cabecera">
-    <p class="equipo">Resonant Earth</p>
-    <h1>Rocola de la Tierra</h1>
-    <p class="lema">Elige una visualización del clima y escúchala: los datos se convierten en música.</p>
+    <img class="logo" src="assets/logo-240.jpg" width="120" height="120"
+         alt="Logo de Resonant Earth: la Tierra con auriculares y ondas de sonido">
+    <div>
+      <p class="equipo">Resonant Earth</p>
+      <h1>Rocola de la Tierra</h1>
+      <p class="lema">Elige una visualización del clima y escúchala: los datos se convierten en música.</p>
+    </div>
   </header>
 
   <main>
@@ -109,7 +118,7 @@
   </main>
 
   <footer class="pie">
-    <p>Resonant Earth · Prototipo de la Rocola de la Tierra. Interfaz web hecha con ayuda de IA (Claude Code).</p>
+    <p>Resonant Earth · Prototipo de la Rocola de la Tierra. Interfaz web hecha con ayuda de IA (Claude Code). Logo generado con IA.</p>
   </footer>
 
   <noscript><p class="aviso">Esta rocola necesita JavaScript activado.</p></noscript>

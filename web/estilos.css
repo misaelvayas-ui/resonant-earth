@@ -1,11 +1,15 @@
 /* Rocola de la Tierra · Resonant Earth */
+/* Paleta tomada del logo (assets/logo.jpg). Contraste sobre --panel (el peor caso):
+   texto 15,4:1 · texto-suave 11,8:1 · dorado 10,5:1 · menta 10,4:1 · verde-azulado 6,4:1 */
 :root {
-  --fondo: #0E1430;
-  --panel: #18204A;
-  --borde: #3A4580;
-  --acento: #E6F03A;
-  --texto: #F5F3EC;
-  --texto-suave: #D4D6E2;
+  --fondo: #08122D;          /* azul marino del fondo del logo */
+  --panel: #0F1F42;
+  --borde: #2C5A7A;          /* decorativo: bordes de las secciones */
+  --verde-azulado: #4DAFC3;  /* anillos del logo: bordes de botones, íconos */
+  --menta: #53E8AA;          /* ecualizador del logo: foco, selección, controles */
+  --dorado: #F0CC7D;         /* anillos dorados del logo: títulos, botón reproducir */
+  --texto: #FCF9ED;          /* blanco cálido del texto "RESONANT EARTH" */
+  --texto-suave: #E2DCCB;
   --radio: 14px;
   --fuente-titulos: "Rubik", system-ui, sans-serif;
   --fuente-texto: "Nunito Sans", system-ui, sans-serif;
@@ -30,27 +34,27 @@ h1, h2, .equipo, .boton-rocola .titulo, .boton-play {
 }
 
 h1 { font-size: 2.4rem; margin: 0.2rem 0 0.4rem; }
-h2 { font-size: 1.4rem; margin: 0 0 0.8rem; color: var(--acento); }
+h2 { font-size: 1.4rem; margin: 0 0 0.8rem; color: var(--dorado); }
 
 /* ---------- foco visible ---------- */
 :focus-visible {
-  outline: 4px solid var(--acento);
+  outline: 4px solid var(--menta);
   outline-offset: 4px;
   border-radius: 6px;
 }
 .boton-rocola:focus-visible,
 .boton-play:focus-visible {
   outline-color: var(--texto);
-  box-shadow: 0 0 0 8px var(--fondo), 0 0 0 12px var(--acento);
+  box-shadow: 0 0 0 8px var(--fondo), 0 0 0 12px var(--menta);
 }
 .reproductor:focus { outline: none; }
-.reproductor:focus-visible { outline: 4px solid var(--acento); }
+.reproductor:focus-visible { outline: 4px solid var(--menta); }
 
 .saltar {
   position: absolute;
   left: 1rem;
   top: -10rem;
-  background: var(--acento);
+  background: var(--menta);
   color: var(--fondo);
   padding: 0.6rem 1rem;
   font-weight: 700;
@@ -65,10 +69,26 @@ h2 { font-size: 1.4rem; margin: 0 0 0.8rem; color: var(--acento); }
   margin: 0 auto;
   padding: 0 16px;
 }
-.cabecera { padding-top: 2rem; padding-bottom: 1rem; }
+.cabecera {
+  padding-top: 2rem;
+  padding-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+.logo {
+  flex: none;
+  width: 120px;
+  height: 120px;
+  border-radius: 16px;
+}
+@media (max-width: 520px) {
+  .cabecera { flex-direction: column; align-items: flex-start; }
+  .logo { width: 88px; height: 88px; }
+}
 .equipo {
   margin: 0;
-  color: var(--acento);
+  color: var(--dorado);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -109,7 +129,7 @@ section {
 .aviso:empty { display: none; }
 .aviso.error {
   color: var(--texto);
-  border-left: 6px solid var(--acento);
+  border-left: 6px solid var(--dorado);
   padding-left: 0.8rem;
 }
 
@@ -133,17 +153,17 @@ section {
   font: inherit;
   color: var(--texto);
   background: var(--fondo);
-  border: 3px solid var(--borde);
+  border: 3px solid var(--verde-azulado);
   border-radius: var(--radio);
   padding: 1rem 1.2rem;
   cursor: pointer;
 }
-.boton-rocola:hover { border-color: var(--acento); }
+.boton-rocola:hover { border-color: var(--menta); }
 .boton-rocola .titulo { font-size: 1.2rem; font-weight: 700; }
 .boton-rocola .resumen { color: var(--texto-suave); font-size: 0.9rem; }
 .boton-rocola[aria-pressed="true"] {
-  background: var(--acento);
-  border-color: var(--acento);
+  background: var(--menta);
+  border-color: var(--menta);
   color: var(--fondo);
 }
 .boton-rocola[aria-pressed="true"] .resumen { color: var(--fondo); }
@@ -177,7 +197,7 @@ section {
   font-family: var(--fuente-texto);
   font-size: 1.1rem;
   color: var(--texto);
-  background: rgba(14, 20, 48, 0.9);
+  background: rgba(8, 18, 45, 0.9);
 }
 
 .controles {
@@ -204,8 +224,8 @@ section {
   font-size: 1.15rem;
   font-weight: 700;
   color: var(--fondo);
-  background: var(--acento);
-  border: 3px solid var(--acento);
+  background: var(--dorado);
+  border: 3px solid var(--dorado);
   border-radius: 999px;
   padding: 0.5rem 1.4rem;
   cursor: pointer;
@@ -217,7 +237,7 @@ section {
 .campo input[type="range"] {
   width: 100%;
   height: 2.2rem;
-  accent-color: var(--acento);
+  accent-color: var(--menta);
   cursor: pointer;
 }
 .tiempo { font-variant-numeric: tabular-nums; color: var(--texto-suave); }
@@ -237,9 +257,9 @@ kbd {
   display: inline-block;
   margin: 0 0 0.6rem;
   padding: 0.1rem 0.7rem;
-  border: 2px solid var(--acento);
+  border: 2px solid var(--verde-azulado);
   border-radius: 999px;
-  color: var(--acento);
+  color: var(--verde-azulado);
   font-weight: 700;
   font-size: 0.85rem;
 }
@@ -258,13 +278,13 @@ kbd {
   font-size: 0.9rem;
   cursor: pointer;
 }
-.casilla input { width: 1.4rem; height: 1.4rem; margin-top: 0.15rem; accent-color: var(--acento); }
+.casilla input { width: 1.4rem; height: 1.4rem; margin-top: 0.15rem; accent-color: var(--menta); }
 
 /* ---------- leyenda ---------- */
 .mapeo { margin: 0; display: grid; gap: 0.9rem; }
 .mapeo dt { font-family: var(--fuente-titulos); font-weight: 700; }
 .mapeo dd { margin: 0.1rem 0 0 2rem; color: var(--texto-suave); }
-.simbolo { display: inline-block; width: 1.6rem; color: var(--acento); }
+.simbolo { display: inline-block; width: 1.6rem; color: var(--verde-azulado); }
 .leyenda-colores {
   margin: 1rem 0 0;
   padding-top: 0.8rem;
