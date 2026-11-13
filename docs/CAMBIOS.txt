@@ -483,3 +483,28 @@ Comprobado: fluidsynth y fluid-soundfont-gm (FluidR3_GM.sf2) instalados; mido a�
 - salidas/comparacion_ab.wav: 10 s de rocola.wav y luego los mismos 10 s de rocola_real.wav, con la
   sintética bajada a igual RMS (x0,34) porque la marimba, percusiva, tiene RMS 3 veces menor a igual pico.
 evaluar.py: 19 PASA, 0 FALLA.
+
+RONDA 13 - musicalidad de 06b (todas las mejoras opcionales, apagadas por defecto)   (2026-11-13)
+06b_rasgos_a_midi.py: claves "ligar", "suavizado" (N), "densidad", "octava", "dron_programa" y
+"humanizar" (más el "dron_nivel" existente). Por defecto no hacen nada: rocola.mid de v1 sale
+byte a byte idéntico al de la ronda 12 (cmp). Se leen de rasgos.json (05 las copia) o de un JSON aparte:
+  python 06b_rasgos_a_midi.py --musica config/musica_v2.json --sufijo _v2
+  -> salidas/rocola_v2.mid, rocola_real_v2.wav y control_midi_v2.json (v1 no se pisa).
+config/musica_v2.json: ligar, suavizado 5, densidad, octava +1, dron_programa 89 (pad), dron_nivel 0,048
+(40 % menos que 0,08), humanizar.
+- ligar: notas consecutivas iguales se funden en una sola.
+- suavizado: media móvil centrada (ventana acortada en los bordes) sobre la media; de ella salen la nota,
+  la densidad y el cruce del dron.
+- densidad: < 0,3 -> 1 nota; 0,3-0,7 -> 2; > 0,7 -> 4, arpegio ascendente por la escala desde la nota del
+  fotograma; los subtiempos reparten el mismo fotograma (duración total y sincronía iguales).
+- humanizar: velocidad ±10 %, inicio y fin ±10 ms, default_rng(12345); la melodía es monofónica y una
+  nota nunca pisa a la siguiente.
+control.json (de 06) no cambia; 06b escribe su propia curva salidas/control_midi[_v2].json (notas por
+fotograma, ataques, dron, cruce del dron, rango de notas).
+evaluar.py: E1 sigue igual (v1); E2 nueva: con media sintética que cubre 1/2/4 notas, compara el .mid con
+un cálculo independiente (notas, arpegio, ligar, tiempos ±10 ms, dron, duración). Se comprobó que
+falla si se cambia la octava esperada.
+Medido (video GISTEMP): ataques v1 = 60; v2 = 46. Cruce del dron: v1 1978; v2 1976 (serie suavizada).
+Rango de notas: v1 48-81; v2 62-96. Dron: v1 nota 60 (cuerdas), v2 nota 72 (pad 89).
+salidas/comparacion_ab.wav: mismos 15 s, v1 y luego v2 (v2 con ganancia x2,35 para igualar el RMS).
+evaluar.py: 20 PASA, 0 FALLA.

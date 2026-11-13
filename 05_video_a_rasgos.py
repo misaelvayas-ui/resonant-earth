@@ -216,7 +216,8 @@ salida = {"fuente": cfg["video"], "vmin": cfg["vmin"], "vmax": cfg["vmax"],
 if cfg.get("referencia") is not None:
     salida["referencia"] = cfg["referencia"]
 for k in ("vmin_sonido", "vmax_sonido", "dron_octava", "dron_nivel",
-          "instrumento_melodia", "instrumento_dron", "reverb"):
+          "instrumento_melodia", "instrumento_dron", "reverb",
+          "ligar", "suavizado", "densidad", "octava", "dron_programa", "humanizar"):
     if cfg.get(k) is not None:
         salida[k] = cfg[k]
 with open(sal("rasgos.json"), "w") as fh:

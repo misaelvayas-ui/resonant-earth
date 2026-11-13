@@ -419,6 +419,64 @@ def e1():
     return ok, txt
 
 
+def e2():
+    """06b con todas las mejoras (ligar, suavizado, densidad, octava, humanizar) frente a un cálculo
+    independiente: notas por fotograma, arpegio ascendente, tiempos ±10 ms, ataques, misma duración."""
+    import mido
+    d = pipeline()["dir"]
+    sal_ = os.path.join(d, "salidas")
+    R, _ = leer_json(os.path.join(sal_, "rasgos.json"))
+    media = [0.10, 0.20, 0.50, 0.90, 0.90, 0.40, 0.00, 1.20]          # cubre 1, 2 y 4 notas por fotograma
+    for r, m in zip(R["rasgos"], media):
+        r["media"] = m
+    R.update(vmin_sonido=-0.6, vmax_sonido=1.2, referencia=0.0)
+    ruta, cfg = os.path.join(sal_, "rasgos_e2.json"), os.path.join(sal_, "musica_e2.json")
+    json.dump(R, open(ruta, "w"))
+    M = {"ligar": True, "suavizado": 3, "densidad": True, "octava": 1, "dron_programa": 89,
+         "dron_nivel": 0.048, "humanizar": True}
+    json.dump(M, open(cfg, "w"))
+    r = correr("06b_rasgos_a_midi.py", [ruta, "--musica", cfg, "--sufijo", "_e2", "--sin-render"], d)
+    if r.returncode != 0:
+        return False, f"06b código {r.returncode}: {r.stderr.strip()[-120:]}"
+    # --- cálculo independiente ---
+    h = M["suavizado"] // 2
+    ms = [float(np.mean(media[max(0, i - h): i + h + 1])) for i in range(len(media))]
+    sc = escala(48, 3)
+    esperado = []                                                    # notas esperadas por fotograma
+    for m in ms:
+        k = 1 if m < 0.3 else (2 if m <= 0.7 else 4)
+        b = list(sc).index(int(valor_a_nota(m, -0.6, 1.2, sc)))
+        esperado.append([int(sc[min(b + j, len(sc) - 1)]) + 12 for j in range(k)])
+    mid = mido.MidiFile(os.path.join(sal_, "rocola_e2.mid"))
+    tpf = 0.5 * 2 * mid.ticks_per_beat
+    t, ons, offs, drones, fin = 0, [], [], [], 0
+    for m in mido.merge_tracks(mid.tracks):
+        t += m.time
+        if m.type == "note_on" and m.channel == 0:
+            ons.append((t, m.note, m.velocity))
+        elif m.type == "note_off" and m.channel == 0:
+            offs.append(t)
+        elif m.type == "note_on":
+            drones.append((m.note, m.velocity))
+        fin = t
+    # los ataques esperados (sin ligar) por fotograma y su reparto temporal
+    atq = [(i * tpf + j * tpf / len(n), nota) for i, n in enumerate(esperado) for j, nota in enumerate(n)]
+    lig = [a for k, a in enumerate(atq) if k == 0 or a[1] != atq[k - 1][1]]            # ligar
+    tol = 0.010 * 2 * mid.ticks_per_beat + 1                                           # ±10 ms
+    notas_ok = [n for _, n, _ in ons] == [n for _, n in lig]
+    tiempos_ok = len(ons) == len(lig) and all(abs(o[0] - a[0]) <= tol + 0.5 for o, a in zip(ons, lig))
+    arp_ok = all(e == sorted(e) for e in esperado) and {len(e) for e in esperado} == {1, 2, 4}
+    ref = sc[list(sc).index(int(valor_a_nota(0.0, -0.6, 1.2, sc)))] + 12
+    dron_ok = drones == [(int(ref), 27)]
+    vel_ok = all(1 <= v <= 127 for _, _, v in ons)
+    ctl = json.load(open(os.path.join(sal_, "control_midi_e2.json")))
+    ctl_ok = ctl["ataques"] == len(ons) and ctl["ataques_sin_ligar"] == len(atq) and ctl["dron"] == ref
+    dur_ok = abs(fin - len(media) * tpf) <= 1
+    ok = notas_ok and tiempos_ok and arp_ok and dron_ok and vel_ok and ctl_ok and dur_ok and len(offs) == len(ons)
+    return ok, (f"ataques {len(ons)} (sin ligar {len(atq)}); notas: {notas_ok}; tiempos ±10 ms: {tiempos_ok}; "
+                f"arpegio 1/2/4: {arp_ok}; dron {drones[0][0] if drones else None}: {dron_ok}; duración: {dur_ok}")
+
+
 EVALUACIONES = [
     ("A1", "fase inicial = 0", "|x[0]| < 1e-12", a1),
     ("A2", "tono(440) → 440 Hz", "440 ± 1 Hz", a2),
@@ -439,6 +497,7 @@ EVALUACIONES = [
     ("C5", "05 escala + fechas", f"|Δmedia| < {UMBRAL_ESCALA}; defecto = escala 1.0", c5),
     ("D1", "sincronía de 08", "PASA; desfase de inicio ≤ 0,15 s", d1),
     ("E1", "06b: rocola.mid vs control.json", "notas y tiempos idénticos; 1 dron; wav real = misma duración", e1),
+    ("E2", "06b: mejoras musicales", "notas, arpegio, ligar, ±10 ms, dron y duración = cálculo independiente", e2),
 ]
 
 
