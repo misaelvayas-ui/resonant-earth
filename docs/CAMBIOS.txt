@@ -632,7 +632,8 @@ umbral_evento 0,15 °C. La guía del equipo dice MIDI 55-86 (ilustrativo).
 RONDA 19 - correcciones de la auditoría (ronda 18)   (2026-11-13)
 Antes: commit de la ronda 18.
 1. Dron: nota_dron = melodía(referencia) - 12 = nota_ref + 12*octava - 12 (+ 12*dron_octava, 0 por defecto); se quita el
-   +12 fijo. Medido: melodía en 0 °C = MIDI 72, dron = MIDI 60 (260,6 Hz medidos en rocola.wav). Antes 72.
+   +12 fijo. Medido: melodía en 0 °C = MIDI 72, dron = MIDI 60 (en rocola.wav, espectro persistente: pico de 200-320 Hz en 260,0 Hz = MIDI 59,9,
+   bin de 2 Hz; también aparece su 2.º armónico en 524 Hz). Antes 72. El .mid (canal 2) tiene la nota 60 (prueba G1).
 2. 05: nuevo campo centroide_y (latitud media de los píxeles sobre el umbral, ponderada por cos(lat); 0 = sur, 1 = norte,
    0,5 si no hay ninguno; supone recorte de +90 a -90). 06: clave "paneo" "x" (defecto) | "y" (config_eic.json = "y");
    el centroide se suaviza (media móvil de 3), se normaliza con los percentiles 5-95 y control.json trae "paneo".
