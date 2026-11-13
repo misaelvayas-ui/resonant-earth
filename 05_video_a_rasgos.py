@@ -177,9 +177,18 @@ def media_campo(campo):
     return float((np.where(v, campo, 0).sum(axis=1) * PESOS_FILA).sum() / (v.sum(axis=1) * PESOS_FILA).sum())
 
 
+def barra_con_degradado(frame):
+    """True si la tira de la barra tiene contraste (un fotograma negro o de título no sirve)."""
+    x0, y0, x1, y1 = cfg["barra"]
+    tira = frame[y0:y1, x0:x1].astype(float)
+    return np.ptp(tira.mean(axis=1 if cfg["barra_vertical"] else 0), axis=0).max() > 30
+
+
 rasgos, arbol, previo, cx_previo = [], None, None, 0.5
 for k, frame in fotogramas_muestreados(cfg["video"], paso):
     if arbol is None:
+        if not cfg.get("barra_imagen") and not barra_con_degradado(frame):
+            continue          # video que abre en negro/título: se espera al primer fotograma con barra
         cv2.imwrite(sal("fotograma_ref.png"), frame)    # para medir rectángulos a mano
         arbol, vals = tabla_desde_barra(frame)
     campo = invertir(frame, arbol, vals, fija)
@@ -209,6 +218,13 @@ for k, frame in fotogramas_muestreados(cfg["video"], paso):
     })
     previo, cx_previo = media, cx
 
+if not rasgos:
+    sys.exit(f"Ningún fotograma del video tiene el degradado de la barra en {cfg['barra']}: revisa 'barra' "
+             "(¿coordenadas de otra resolución?). rasgos.json no se modificó.")
+_med = float(np.median([r["validos"] for r in rasgos]))
+if _med < 0.5:
+    print(f"AVISO: la mediana de 'validos' es {_med:.2f} (< 0,5): casi ningún píxel del mapa coincide con la barra. "
+          "Revisa 'mapa', 'barra', 'vmin/vmax' y 'dist_max' (mira salidas/fotograma_ref.png).")
 salida = {"fuente": cfg["video"], "vmin": cfg["vmin"], "vmax": cfg["vmax"],
           "fps_rasgos": fps_video / paso, "rasgos": rasgos}
 if cfg.get("referencia") is not None:
