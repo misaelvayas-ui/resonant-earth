@@ -427,3 +427,7 @@ NOTAS
 - salidas/fotograma_ref.png pesa 6,6 MB con este video: se deja de versionar (.gitignore).
 - La base de la curva SVS/GISTEMP es 1951-1980; la tabla oficial descargada hoy incluye años
   posteriores a 2023, que no se usan.
+
+RONDA 9 - guía de colaboración   (2026-11-13)
+Se añade CONTRIBUTING.md (fork, ramas, evaluar.py, registro en CAMBIOS.txt, Pull Request).
+Sin cambios de código. Repositorio de GitHub recreado tras borrarlo por error.
