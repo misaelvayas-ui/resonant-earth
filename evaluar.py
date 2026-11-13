@@ -229,7 +229,7 @@ def b3():
 def b4():
     s = pipeline()["07"]
     n_pasa, n_falla = s.count("[PASA]"), s.count("[FALLA]")
-    return n_pasa == 4 and n_falla == 0, f"{n_pasa} PASA, {n_falla} FALLA"
+    return n_pasa == 5 and n_falla == 0, f"{n_pasa} PASA, {n_falla} FALLA"
 
 
 # ============================================================ C) robustez de 05
@@ -507,7 +507,7 @@ EVALUACIONES = [
     ("B1", "pipeline 04→07 (video 2 s)", "4 códigos de salida = 0", b1),
     ("B2", "rasgos.json", "8 fotogramas, media y cx crecientes, validos ≥ 0,99, sin NaN", b2),
     ("B3", "rocola.wav", "estéreo, 44100 Hz, 4,0 ± 0,01 s, pico < 1", b3),
-    ("B4", "validación 07", "4 × [PASA], 0 × [FALLA]", b4),
+    ("B4", "validación 07", "5 × [PASA], 0 × [FALLA]", b4),
     ("C1", "05 con tierra gris + costa", f"error media < {UMBRAL_MEDIA_C1}; validos ± {UMBRAL_VALIDOS_C1}", c1),
     ("C2", "05 y 06 con fotograma sin datos", "sin NaN, validos = 0, media anterior", c2),
     ("C3", "máscara robusta: negro + título", f"máscara ≥ {MASCARA_MIN_C3} %; error media < {UMBRAL_MEDIA_C1}", c3),

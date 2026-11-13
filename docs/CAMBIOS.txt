@@ -536,3 +536,17 @@ Comparación con la v2 (video GISTEMP): rocola.mid idéntico byte a byte a rocol
 (89 sin ligar), notas 62-96, dron 72, cruce del dron 1976, duración 30,000 s, pico 0,8500 en ambos.
 El WAV difiere de rocola_real_v2.wav solo en el paneo (ahora exacto); correlación de envolvente 0,99.
 evaluar.py: 21 PASA, 0 FALLA. 08: video y audio 30,067 s, diferencia 0,000 s.
+
+RONDA 15 - 07: la prueba de tono medía fotogramas ligados   (2026-11-13)
+Síntoma: 07 FALLA "tono de la nota base", error máx. 684,9 cents.
+Diagnóstico con datos (salidas/ del momento: 40 fotogramas, dron 329,6 Hz): fallaron 8 de 40, TODOS ligados
+(de 15 ligados); ninguno de los 25 con ataque falló. La frecuencia detectada en esos 8 caía a 3-29 cents del
+dron (325-329 Hz) o de su 2.º armónico (654 Hz): la marimba ligada ya se había apagado y la prueba medía el dron.
+Causa confirmada; el audio y el .mid tienen las notas correctas (se corrigió la PRUEBA, no el audio).
+07: el tono se mide solo en fotogramas con ataque ("ataque_en_fotograma"), en la primera nota (30-200 ms,
+acortada si la nota dura menos) y sin la frecuencia del dron ni sus 2.º-4.º armónicos (salvo los que coinciden
+con la nota esperada). Nueva comprobación exacta: las notas del canal 1 de rocola.mid = notas esperadas de
+control.json (arpegios y ligaduras). 07 ahora tiene 5 comprobaciones; evaluar.py B4 espera 5 PASA.
+Resultado: tono medido en 25 fotogramas, error máx. 2,8 cents; notas exactas PASA; 07 5 PASA.
+Nota: salidas/rasgos.json, control.json, rocola.mid y validacion.png quedaron con los datos de la corrida
+sintética de 40 fotogramas; rocola.wav/demo_gistemp.mp4 del video real no se regeneraron en esta ronda.

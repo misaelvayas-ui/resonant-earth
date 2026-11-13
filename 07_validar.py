@@ -24,22 +24,43 @@ r = json.load(open(sal("rasgos.json")))["rasgos"]
 spf = int(ctl["seg_por_fotograma"] * fs)
 n_f = len(ctl["midi"])
 
-# 1) tono dominante por fotograma. control.json trae la NOTA BASE de cada fotograma ("midi") y su
-#    arpegio ("notas"): como el arpegio sube desde la nota base, solo se mide la PRIMERA nota del
-#    fotograma (ventana de 30 ms tras el inicio hasta el final de esa nota), nunca las siguientes.
+# 1) tono dominante por fotograma. control.json trae la NOTA BASE de cada fotograma ("midi"), su arpegio
+#    ("notas") y "ataque_en_fotograma". Solo se miden los fotogramas CON ataque (en uno ligado la nota
+#    viene del fotograma anterior, ya se apagó y solo queda el dron), y solo su PRIMERA nota (ventana de
+#    30 a 200 ms, acortada si la nota dura menos). Se ignora la frecuencia del dron y sus armónicos,
+#    salvo los que coinciden con la nota esperada (si la nota base ES el dron, no se puede enmascarar).
 mono = x.mean(axis=1)
-pico_hz = []
-for i in range(n_f):
+hz = lambda m: 440 * 2 ** ((np.asarray(m, dtype=float) - 69) / 12)
+con = np.array(ctl.get("ataque_en_fotograma", [True] * n_f))
+dron_hz = hz(ctl["dron"]) if "dron" in ctl else None
+pico_hz = np.full(n_f, np.nan)
+for i in np.flatnonzero(con):
     k = len(ctl["notas"][i]) if "notas" in ctl else 1
     ini = i * spf + int(0.03 * fs)
-    fin = i * spf + int(spf / k) - int(0.01 * fs)
+    fin = i * spf + min(int(0.20 * fs), int(spf / k) - int(0.01 * fs))
     seg = mono[ini:fin]
-    S = np.abs(np.fft.rfft(seg * np.hanning(len(seg)), 16 * len(seg)))      # relleno de ceros: pico más fino
+    S = np.abs(np.fft.rfft(seg * np.hanning(len(seg)), 16 * len(seg)))       # relleno de ceros: pico más fino
     f = np.fft.rfftfreq(16 * len(seg), 1 / fs)
     banda = (f > 100) & (f < 2500)
-    pico_hz.append(f[banda][np.argmax(S[banda])])
-pico_hz = np.array(pico_hz)
-esperado = 440 * 2 ** ((np.array(ctl["midi"]) - 69) / 12)
+    if dron_hz is not None:
+        esp_i = hz(ctl["midi"][i])
+        for h in (1, 2, 3, 4):
+            if abs(1200 * np.log2(dron_hz * h / esp_i)) > 50:                 # armónico que no es la nota
+                banda &= np.abs(1200 * np.log2(np.maximum(f, 1e-9) / (dron_hz * h))) > 50
+    pico_hz[i] = f[banda][np.argmax(S[banda])]
+esperado = hz(ctl["midi"])
+nota_ok = np.where(con)[0]
+print(f"Tono medido en {len(nota_ok)} fotogramas con ataque de {n_f} (los {n_f - len(nota_ok)} ligados se excluyen)")
+
+# notas exactas: el .mid debe contener justo las notas esperadas por control.json (arpegios y ligaduras)
+import mido
+atq_mid, esp_mid = [], []
+for m in mido.merge_tracks(mido.MidiFile(sal("rocola.mid")).tracks):
+    if m.type == "note_on" and m.velocity > 0 and m.channel == 0:
+        atq_mid.append(m.note)
+plano = [n for fot in ctl["notas"] for n in fot]
+esp_mid = [n for j, n in enumerate(plano) if j == 0 or n != plano[j - 1]] if ctl.get("ataques") != ctl.get("ataques_sin_ligar") else plano
+notas_exactas = atq_mid == esp_mid and len(atq_mid) == ctl.get("ataques", len(atq_mid))
 
 # 2) balance L/R en dB por fotograma, medido en el ATAQUE (20-100 ms): la marimba decae y después solo
 #    queda el dron, que es central. Un fotograma con la nota ligada (sin golpe nuevo) no informa del
@@ -53,9 +74,10 @@ bal = np.array(bal)
 con = np.array(ctl.get("ataque_en_fotograma", [True] * n_f))
 bal_a, idx_a = bal[con], np.arange(n_f)[con]
 
-err_cents = 1200 * np.abs(np.log2(pico_hz / esperado))
+err_cents = 1200 * np.abs(np.log2(pico_hz[con] / esperado[con]))
 checks = {
-    "tono de la nota base detectado = esperado (±50 cents)": bool(np.all(err_cents < 50)),
+    "tono de la nota base (fotogramas con ataque) = esperado (±50 cents)": bool(np.all(err_cents < 50)),
+    "notas de rocola.mid = notas esperadas de control.json": bool(notas_exactas),
     "el tono no baja (serie creciente)": bool(np.all(np.diff(esperado) >= 0)),
     # el dron central "diluye" el balance, así que se valida la TENDENCIA, no un valor fijo
     "paneo va de izquierda a derecha": bool(bal_a[0] < 0 < bal_a[-1] and np.corrcoef(idx_a, bal_a)[0, 1] > 0.9),
