@@ -1,0 +1,2 @@
+# Los videos de la rocola web sí se versionan (la raíz ignora *.mp4)
+!assets/*.mp4
