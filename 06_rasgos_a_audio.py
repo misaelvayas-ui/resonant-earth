@@ -1,31 +1,67 @@
 """
-06 — rasgos.json -> rocola.wav (estéreo)
+06 — rasgos.json -> rocola.mid -> rocola.wav (estéreo, instrumentos reales) + control.json
 
 Mapeo (el "contrato" sonoro, explícalo así en el pitch):
-  media        -> TONO de la voz principal (cuantizado a pentatónica, con glide)
-  area         -> VOLUMEN de la voz principal (en dB: -6 dB ... 0 dB)
-  centroide_x  -> PANEO (izquierda/derecha = dónde está lo "caliente" en el mapa)
-  cambio       -> "golpe" (pluck con ADSR) cuando la media cambia de nota
-  referencia   -> DRON fijo (seno puro, nivel bajo) en la nota del valor 'referencia' de rasgos.json (clave opcional
-                  del config de 05; p. ej. 0 = sin anomalía) o, si no existe, del primer fotograma
-                  (escuchas cuánto se aleja el presente del inicio)
-  rango        -> media -> nota usa "vmin_sonido"/"vmax_sonido" de rasgos.json (opcionales; por
-                  defecto vmin/vmax), independiente del rango de la paleta de 05
+  media        -> NOTA de la melodía (pentatónica de 3 octavas; antes se suaviza con una media móvil)
+  area         -> VOLUMEN: velocidad MIDI 64...127 (= -6 dB ... 0 dB)
+  centroide_x  -> PANEO izquierda/derecha = dónde está lo "caliente" en el mapa (CC10 en el .mid; en el
+                  WAV se aplica tras el render, porque las muestras estéreo de la SoundFont ignoran CC10)
+  densidad     -> notas por fotograma según la anomalía: < 0,3 -> 1; 0,3-0,7 -> 2; > 0,7 -> 4
+                  (arpegio ascendente por la escala desde la nota del fotograma)
+  referencia   -> DRON sostenido en la nota del valor 'referencia' (p. ej. 0 = sin anomalía) o, si no
+                  existe, de la nota del primer fotograma: se oye si el presente está por encima o por debajo
 
-Los rasgos llegan a ~4 por segundo; se interpolan a 44,1 kHz y se suavizan
-(filtro de 1 polo) para que no haya escalones ni clics.
+Salida: canal 1 = marimba (GM 13), canal 2 = dron en pad (GM 89), reverb CC91. Se escribe
+salidas/rocola.mid y se renderiza con FluidSynth a 44,1 kHz estéreo -> salidas/rocola.wav, más
+salidas/control.json (lo leen 07 y evaluar.py).
+
+Respaldo: sin fluidsynth o sin SoundFont (o con --sintetico) se usa la síntesis numpy de siempre,
+dirigida por las MISMAS notas: mismo .mid, misma duración, otro timbre.
+    sudo apt install fluidsynth fluid-soundfont-gm
+
+Claves opcionales (van en el config de 05 y se copian a rasgos.json); entre paréntesis, el valor por defecto:
+  "ligar" (true)           misma nota que la anterior -> se extiende en vez de re-atacar
+  "suavizado" (5)          media móvil centrada de N fotogramas sobre la media (0 o 1 = sin suavizar)
+  "densidad" (true)        notas por fotograma según la anomalía; false = una nota por fotograma
+  "octava" (1)             desplaza melodía y dron (+1 = una octava arriba)
+  "humanizar" (true)       velocidad ±10 %, tiempo ±10 ms, semilla fija (12345)
+  "instrumento_melodia" (13), "dron_programa" (89)   programas GM, numerados desde 1
+  "dron_octava" (0)        octava extra del dron respecto a la melodía
+  "dron_nivel" (0.048)     volumen del dron (velocidad MIDI = 45 * dron_nivel / 0,08; amplitud en el respaldo)
+  "reverb" (50)            CC91, 0..127
+  "vmin_sonido"/"vmax_sonido" (vmin/vmax)   rango de la media que se reparte entre las notas
+Para el sonido sin adornos: ligar false, suavizado 0, densidad false, octava 0, humanizar false.
+
+Uso:  python 06_rasgos_a_audio.py [rasgos.json] [--sintetico]
+Variable de entorno ROCOLA_SF2 = otra SoundFont. Con ROCOLA_SIN_AUDIO=1 no reproduce el resultado.
 """
 import json
+import os
+import shutil
+import subprocess
 import sys
+import mido
 import numpy as np
+from scipy.io import wavfile
 from rutas import sal
-from sintesis import (FS, escala, valor_a_nota, midi_a_hz, oscilador, adsr, paneo,
-                      db_a_lineal, suavizar_rapido, limitar, guardar_wav, reproducir)
+from sintesis import (FS, escala, valor_a_nota, midi_a_hz, oscilador, adsr, paneo, db_a_lineal,
+                      suavizar_rapido, limitar, guardar_wav, reproducir)
 
-SEG_POR_FOTOGRAMA = 0.5   # tempo: cuánto dura cada fotograma en el audio
-with open(sys.argv[1] if len(sys.argv) > 1 else sal("rasgos.json")) as fh:
+SEG_POR_FOTOGRAMA = 0.5          # tempo: cuánto dura cada fotograma en el audio
+TPB, BPM = 480, 120              # 1 s = 960 ticks
+TICKS_F = int(SEG_POR_FOTOGRAMA * TPB * BPM / 60)
+SF2 = [os.environ.get("ROCOLA_SF2", ""), "/usr/share/sounds/sf2/FluidR3_GM.sf2",
+       "/usr/share/sounds/sf2/default-GM.sf2"]
+APT = "sudo apt install fluidsynth fluid-soundfont-gm"
+DEFECTOS = {"ligar": True, "suavizado": 5, "densidad": True, "octava": 1, "humanizar": True,
+            "instrumento_melodia": 13, "dron_programa": 89, "dron_octava": 0, "dron_nivel": 0.048,
+            "reverb": 50}
+
+args = [a for a in sys.argv[1:] if not a.startswith("--")]
+with open(args[0] if args else sal("rasgos.json")) as fh:
     d = json.load(fh)
 R = d["rasgos"]
+cfg = {**DEFECTOS, **{k: d[k] for k in DEFECTOS if d.get(k) is not None}}
 
 
 def rellenar(v, defecto):
@@ -40,58 +76,206 @@ def rellenar(v, defecto):
     return v
 
 
+def media_movil(x, n):
+    """Media móvil centrada de n fotogramas (n impar; en los bordes la ventana se acorta)."""
+    h = (int(n) | 1) // 2
+    return np.array([x[max(0, i - h): i + h + 1].mean() for i in range(len(x))])
+
+
 media = rellenar([r["media"] for r in R], (d["vmin"] + d["vmax"]) / 2)
 area = rellenar([r["area"] for r in R], 0.0)
 cx = rellenar([r["centroide_x"] for r in R], 0.5)
+media_s = media_movil(media, cfg["suavizado"]) if int(cfg["suavizado"]) > 1 else media
 
+# --- nota base por fotograma ---------------------------------------------
 notas = escala(tonica_midi=48, octavas=3)                   # Do3 ... Do6
 v0, v1 = d.get("vmin_sonido", d["vmin"]), d.get("vmax_sonido", d["vmax"])   # rango propio del sonido
-midi = valor_a_nota(media, v0, v1, notas)
+midi = valor_a_nota(media_s, v0, v1, notas)
+octava = int(cfg["octava"])
+ref = d.get("referencia")
+nota_ref = int(valor_a_nota(ref, v0, v1, notas)) if ref is not None else int(midi[0])
+nota_dron = int(np.clip(nota_ref + 12 * (int(cfg["dron_octava"]) + octava), 0, 127))
 
-# --- de "un valor por fotograma" a "un valor por muestra" ----------------
+vel = np.round(127 * db_a_lineal(-6 + 6 * np.clip(area / max(area.max(), 1e-6), 0, 1))).astype(int)
+pan = np.clip(np.round(64 + 63 * (2 * cx - 1)), 0, 127).astype(int)
+vel_dron = int(np.clip(round(45 * cfg["dron_nivel"] / 0.08), 1, 127))
+reverb = int(np.clip(cfg["reverb"], 0, 127))
+prog_mel, prog_dron = int(cfg["instrumento_melodia"]) - 1, int(cfg["dron_programa"]) - 1
+
 n_f = len(R)
-spf = int(SEG_POR_FOTOGRAMA * FS)
-N = n_f * spf
-escalon = lambda v: np.repeat(v, spf)                      # retención de orden cero
-t_f = (np.arange(n_f) + 0.5) * spf
-lineal = lambda v: np.interp(np.arange(N), t_f, v)         # interpolación lineal
+total = n_f * TICKS_F
 
-f_lead = suavizar_rapido(escalon(midi_a_hz(midi)), 0.04)   # glide 40 ms
-amp_lead = suavizar_rapido(lineal(db_a_lineal(-6 + 6 * np.clip(area / max(area.max(), 1e-6), 0, 1))), 0.08)
-pan = suavizar_rapido(lineal(2 * cx - 1), 0.15)
 
-lead = 0.5 * amp_lead * oscilador(f_lead, "suave")
+def n_notas(m):                                   # densidad según la anomalía (media suavizada)
+    return 1 if m < 0.3 else (2 if m <= 0.7 else 4)
 
-# --- plucks en cada cambio de nota ---------------------------------------
-plucks = np.zeros(N)
-n_pl = int(0.35 * FS)
+
+# --- melodía: lista de [inicio, fin, nota, velocidad] en ticks -------------
+idx_escala = {int(n): i for i, n in enumerate(notas)}
+por_fotograma, mel = [], []
 for i in range(n_f):
-    if i == 0 or midi[i] != midi[i - 1]:
-        ini = i * spf
-        seg = oscilador(np.full(n_pl, midi_a_hz(midi[i] + 12)), "triangular")
+    k = n_notas(media_s[i]) if cfg["densidad"] else 1
+    base = idx_escala[int(midi[i])]
+    arp = [int(notas[min(base + j, len(notas) - 1)]) for j in range(k)]
+    por_fotograma.append(arp)
+    lim = [round(j * TICKS_F / k) for j in range(k + 1)]
+    for j in range(k):
+        ini = i * TICKS_F + lim[j]
+        mel.append([ini, ini + int((lim[j + 1] - lim[j]) * 0.95), arp[j], int(vel[i])])
+ataques_sin_ligar = len(mel)
+if cfg["ligar"]:                                  # misma nota que la anterior: se extiende
+    fusion = [mel[0]]
+    for ini, fin, nota, v in mel[1:]:
+        if nota == fusion[-1][2]:
+            fusion[-1][1] = fin
+        else:
+            fusion.append([ini, fin, nota, v])
+    mel = fusion
+inicios_ataque = {m[0] for m in mel}
+ataque_en_fotograma = [i * TICKS_F in inicios_ataque for i in range(n_f)]   # False = nota ligada (sin golpe)
+if cfg["humanizar"]:                              # semilla fija: mismo resultado en cada ejecución
+    rng = np.random.default_rng(12345)
+    ms = round(0.010 * TPB * BPM / 60)            # 10 ms en ticks
+    for m in mel:
+        j = int(round(rng.uniform(-1, 1) * ms))
+        m[0], m[1] = max(0, m[0] + j), min(total, m[1] + j)
+        m[3] = int(np.clip(round(m[3] * rng.uniform(0.9, 1.1)), 1, 127))
+    for a_, b_ in zip(mel, mel[1:]):              # melodía monofónica: una nota no pisa a la siguiente
+        a_[1] = max(a_[0] + 1, min(a_[1], b_[0] - 1))
+mel = [[ini, fin, int(np.clip(nota + 12 * octava, 0, 127)), v] for ini, fin, nota, v in mel]
+
+# --- archivo MIDI ----------------------------------------------------------
+ev = []                                           # (tick, orden, mensaje)
+for canal, prog in ((0, prog_mel), (1, prog_dron)):
+    ev += [(0, 0, mido.Message("program_change", channel=canal, program=prog)),
+           (0, 0, mido.Message("control_change", channel=canal, control=10, value=64)),
+           (0, 0, mido.Message("control_change", channel=canal, control=91, value=reverb))]
+for i in range(n_f):
+    ev.append((i * TICKS_F, 1, mido.Message("control_change", channel=0, control=10, value=int(pan[i]))))
+for ini, fin, nota, v in mel:
+    ev.append((ini, 2, mido.Message("note_on", channel=0, note=nota, velocity=v)))
+    ev.append((fin, 0, mido.Message("note_off", channel=0, note=nota, velocity=0)))
+ev.append((0, 2, mido.Message("note_on", channel=1, note=nota_dron, velocity=vel_dron)))
+ev.append((total, 0, mido.Message("note_off", channel=1, note=nota_dron, velocity=0)))
+ev.sort(key=lambda e: (e[0], e[1]))
+pista = mido.MidiTrack()
+pista.append(mido.MetaMessage("set_tempo", tempo=mido.bpm2tempo(BPM)))
+previo = 0
+for t, _, m in ev:
+    pista.append(m.copy(time=t - previo))
+    previo = t
+pista.append(mido.MetaMessage("end_of_track", time=total - previo))
+archivo = mido.MidiFile(type=1, ticks_per_beat=TPB)
+archivo.tracks.append(pista)
+ruta_mid = sal("rocola.mid")
+archivo.save(ruta_mid)
+
+N = n_f * int(SEG_POR_FOTOGRAMA * FS)             # muestras totales (igual en los dos modos)
+
+
+# --- audio 1: instrumentos reales con FluidSynth ------------------------------
+def renderizar_canal(fs_bin, sf2, canal):
+    """Renderiza SOLO un canal del .mid y devuelve (N, 2) float. Se hace por separado porque las
+    muestras estéreo de la SoundFont ignoran el CC10 (paneo): el paneo se aplica después, por muestra."""
+    pista_c = mido.MidiTrack()
+    pista_c.append(mido.MetaMessage("set_tempo", tempo=mido.bpm2tempo(BPM)))
+    previo_c = 0
+    for t, _, m in ev:
+        if getattr(m, "channel", canal) == canal:
+            pista_c.append(m.copy(time=t - previo_c))
+            previo_c = t
+    pista_c.append(mido.MetaMessage("end_of_track", time=total - previo_c))
+    mf = mido.MidiFile(type=1, ticks_per_beat=TPB)
+    mf.tracks.append(pista_c)
+    tmp_mid, tmp_wav = sal(f"_canal{canal}.mid"), sal(f"_canal{canal}.wav")
+    mf.save(tmp_mid)
+    r = subprocess.run([fs_bin, "-ni", "-r", str(FS), "-T", "wav", "-F", tmp_wav, sf2, tmp_mid],
+                       capture_output=True, text=True)
+    os.remove(tmp_mid)
+    if r.returncode != 0 or not os.path.exists(tmp_wav):
+        return None, r.stderr.strip()[-200:]
+    _, x = wavfile.read(tmp_wav)
+    os.remove(tmp_wav)
+    x = x.astype(float) / 32768.0
+    if x.ndim == 1:
+        x = np.stack([x, x], axis=1)
+    return (x[:N] if len(x) >= N else np.vstack([x, np.zeros((N - len(x), 2))])), ""
+
+
+def renderizar_fluidsynth():
+    """Devuelve el estéreo float (N, 2) o None si falta fluidsynth/SoundFont o falla el render."""
+    fs_bin = shutil.which("fluidsynth")
+    sf2 = next((s for s in SF2 if s and os.path.exists(s)), None)
+    if fs_bin is None or sf2 is None:
+        print(f"AVISO: falta {'fluidsynth' if fs_bin is None else 'la SoundFont GM'}; uso la síntesis "
+              f"numpy de respaldo (suena distinto, mismas notas).\n       Para instrumentos reales:  {APT}")
+        return None
+    melodia, err1 = renderizar_canal(fs_bin, sf2, 0)
+    dron_x, err2 = renderizar_canal(fs_bin, sf2, 1)
+    if melodia is None or dron_x is None:
+        print(f"AVISO: fluidsynth falló ({err1 or err2}); uso la síntesis numpy de respaldo.")
+        return None
+    spf = int(SEG_POR_FOTOGRAMA * FS)
+    p = suavizar_rapido(np.interp(np.arange(N), (np.arange(n_f) + 0.5) * spf, 2 * cx - 1), 0.15)
+    # la melodía se pasa a mono y se panea por muestra: así el paneo es exacto aunque la imagen
+    # estéreo propia de cada muestra de la SoundFont cambie de una nota a otra
+    x = paneo(melodia.mean(axis=1), p) * np.sqrt(2) + dron_x
+    x[-int(0.05 * FS):] *= np.linspace(1, 0, int(0.05 * FS))[:, None]      # fundido de 50 ms
+    return x * (0.85 / max(np.abs(x).max(), 1e-9))                          # techo 0,85, como limitar()
+
+
+# --- audio 2 (respaldo): la síntesis numpy de siempre, dirigida por las mismas notas ----------
+def sintetizar_numpy():
+    spf = int(SEG_POR_FOTOGRAMA * FS)
+    t_f = (np.arange(n_f) + 0.5) * spf
+    lineal = lambda v: np.interp(np.arange(N), t_f, v)         # interpolación lineal
+    # nota que suena en cada muestra: la última que empezó (la voz se mantiene hasta la siguiente)
+    inicios = [int(m[0] * FS / (TPB * BPM / 60)) for m in mel]
+    nota_m = np.full(N, float(mel[0][2]))
+    for k, ini in enumerate(inicios):
+        nota_m[ini: (inicios[k + 1] if k + 1 < len(inicios) else N)] = mel[k][2]
+    f_lead = suavizar_rapido(midi_a_hz(nota_m), 0.04)           # glide 40 ms
+    amp = suavizar_rapido(lineal(db_a_lineal(-6 + 6 * np.clip(area / max(area.max(), 1e-6), 0, 1))), 0.08)
+    lead = 0.5 * amp * oscilador(f_lead, "suave")
+    plucks = np.zeros(N)                                       # un golpe en cada ataque
+    n_pl = int(0.35 * FS)
+    for (ini_t, _, nota, _), ini in zip(mel, inicios):
+        seg = oscilador(np.full(n_pl, midi_a_hz(nota + 12)), "triangular")
         seg *= adsr(n_pl, a=0.003, d=0.12, s=0.0, r=0.05)
         fin = min(ini + n_pl, N)
         plucks[ini:fin] += 0.35 * seg[: fin - ini]
+    dron = cfg["dron_nivel"] * oscilador(np.full(N, midi_a_hz(nota_dron)), "seno")
+    p = suavizar_rapido(lineal(2 * cx - 1), 0.15)
+    return limitar(paneo(lead + plucks, p) + paneo(dron, 0.0))
 
-# --- dron de referencia --------------------------------------------------
-ref = d.get("referencia")
-nota_ref = int(valor_a_nota(ref, v0, v1, notas)) if ref is not None else midi[0]
-# seno puro (la voz es "suave": seno + armónicos) y nivel bajo; "dron_octava" 0 = la nota exacta
-dron = d.get("dron_nivel", 0.08) * oscilador(
-    np.full(N, midi_a_hz(nota_ref + 12 * d.get("dron_octava", 0))), "seno")
 
-estereo = paneo(lead + plucks, pan) + paneo(dron, 0.0)
-estereo = limitar(estereo)
+modo, estereo = "sintetico", None
+if "--sintetico" not in sys.argv:
+    estereo = renderizar_fluidsynth()
+    modo = "fluidsynth" if estereo is not None else "sintetico"
+if estereo is None:
+    estereo = sintetizar_numpy()
 guardar_wav(sal("rocola.wav"), estereo)
 
-# guarda la curva de control para validar (script 07)
+# --- control.json: lo leen 07 y evaluar.py -----------------------------------------------------
+voz = midi + 12 * octava
+fechas = [r.get("fecha") for r in R]
+tras = [i for i in range(n_f) if (voz[i:] >= nota_dron).all()]
+cruce = (fechas[tras[0]] if fechas[tras[0]] is not None else tras[0]) if tras else None
 with open(sal("control.json"), "w") as fh:
-    json.dump({"seg_por_fotograma": SEG_POR_FOTOGRAMA, "midi": midi.tolist(),
-               "pan": (2 * cx - 1).tolist()}, fh)
-print("Notas por fotograma:", midi.tolist())
+    json.dump({"seg_por_fotograma": SEG_POR_FOTOGRAMA,
+               "midi": voz.tolist(),                          # NOTA BASE por fotograma (ya con octava)
+               "notas": [[n + 12 * octava for n in a_] for a_ in por_fotograma],   # arpegio por fotograma
+               "pan": (2 * cx - 1).tolist(), "ataque_en_fotograma": ataque_en_fotograma, "dron": nota_dron, "cruce_dron": cruce,
+               "ataques": len(mel), "ataques_sin_ligar": ataques_sin_ligar,
+               "nota_min": min(m[2] for m in mel), "nota_max": max(m[2] for m in mel),
+               "modo": modo}, fh)
+print(f"Modo: {modo} | ataques {len(mel)} (sin ligar {ataques_sin_ligar}) | notas "
+      f"{min(m[2] for m in mel)}-{max(m[2] for m in mel)} | dron {nota_dron} | cruce del dron: {cruce}")
+print("Nota base por fotograma:", voz.astype(int).tolist())
 reproducir(estereo)
 
 # EJERCICIOS
 # 1. Cambia SEG_POR_FOTOGRAMA a 0.25 y 1.0: ¿qué tempo se entiende mejor?
-# 2. Usa 'cambio' para controlar un filtro paso bajo (scipy.signal) -> más brillo si cambia rápido.
+# 2. Apaga las mejoras (ligar false, suavizado 0, densidad false, humanizar false) y compara el sonido.
 # 3. Invierte el paneo y pide a alguien que señale con la mano dónde está la "tormenta".

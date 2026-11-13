@@ -12,7 +12,8 @@ Prototipo para NASA Space Apps (reto 9), probado con el video **NASA SVS 5207 �
 | zona caliente (`area`) | **volumen** de la voz (−6 a 0 dB) |
 | posición de lo caliente (`centroide_x`) | **paneo** izquierda ↔ derecha |
 | cambio de nota | **golpe** (pluck) |
-| valor de referencia (p. ej. 0 °C) | **dron** grave fijo: se oye si el presente está por encima o por debajo |
+| valor de referencia (p. ej. 0 °C) | **dron** (pad) fijo en esa nota: se oye si el presente está por encima o por debajo |
+| anomalía alta | **más notas por fotograma** (1, 2 o 4, en arpegio ascendente) |
 
 Con el video real, la media extraída sigue la curva oficial de GISTEMP con una correlación de **0,99** (58 años muestreados).
 
@@ -21,7 +22,8 @@ Con el video real, la media extraída sigue la curva oficial de GISTEMP con una 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-sudo apt install ffmpeg        # solo para 08 (video + audio)
+sudo apt install ffmpeg                          # 08 (video + audio)
+sudo apt install fluidsynth fluid-soundfont-gm   # 06: instrumentos reales (sin esto, 06 usa un respaldo numpy)
 ```
 
 Todos los comandos se ejecutan **desde la raíz del proyecto**; si no, el script lo avisa.
@@ -40,7 +42,7 @@ python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 |---|---|
 | `04_video_sintetico.py [seg]` | genera un video de prueba con verdad conocida → `salidas/04_video_sintetico.mp4`, `config/config_video.json` |
 | `05_video_a_rasgos.py [config]` | video → `salidas/rasgos.json` (un registro por fotograma muestreado) |
-| `06_rasgos_a_audio.py [rasgos]` | rasgos → `salidas/rocola.wav` (estéreo) + `salidas/control.json` |
+| `06_rasgos_a_audio.py [rasgos] [--sintetico]` | rasgos → `salidas/rocola.mid` → `salidas/rocola.wav` (estéreo, marimba + dron pad con FluidSynth) + `salidas/control.json`. `--sintetico` (o falta de fluidsynth) usa el respaldo numpy con las mismas notas |
 | `07_validar.py` | comprueba tono y paneo del WAV → `salidas/validacion.png` + PASA/FALLA |
 | `08_video_con_audio.py [video] [wav] [mp4]` | une video y audio sincronizados → `salidas/demo_rocola.mp4` |
 
@@ -73,6 +75,7 @@ Obligatorias: `video`, `mapa` y `barra` (rectángulos `[x0, y0, x1, y1]` en píx
 | `ponderar_latitud` | false | media ponderada por cos(latitud) en mapas equirectangulares completos |
 | `fechas` | — | `time.txt` → añade `fecha` a cada rasgo |
 | `referencia` | primer fotograma | valor en el que suena el dron (0 = sin anomalía) |
+| `ligar`, `suavizado`, `densidad`, `octava`, `humanizar`, `dron_nivel`, `dron_programa`, `instrumento_melodia`, `reverb` | ver cabecera de 06 | musicalidad de 06 (por defecto: ligar, suavizado 5, densidad, octava +1, humanizar, dron pad 89, marimba 13); `ligar: false, suavizado: 0, densidad: false, octava: 0, humanizar: false` = sonido simple |
 | `dist_max` | 8.0 | distancia de color (Lab) máxima para aceptar un píxel |
 | `mascara_estatica`, `umbral_estatico`, `frac_estatico` | true, 3.0, 0.7 | descartar tierra, costas y logos que no cambian |
 | `mascara_imagen` | — | máscara a mano (PNG, negro = descartar) |

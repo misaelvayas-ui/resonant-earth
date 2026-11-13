@@ -386,95 +386,113 @@ def d1():
     return desfase <= 0.15, f"08 PASA; primer pts video {pts[0]:.3f} s, audio {pts[1]:.3f} s (desfase {desfase:.3f} s)"
 
 
-# ============================================================ E) salida con instrumentos (06b)
-def e1():
+# ============================================================ E) instrumentos reales y respaldo (06)
+def leer_mid(ruta):
+    """(ataques canal 1 [(tick, nota, vel)], inicios del canal 2 [(nota, vel)], último tick, ticks/negra)."""
     import mido
-    d = pipeline()["dir"]
-    sf = any(os.path.exists(x) for x in ("/usr/share/sounds/sf2/FluidR3_GM.sf2", "/usr/share/sounds/sf2/default-GM.sf2"))
-    render = bool(shutil.which("fluidsynth")) and sf
-    r = correr("06b_rasgos_a_midi.py", [] if render else ["--sin-render"], d)
-    if r.returncode != 0:
-        return False, f"06b código {r.returncode}: {r.stderr.strip()[-120:]}"
-    ctl = json.load(open(os.path.join(d, "salidas", "control.json")))
-    nota_ref = json.load(open(os.path.join(d, "salidas", "rasgos.json"))).get("referencia")
-    mid = mido.MidiFile(os.path.join(d, "salidas", "rocola.mid"))
-    t, mel, dron = 0, [], []
+    mid = mido.MidiFile(ruta)
+    t, ons, dron, fin = 0, [], [], 0
     for m in mido.merge_tracks(mid.tracks):
         t += m.time
         if m.type == "note_on" and m.velocity > 0:
-            (mel if m.channel == 0 else dron).append((t, m.note))
-    seg = ctl["seg_por_fotograma"]
-    ticks = seg * 2 * mid.ticks_per_beat            # 120 bpm
-    esperado = [(round(i * ticks), n) for i, n in enumerate(ctl["midi"])]
-    ok = mel == esperado and len(dron) == 1
-    txt = f"{len(mel)} notas = control.json: {mel == esperado}; dron en {dron[0][1] if dron else None}"
-    if render:
-        w = os.path.join(d, "salidas")
-        fa, a = wavfile.read(os.path.join(w, "rocola.wav"))
-        fb, b = wavfile.read(os.path.join(w, "rocola_real.wav"))
-        ok = ok and fa == fb == 44100 and a.shape == b.shape and b.ndim == 2 and np.abs(b).max() > 0
-        txt += f"; rocola_real.wav {b.shape[0] / fb:.3f} s = rocola.wav {a.shape[0] / fa:.3f} s"
-    else:
-        txt += "; sin fluidsynth/SoundFont: solo se comprobó el .mid"
-    return ok, txt
+            (ons if m.channel == 0 else dron).append((t, m.note, m.velocity) if m.channel == 0 else (m.note, m.velocity))
+        fin = t
+    return ons, dron, fin, mid.ticks_per_beat
+
+
+def fundir(notas_por_fotograma, tpf):
+    """Ataques esperados (tick, nota) con las notas de cada fotograma repartidas en partes iguales y
+    las repetidas consecutivas ligadas (una sola nota)."""
+    atq = [(i * tpf + j * tpf / len(n), nota) for i, n in enumerate(notas_por_fotograma) for j, nota in enumerate(n)]
+    return atq, [a for k, a in enumerate(atq) if k == 0 or a[1] != atq[k - 1][1]]
+
+
+def e1():
+    sal_ = os.path.join(pipeline()["dir"], "salidas")
+    ctl = json.load(open(os.path.join(sal_, "control.json")))
+    ons, dron, fin, tpb = leer_mid(os.path.join(sal_, "rocola.mid"))
+    tpf = ctl["seg_por_fotograma"] * 2 * tpb                       # 120 bpm
+    atq, lig = fundir(ctl["notas"], tpf)
+    tol = 0.010 * 2 * tpb + 1                                      # ±10 ms de humanización
+    notas_ok = [n for _, n, _ in ons] == [n for _, n in lig] and ctl["ataques"] == len(ons)
+    tiempos_ok = len(ons) == len(lig) and all(abs(o[0] - a[0]) <= tol + 0.5 for o, a in zip(ons, lig))
+    base_ok = [n[0] for n in ctl["notas"]] == ctl["midi"]
+    dron_ok = len(dron) == 1 and dron[0][0] == ctl["dron"]
+    fs_, w = wavfile.read(os.path.join(sal_, "rocola.wav"))
+    dur_ok = abs(w.shape[0] / fs_ - len(ctl["midi"]) * ctl["seg_por_fotograma"]) < 0.01 and abs(fin - len(ctl["midi"]) * tpf) <= 1
+    return (notas_ok and tiempos_ok and base_ok and dron_ok and dur_ok,
+            f"modo {ctl['modo']}; {len(ons)} ataques (sin ligar {len(atq)}) = control.json: {notas_ok}; "
+            f"tiempos ±10 ms: {tiempos_ok}; dron {ctl['dron']}: {dron_ok}; wav {w.shape[0] / fs_:.3f} s: {dur_ok}")
 
 
 def e2():
-    """06b con todas las mejoras (ligar, suavizado, densidad, octava, humanizar) frente a un cálculo
-    independiente: notas por fotograma, arpegio ascendente, tiempos ±10 ms, ataques, misma duración."""
-    import mido
-    d = pipeline()["dir"]
-    sal_ = os.path.join(d, "salidas")
-    R, _ = leer_json(os.path.join(sal_, "rasgos.json"))
-    media = [0.10, 0.20, 0.50, 0.90, 0.90, 0.40, 0.00, 1.20]          # cubre 1, 2 y 4 notas por fotograma
-    for r, m in zip(R["rasgos"], media):
-        r["media"] = m
-    R.update(vmin_sonido=-0.6, vmax_sonido=1.2, referencia=0.0)
-    ruta, cfg = os.path.join(sal_, "rasgos_e2.json"), os.path.join(sal_, "musica_e2.json")
-    json.dump(R, open(ruta, "w"))
-    M = {"ligar": True, "suavizado": 3, "densidad": True, "octava": 1, "dron_programa": 89,
-         "dron_nivel": 0.048, "humanizar": True}
-    json.dump(M, open(cfg, "w"))
-    r = correr("06b_rasgos_a_midi.py", [ruta, "--musica", cfg, "--sufijo", "_e2", "--sin-render"], d)
-    if r.returncode != 0:
-        return False, f"06b código {r.returncode}: {r.stderr.strip()[-120:]}"
-    # --- cálculo independiente ---
-    h = M["suavizado"] // 2
+    """06 con sus valores por defecto frente a un cálculo independiente (suavizado 5, densidad,
+    arpegio ascendente, ligar, octava +1, humanizar ±10 ms, dron pad en la referencia)."""
+    media = [0.00, 0.10, 0.50, 1.20, 1.20, 1.20, 0.50, 0.00]    # tras suavizar (5) cubre 1, 2 y 4 notas
+    with tempfile.TemporaryDirectory() as d:
+        R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]
+        for r, m in zip(R["rasgos"], media):
+            r["media"] = m
+        R.update(vmin_sonido=-0.6, vmax_sonido=1.2, referencia=0.0)
+        os.makedirs(os.path.join(d, "salidas"))
+        ruta = os.path.join(d, "salidas", "rasgos_e2.json")
+        json.dump(R, open(ruta, "w"))
+        r = correr("06_rasgos_a_audio.py", [ruta, "--sintetico"], d)
+        if r.returncode != 0:
+            return False, f"06 código {r.returncode}: {r.stderr.strip()[-120:]}"
+        ons, dron, fin, tpb = leer_mid(os.path.join(d, "salidas", "rocola.mid"))
+        ctl = json.load(open(os.path.join(d, "salidas", "control.json")))
+    h = 2                                                              # suavizado 5
     ms = [float(np.mean(media[max(0, i - h): i + h + 1])) for i in range(len(media))]
     sc = escala(48, 3)
-    esperado = []                                                    # notas esperadas por fotograma
+    esperado = []
     for m in ms:
         k = 1 if m < 0.3 else (2 if m <= 0.7 else 4)
         b = list(sc).index(int(valor_a_nota(m, -0.6, 1.2, sc)))
         esperado.append([int(sc[min(b + j, len(sc) - 1)]) + 12 for j in range(k)])
-    mid = mido.MidiFile(os.path.join(sal_, "rocola_e2.mid"))
-    tpf = 0.5 * 2 * mid.ticks_per_beat
-    t, ons, offs, drones, fin = 0, [], [], [], 0
-    for m in mido.merge_tracks(mid.tracks):
-        t += m.time
-        if m.type == "note_on" and m.channel == 0:
-            ons.append((t, m.note, m.velocity))
-        elif m.type == "note_off" and m.channel == 0:
-            offs.append(t)
-        elif m.type == "note_on":
-            drones.append((m.note, m.velocity))
-        fin = t
-    # los ataques esperados (sin ligar) por fotograma y su reparto temporal
-    atq = [(i * tpf + j * tpf / len(n), nota) for i, n in enumerate(esperado) for j, nota in enumerate(n)]
-    lig = [a for k, a in enumerate(atq) if k == 0 or a[1] != atq[k - 1][1]]            # ligar
-    tol = 0.010 * 2 * mid.ticks_per_beat + 1                                           # ±10 ms
+    tpf = 0.5 * 2 * tpb
+    atq, lig = fundir(esperado, tpf)
+    tol = 0.010 * 2 * tpb + 1
     notas_ok = [n for _, n, _ in ons] == [n for _, n in lig]
     tiempos_ok = len(ons) == len(lig) and all(abs(o[0] - a[0]) <= tol + 0.5 for o, a in zip(ons, lig))
     arp_ok = all(e == sorted(e) for e in esperado) and {len(e) for e in esperado} == {1, 2, 4}
-    ref = sc[list(sc).index(int(valor_a_nota(0.0, -0.6, 1.2, sc)))] + 12
-    dron_ok = drones == [(int(ref), 27)]
-    vel_ok = all(1 <= v <= 127 for _, _, v in ons)
-    ctl = json.load(open(os.path.join(sal_, "control_midi_e2.json")))
-    ctl_ok = ctl["ataques"] == len(ons) and ctl["ataques_sin_ligar"] == len(atq) and ctl["dron"] == ref
+    ref = int(sc[list(sc).index(int(valor_a_nota(0.0, -0.6, 1.2, sc)))]) + 12
+    dron_ok = dron == [(ref, 27)]
+    ctl_ok = (ctl["midi"] == [e[0] for e in esperado] and ctl["notas"] == esperado
+              and ctl["ataques"] == len(ons) and ctl["ataques_sin_ligar"] == len(atq) and ctl["dron"] == ref)
     dur_ok = abs(fin - len(media) * tpf) <= 1
-    ok = notas_ok and tiempos_ok and arp_ok and dron_ok and vel_ok and ctl_ok and dur_ok and len(offs) == len(ons)
-    return ok, (f"ataques {len(ons)} (sin ligar {len(atq)}); notas: {notas_ok}; tiempos ±10 ms: {tiempos_ok}; "
-                f"arpegio 1/2/4: {arp_ok}; dron {drones[0][0] if drones else None}: {dron_ok}; duración: {dur_ok}")
+    ok = notas_ok and tiempos_ok and arp_ok and dron_ok and ctl_ok and dur_ok
+    return ok, (f"ataques {len(ons)} (sin ligar {len(atq)}); notas: {notas_ok}; ±10 ms: {tiempos_ok}; "
+                f"arpegio 1/2/4: {arp_ok}; dron {dron[0][0] if dron else None}: {dron_ok}; control.json: {ctl_ok}; "
+                f"duración: {dur_ok}")
+
+
+def e3():
+    """Respaldo numpy: --sintetico y también el caso sin fluidsynth (PATH vacío) con su aviso."""
+    base = pipeline()["dir"]
+    out, partes = [], []
+    mid_ref = open(os.path.join(base, "salidas", "rocola.mid"), "rb").read()
+    for etiqueta, extra, env_extra in (("--sintetico", ["--sintetico"], {}), ("sin fluidsynth", [], {"PATH": "/nonexistent"})):
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "salidas"))
+            shutil.copy(os.path.join(base, "salidas", "rasgos.json"), os.path.join(d, "salidas", "rasgos.json"))
+            e = entorno(d)
+            e.update(env_extra)
+            r = subprocess.run([sys.executable, "06_rasgos_a_audio.py", *extra], capture_output=True,
+                               text=True, env=e, timeout=120)
+            r7 = subprocess.run([sys.executable, "07_validar.py"], capture_output=True, text=True, env=e, timeout=120)
+            sal_ = os.path.join(d, "salidas")
+            ctl = json.load(open(os.path.join(sal_, "control.json")))
+            fs_, w = wavfile.read(os.path.join(sal_, "rocola.wav"))
+            aviso = "sudo apt install fluidsynth fluid-soundfont-gm" in r.stdout
+            ok = (r.returncode == 0 and r7.returncode == 0 and ctl["modo"] == "sintetico" and w.ndim == 2
+                  and abs(w.shape[0] / fs_ - 4.0) < 0.01 and np.abs(w).max() / 32767 <= 0.85 + 1e-3
+                  and open(os.path.join(sal_, "rocola.mid"), "rb").read() == mid_ref
+                  and (aviso or etiqueta == "--sintetico"))
+            out.append(ok)
+            partes.append(f"{etiqueta}: 06={r.returncode} 07={r7.returncode}, {w.shape[0] / fs_:.3f} s, "
+                          f"mismo .mid, aviso apt {'sí' if aviso else 'no'}")
+    return all(out), "; ".join(partes)
 
 
 EVALUACIONES = [
@@ -496,8 +514,9 @@ EVALUACIONES = [
     ("C4", "05 ponderar_latitud", f"error < {UMBRAL_LAT}; separación > {SEPARACION_LAT}", c4),
     ("C5", "05 escala + fechas", f"|Δmedia| < {UMBRAL_ESCALA}; defecto = escala 1.0", c5),
     ("D1", "sincronía de 08", "PASA; desfase de inicio ≤ 0,15 s", d1),
-    ("E1", "06b: rocola.mid vs control.json", "notas y tiempos idénticos; 1 dron; wav real = misma duración", e1),
-    ("E2", "06b: mejoras musicales", "notas, arpegio, ligar, ±10 ms, dron y duración = cálculo independiente", e2),
+    ("E1", "06: rocola.mid vs control.json", "ataques y tiempos (±10 ms) idénticos; 1 dron; wav = misma duración", e1),
+    ("E2", "06: valores por defecto", "notas, arpegio, ligar, ±10 ms, dron y duración = cálculo independiente", e2),
+    ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]
 
 

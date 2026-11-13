@@ -1,9 +1,0 @@
-{
-  "ligar": true,
-  "suavizado": 5,
-  "densidad": true,
-  "octava": 1,
-  "dron_programa": 89,
-  "dron_nivel": 0.048,
-  "humanizar": true
-}

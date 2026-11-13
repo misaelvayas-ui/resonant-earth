@@ -508,3 +508,31 @@ Medido (video GISTEMP): ataques v1 = 60; v2 = 46. Cruce del dron: v1 1978; v2 19
 Rango de notas: v1 48-81; v2 62-96. Dron: v1 nota 60 (cuerdas), v2 nota 72 (pad 89).
 salidas/comparacion_ab.wav: mismos 15 s, v1 y luego v2 (v2 con ganancia x2,35 para igualar el RMS).
 evaluar.py: 20 PASA, 0 FALLA.
+
+RONDA 14 - consolidación: 06 absorbe a 06b (MIDI + FluidSynth) con la configuración v2 por defecto   (2026-11-13)
+Antes: commit + tag "antes-consolidar-06" (06b y las salidas v2 siguen ahí).
+- 06_rasgos_a_audio.py: escribe salidas/rocola.mid, rocola.wav (instrumentos reales con FluidSynth) y
+  control.json. Por defecto: ligar, suavizado 5, densidad (1/2/4 notas), octava +1, humanizar (semilla 12345),
+  marimba (GM 13), dron pad (GM 89) con dron_nivel 0,048, reverb 50. Cada ajuste se apaga/cambia con su clave
+  del config (ligar false, suavizado 0, densidad false, octava 0, humanizar false).
+  Respaldo: sin fluidsynth/SoundFont, o con --sintetico, la síntesis numpy de siempre dirigida por las MISMAS
+  notas (mismo .mid, misma duración); el aviso muestra "sudo apt install fluidsynth fluid-soundfont-gm".
+  Paneo: CC10 va en el .mid, pero las muestras estéreo de FluidR3 lo ignoran (balance medido -0,0 -> 4,5 dB
+  con pan -0,79 -> 0,62). Por eso 06 renderiza melodía y dron por separado, pasa la melodía a mono y la panea
+  por muestra (ahora -10 -> +4 dB en los golpes, r = 0,99). Costo: dos llamadas a fluidsynth (~1 s en total).
+- control.json: "midi" = NOTA BASE por fotograma (con octava), "notas" = arpegio por fotograma,
+  "ataque_en_fotograma" (False = nota ligada), pan, dron, cruce_dron, ataques, ataques_sin_ligar, nota_min/max, modo.
+- 07: el tono se mide solo en la primera nota de cada fotograma (ventana 30 ms -> fin de esa nota, banda
+  100-2500 Hz, FFT con relleno) contra la nota base; el balance L/R se mide en el ataque (20-100 ms) y solo en
+  fotogramas con golpe nuevo (con la nota ligada solo suena el dron central).
+- evaluar.py: E1 (rocola.mid vs control.json: ataques, tiempos ±10 ms, dron, duración), E2 (valores por
+  defecto contra un cálculo independiente: suavizado 5, 1/2/4 notas, arpegio, ligar, octava, dron), E3 (respaldo:
+  --sintetico y PATH sin fluidsynth; 07 PASA, mismo .mid, 4,0 s, pico <= 0,85, aviso con apt). A8/B3 sin cambios.
+- Eliminados (grep: nada los referencia fuera de CAMBIOS.txt): 06b_rasgos_a_midi.py, config/musica_v2.json,
+  salidas/rocola_real*.wav, comparacion_ab.wav, rocola_v2.mid, control_midi*.json. 05: ya no copia instrumento_dron
+  (ahora dron_programa); config_eic.json sin dron_nivel/instrumento_dron para que valgan los defectos.
+- README y requirements (mido): instalación con "sudo apt install fluidsynth fluid-soundfont-gm".
+Comparación con la v2 (video GISTEMP): rocola.mid idéntico byte a byte a rocola_v2.mid (160 eventos), 46 ataques
+(89 sin ligar), notas 62-96, dron 72, cruce del dron 1976, duración 30,000 s, pico 0,8500 en ambos.
+El WAV difiere de rocola_real_v2.wav solo en el paneo (ahora exacto); correlación de envolvente 0,99.
+evaluar.py: 21 PASA, 0 FALLA. 08: video y audio 30,067 s, diferencia 0,000 s.
