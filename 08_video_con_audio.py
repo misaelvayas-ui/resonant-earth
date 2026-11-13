@@ -25,8 +25,8 @@ from rutas import sal
 TOLERANCIA = 0.1  # s
 
 
-def ejecutar(cmd):
-    r = subprocess.run(cmd, capture_output=True, text=True)
+def ejecutar(cmd, cwd=None):
+    r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
     if r.returncode != 0:
         sys.exit(f"Falló: {' '.join(cmd[:3])} ...\n{r.stderr[-2000:]}")
     return r.stdout
@@ -92,6 +92,7 @@ def filtros_texto(video, factor, carpeta):
     if fuente is None:
         print("No encontré DejaVuSans.ttf: sin texto superpuesto.")
         return []
+    shutil.copy(fuente, os.path.join(carpeta, "f.ttf"))   # nombres relativos: sin ':' ni '\\' de rutas (Windows)
     R = d["rasgos"]
     margen = round(0.02 * alto_video(video))          # ~2 % de la altura, para el texto del año
     filtros = []
@@ -99,14 +100,15 @@ def filtros_texto(video, factor, carpeta):
         ini = r["t"] * factor                                        # tiempos del video ESTIRADO
         fin = R[i + 1]["t"] * factor if i + 1 < len(R) else 1e9
         # el texto va en un archivo: así no hay que escapar '=', ',' ni espacios en el filtro
-        ruta_txt = os.path.join(carpeta, f"media_{i:04d}.txt")
+        nombre_txt = f"media_{i:04d}.txt"
+        ruta_txt = os.path.join(carpeta, nombre_txt)
         con_fecha = "fecha" in r
         with open(ruta_txt, "w") as fh:
             fh.write(str(r["fecha"]) if con_fecha else f"media = {r['media']:.3f}".replace(".", ","))
         pos = f"x={2 * margen}:y={2 * margen}" if con_fecha else "x=w-tw-12:y=h-th-12"
         tam = "fontsize=h*0.06" if con_fecha else "fontsize=20"   # año: ~6 % de la altura
         filtros.append(
-            f"drawtext=fontfile={fuente}:textfile={ruta_txt}:{pos}:"
+            f"drawtext=fontfile=f.ttf:textfile={nombre_txt}:{pos}:"
             f"{tam}:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw={margen if con_fecha else 6}:"
             f"enable='gte(t\\,{ini:.4f})*lt(t\\,{fin:.4f})'")
     return filtros
@@ -136,13 +138,17 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         f_aplicado = factor if estirar else 1.0
         cadena = ([f"setpts=PTS*{factor:.6f}"] if estirar else []) + filtros_texto(video, f_aplicado, tmp)
-        cmd = ["ffmpeg", "-y", "-v", "error", "-i", video, "-i", audio,
-               "-filter_complex", "[0:v]" + ",".join(cadena) + "[v]", "-map", "[v]",
+        # el grafo va en un archivo (la línea de comandos tiene un tope: ~128 KB en Linux, 32 KB en Windows)
+        # y ffmpeg corre dentro de la carpeta temporal, con las rutas de entrada/salida absolutas
+        with open(os.path.join(tmp, "grafo.txt"), "w") as fh:
+            fh.write("[0:v]" + ",".join(cadena or ["null"]) + "[v]")
+        cmd = ["ffmpeg", "-y", "-v", "error", "-i", os.path.abspath(video), "-i", os.path.abspath(audio),
+               "-filter_complex_script", "grafo.txt", "-map", "[v]",
                "-map", "1:a:0", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
                "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
                # sin listas de edición: VLC las maneja mal y el audio se entrecortaba al inicio
-               "-use_editlist", "0", salida]
-        ejecutar(cmd)
+               "-use_editlist", "0", os.path.abspath(salida)]
+        ejecutar(cmd, cwd=tmp)
 
     sv, sa, sf = duracion_real(salida, "v"), duracion_real(salida, "a"), duracion(salida)
     dif = abs(sv - sa)
