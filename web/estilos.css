@@ -1,0 +1,298 @@
+/* Rocola de la Tierra · Resonant Earth */
+:root {
+  --fondo: #0E1430;
+  --panel: #18204A;
+  --borde: #3A4580;
+  --acento: #E6F03A;
+  --texto: #F5F3EC;
+  --texto-suave: #D4D6E2;
+  --radio: 14px;
+  --fuente-titulos: "Rubik", system-ui, sans-serif;
+  --fuente-texto: "Nunito Sans", system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: 125%; } /* 20 px de base: texto grande */
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: var(--fuente-texto);
+  line-height: 1.55;
+}
+
+h1, h2, .equipo, .boton-rocola .titulo, .boton-play {
+  font-family: var(--fuente-titulos);
+  line-height: 1.2;
+}
+
+h1 { font-size: 2.4rem; margin: 0.2rem 0 0.4rem; }
+h2 { font-size: 1.4rem; margin: 0 0 0.8rem; color: var(--acento); }
+
+/* ---------- foco visible ---------- */
+:focus-visible {
+  outline: 4px solid var(--acento);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+.boton-rocola:focus-visible,
+.boton-play:focus-visible {
+  outline-color: var(--texto);
+  box-shadow: 0 0 0 8px var(--fondo), 0 0 0 12px var(--acento);
+}
+.reproductor:focus { outline: none; }
+.reproductor:focus-visible { outline: 4px solid var(--acento); }
+
+.saltar {
+  position: absolute;
+  left: 1rem;
+  top: -10rem;
+  background: var(--acento);
+  color: var(--fondo);
+  padding: 0.6rem 1rem;
+  font-weight: 700;
+  border-radius: 8px;
+  z-index: 10;
+}
+.saltar:focus { top: 1rem; }
+
+/* ---------- estructura ---------- */
+.cabecera, main, .pie {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+.cabecera { padding-top: 2rem; padding-bottom: 1rem; }
+.equipo {
+  margin: 0;
+  color: var(--acento);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 1rem;
+}
+.lema { margin: 0; color: var(--texto-suave); max-width: 40em; }
+
+main {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 1fr;
+  grid-template-areas: "rocola" "reproductor" "en-vivo" "leyenda";
+  padding-bottom: 2rem;
+}
+@media (min-width: 960px) {
+  main {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-areas:
+      "rocola      rocola"
+      "reproductor en-vivo"
+      "reproductor leyenda";
+    align-items: start;
+  }
+}
+.rocola { grid-area: rocola; }
+.reproductor { grid-area: reproductor; }
+.en-vivo { grid-area: en-vivo; }
+.leyenda { grid-area: leyenda; }
+
+section {
+  background: var(--panel);
+  border: 2px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1.2rem;
+}
+
+.aviso { color: var(--texto-suave); margin: 0 0 0.8rem; }
+.aviso:empty { display: none; }
+.aviso.error {
+  color: var(--texto);
+  border-left: 6px solid var(--acento);
+  padding-left: 0.8rem;
+}
+
+/* ---------- rocola ---------- */
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+}
+.boton-rocola {
+  width: 100%;
+  min-height: 6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  text-align: left;
+  font: inherit;
+  color: var(--texto);
+  background: var(--fondo);
+  border: 3px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1rem 1.2rem;
+  cursor: pointer;
+}
+.boton-rocola:hover { border-color: var(--acento); }
+.boton-rocola .titulo { font-size: 1.2rem; font-weight: 700; }
+.boton-rocola .resumen { color: var(--texto-suave); font-size: 0.9rem; }
+.boton-rocola[aria-pressed="true"] {
+  background: var(--acento);
+  border-color: var(--acento);
+  color: var(--fondo);
+}
+.boton-rocola[aria-pressed="true"] .resumen { color: var(--fondo); }
+.boton-rocola .sonando {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.boton-rocola[aria-pressed="true"] .sonando { display: inline-flex; }
+
+/* ecualizador decorativo */
+.barras { display: inline-flex; gap: 3px; align-items: flex-end; height: 1em; }
+.barras i { width: 4px; height: 40%; background: currentColor; border-radius: 2px; }
+.reproduciendo .barras i { animation: rebote 0.9s ease-in-out infinite alternate; }
+.reproduciendo .barras i:nth-child(2) { animation-delay: -0.3s; }
+.reproduciendo .barras i:nth-child(3) { animation-delay: -0.6s; }
+@keyframes rebote { from { height: 25%; } to { height: 100%; } }
+
+/* ---------- reproductor ---------- */
+.descripcion { margin: 0 0 1rem; color: var(--texto-suave); }
+.pantalla {
+  background: #000;
+  border-radius: var(--radio);
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+}
+.pantalla video { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+.controles {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: auto 1fr;
+  align-items: end;
+  margin-top: 1rem;
+}
+.campo-progreso { grid-column: 2; }
+.campo-volumen { grid-column: 1 / -1; max-width: 22rem; }
+@media (max-width: 520px) {
+  .controles { grid-template-columns: 1fr; }
+  .campo-progreso { grid-column: 1; }
+}
+
+.boton-play {
+  min-width: 10rem;
+  min-height: 3.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--fondo);
+  background: var(--acento);
+  border: 3px solid var(--acento);
+  border-radius: 999px;
+  padding: 0.5rem 1.4rem;
+  cursor: pointer;
+}
+.boton-play:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.campo { display: flex; flex-direction: column; gap: 0.2rem; }
+.campo label { font-weight: 700; }
+.campo input[type="range"] {
+  width: 100%;
+  height: 2.2rem;
+  accent-color: var(--acento);
+  cursor: pointer;
+}
+.tiempo { font-variant-numeric: tabular-nums; color: var(--texto-suave); }
+
+.atajos { margin: 1rem 0 0; color: var(--texto-suave); font-size: 0.9rem; }
+kbd {
+  font-family: var(--fuente-texto);
+  background: var(--fondo);
+  border: 2px solid var(--borde);
+  border-radius: 6px;
+  padding: 0 0.35em;
+  color: var(--texto);
+}
+
+/* ---------- descripción en vivo ---------- */
+.etiqueta-ia {
+  display: inline-block;
+  margin: 0 0 0.6rem;
+  padding: 0.1rem 0.7rem;
+  border: 2px solid var(--acento);
+  border-radius: 999px;
+  color: var(--acento);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.descripcion-viva {
+  font-size: 1.15rem;
+  min-height: 6.5em;
+  background: var(--fondo);
+  border-radius: 10px;
+  padding: 1rem;
+}
+.casilla {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  margin-top: 0.8rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.casilla input { width: 1.4rem; height: 1.4rem; margin-top: 0.15rem; accent-color: var(--acento); }
+
+/* ---------- leyenda ---------- */
+.mapeo { margin: 0; display: grid; gap: 0.9rem; }
+.mapeo dt { font-family: var(--fuente-titulos); font-weight: 700; }
+.mapeo dd { margin: 0.1rem 0 0 2rem; color: var(--texto-suave); }
+.simbolo { display: inline-block; width: 1.6rem; color: var(--acento); }
+.leyenda-colores {
+  margin: 1rem 0 0;
+  padding-top: 0.8rem;
+  border-top: 2px solid var(--borde);
+}
+.leyenda-colores:empty { display: none; }
+
+.pie { padding-bottom: 2rem; color: var(--texto-suave); font-size: 0.9rem; }
+
+.solo-lector {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- movimiento reducido ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+  .boton-rocola { transition: border-color 0.15s, background-color 0.15s; }
+}
+
+/* ---------- alto contraste forzado (Windows) ---------- */
+@media (forced-colors: active) {
+  .boton-rocola[aria-pressed="true"] { border-width: 6px; }
+  :focus-visible { outline-color: Highlight; }
+}

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rocola de la Tierra · Resonant Earth</title>
+  <meta name="description" content="Rocola de la Tierra: escucha visualizaciones del clima convertidas en sonido.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700&family=Rubik:wght@500;700&display=swap">
+  <link rel="stylesheet" href="estilos.css">
+  <script src="describir.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="saltar" href="#reproductor">Saltar al reproductor</a>
+
+  <header class="cabecera">
+    <p class="equipo">Resonant Earth</p>
+    <h1>Rocola de la Tierra</h1>
+    <p class="lema">Elige una visualización del clima y escúchala: los datos se convierten en música.</p>
+  </header>
+
+  <main>
+    <section class="rocola" aria-labelledby="titulo-rocola">
+      <h2 id="titulo-rocola">Elige una visualización</h2>
+      <p id="estado-catalogo" class="aviso" role="status">Cargando el catálogo…</p>
+      <ul id="lista" class="lista"></ul>
+    </section>
+
+    <section id="reproductor" class="reproductor" aria-labelledby="titulo-actual" tabindex="-1">
+      <h2 id="titulo-actual">Ninguna visualización elegida</h2>
+      <p id="descripcion-actual" class="descripcion"></p>
+
+      <div class="pantalla">
+        <video id="video" preload="metadata" playsinline aria-describedby="descripcion-actual leyenda-colores"></video>
+      </div>
+
+      <div class="controles" role="group" aria-label="Controles del reproductor">
+        <button id="play" class="boton-play" type="button" disabled>
+          <span class="icono" aria-hidden="true">▶</span>
+          <span class="texto">Reproducir</span>
+        </button>
+
+        <div class="campo campo-progreso">
+          <label for="progreso">Progreso</label>
+          <input id="progreso" type="range" min="0" max="0" step="0.1" value="0" disabled
+                 aria-valuetext="0:00 de 0:00">
+          <span id="tiempo" class="tiempo" aria-hidden="true">0:00 / 0:00</span>
+        </div>
+
+        <div class="campo campo-volumen">
+          <label for="volumen">Volumen</label>
+          <input id="volumen" type="range" min="0" max="100" step="5" value="80"
+                 aria-valuetext="80 %">
+        </div>
+      </div>
+
+      <p class="atajos" id="atajos">
+        Teclado: <kbd>Espacio</kbd> reproduce o pausa ·
+        <kbd>←</kbd> <kbd>→</kbd> retrocede o avanza 5 segundos ·
+        <kbd>Tab</kbd> pasa al siguiente control.
+      </p>
+    </section>
+
+    <section class="en-vivo" aria-labelledby="titulo-descripcion">
+      <h2 id="titulo-descripcion">Qué pasa ahora</h2>
+      <p class="etiqueta-ia">Descripción automática</p>
+      <p id="descripcion-viva" class="descripcion-viva">
+        Elige una visualización para ver aquí, en palabras, lo que muestra el video en cada momento.
+      </p>
+      <!-- región viva para lectores de pantalla: se actualiza como mucho cada pocos segundos -->
+      <div id="anuncio" class="solo-lector" aria-live="polite" aria-atomic="true"></div>
+      <label class="casilla">
+        <input id="anunciar" type="checkbox" checked>
+        Leer cambios con lector de pantalla (cada pocos segundos)
+      </label>
+    </section>
+
+    <section class="leyenda" aria-labelledby="titulo-leyenda">
+      <h2 id="titulo-leyenda">Qué estás escuchando</h2>
+      <dl class="mapeo">
+        <div>
+          <dt><span class="simbolo" aria-hidden="true">♪</span> Altura de la nota</dt>
+          <dd>Temperatura media. Más aguda = más caliente.</dd>
+        </div>
+        <div>
+          <dt><span class="simbolo" aria-hidden="true">◉</span> Volumen</dt>
+          <dd>Tamaño de la zona caliente. Más fuerte = más área caliente.</dd>
+        </div>
+        <div>
+          <dt><span class="simbolo" aria-hidden="true">⇆</span> Izquierda / derecha</dt>
+          <dd>Dónde está lo caliente en el mapa.</dd>
+        </div>
+        <div>
+          <dt><span class="simbolo" aria-hidden="true">▁</span> Tono grave fijo</dt>
+          <dd>El valor de referencia. Si la nota suena por encima, el dato está por encima de la referencia.</dd>
+        </div>
+      </dl>
+      <p id="leyenda-colores" class="leyenda-colores"></p>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <p>Resonant Earth · Prototipo de la Rocola de la Tierra. Interfaz web hecha con ayuda de IA (Claude Code).</p>
+  </footer>
+
+  <noscript><p class="aviso">Esta rocola necesita JavaScript activado.</p></noscript>
+</body>
+</html>
