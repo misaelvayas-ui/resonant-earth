@@ -495,6 +495,80 @@ def e3():
     return all(out), "; ".join(partes)
 
 
+# ============================================================ F) casos de la auditoría (videos nuevos)
+def f1():
+    """Densidad con otro rango de datos (270-310): los umbrales siguen al rango de sonido y no saturan en 4 notas."""
+    with tempfile.TemporaryDirectory() as d:
+        R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]
+        for r, m in zip(R["rasgos"], np.linspace(270, 310, len(R["rasgos"]))):
+            r["media"] = float(m)
+        R.update(vmin=270.0, vmax=310.0)
+        os.makedirs(os.path.join(d, "salidas"))
+        ruta = os.path.join(d, "salidas", "k.json")
+        json.dump(R, open(ruta, "w"))
+        r = correr("06_rasgos_a_audio.py", [ruta, "--sintetico"], d)
+        if r.returncode != 0:
+            return False, "06 falló: " + r.stderr.strip()[-120:]
+        n = [len(x) for x in json.load(open(os.path.join(d, "salidas", "control.json")))["notas"]]
+    return len(set(n)) >= 2 and 1 in n, f"notas por fotograma con datos 270-310: {sorted(set(n))} (más de un valor y alguno = 1)"
+
+
+def f2():
+    """Video que abre en negro: la barra se toma de un fotograma con degradado (no de uno negro)."""
+    with tempfile.TemporaryDirectory() as d:
+        cfg, _, _, _ = video_lat(d, "negro_src")
+        c = json.load(open(cfg))
+        cap = cv2.VideoCapture(c["video"])
+        ruta = os.path.join(d, "negro.mp4")
+        out = cv2.VideoWriter(ruta, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+        for k in range(N_FRAMES):
+            ok, f = cap.read()
+            out.write(np.zeros_like(f) if k < 6 else f)
+        out.release()
+        cap.release()
+        c["video"] = ruta
+        json.dump(c, open(cfg, "w"))
+        R = correr05(d, cfg)[0]
+    med = float(np.median([x["validos"] for x in R]))
+    return med > 0.9 and R[-1]["media"] > R[0]["media"], f"mediana de validos {med:.2f} (> 0,9); media {R[0]['media']:.3f} → {R[-1]['media']:.3f}"
+
+
+def f3():
+    """Errores claros: video inexistente y rectángulo fuera del fotograma (rasgos.json queda intacto)."""
+    with tempfile.TemporaryDirectory() as d:
+        cfg, _, _, _ = video_lat(d, "err")
+        base = json.load(open(cfg))
+        os.makedirs(os.path.join(d, "salidas"), exist_ok=True)
+        previo = os.path.join(d, "salidas", "rasgos.json")
+        open(previo, "w").write('{"marca": 1}')
+        res = []
+        for nombre, cambio, frase in (("sin video", {"video": os.path.join(d, "no_existe.mp4")}, "No se pudo abrir"),
+                                      ("mapa fuera", {"mapa": [10, 20, 900, 700]}, "se sale del video")):
+            json.dump({**base, **cambio}, open(cfg, "w"))
+            r = correr("05_video_a_rasgos.py", [cfg], d)
+            res.append((nombre, r.returncode != 0 and frase in (r.stderr + r.stdout), open(previo).read() == '{"marca": 1}'))
+    return all(a and b for _, a, b in res), "; ".join(f"{n}: mensaje {'sí' if a else 'NO'}, rasgos.json {'intacto' if b else 'PISADO'}" for n, a, b in res)
+
+
+def f4():
+    """08 con 600 rasgos (un drawtext por rasgo): la línea de comandos ya no revienta."""
+    if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
+        return None, "ffmpeg/ffprobe no instalados"
+    base = os.path.join(pipeline()["dir"], "salidas")
+    with tempfile.TemporaryDirectory() as d:
+        sal_ = os.path.join(d, "salidas")
+        os.makedirs(sal_)
+        for f in ("04_video_sintetico.mp4", "rocola.wav"):
+            shutil.copy(os.path.join(base, f), sal_)
+        R = leer_json(os.path.join(base, "rasgos.json"))[0]
+        r0 = R["rasgos"][0]
+        R["rasgos"] = [{**r0, "t": round(i * 4.0 / 600, 4), "fecha": 1900 + i} for i in range(600)]
+        json.dump(R, open(os.path.join(sal_, "rasgos.json"), "w"))
+        r = correr("08_video_con_audio.py", [os.path.join(sal_, "04_video_sintetico.mp4"),
+                                             os.path.join(sal_, "rocola.wav"), os.path.join(sal_, "demo.mp4")], d)
+    return r.returncode == 0 and "[PASA]" in r.stdout, f"08 con 600 rasgos: código {r.returncode}; {r.stdout.strip().splitlines()[-1:] or r.stderr.strip()[-100:]}"
+
+
 EVALUACIONES = [
     ("A1", "fase inicial = 0", "|x[0]| < 1e-12", a1),
     ("A2", "tono(440) → 440 Hz", "440 ± 1 Hz", a2),
@@ -516,6 +590,10 @@ EVALUACIONES = [
     ("D1", "sincronía de 08", "PASA; desfase de inicio ≤ 0,15 s", d1),
     ("E1", "06: rocola.mid vs control.json", "ataques y tiempos (±10 ms) idénticos; 1 dron; wav = misma duración", e1),
     ("E2", "06: valores por defecto", "notas, arpegio, ligar, ±10 ms, dron y duración = cálculo independiente", e2),
+    ("F1", "06: densidad con datos 270-310", "más de un nº de notas por fotograma, alguno = 1", f1),
+    ("F2", "05: video que abre en negro", "validos > 0,9 y media creciente", f2),
+    ("F3", "05: errores claros", "mensaje y rasgos.json intacto (sin video / mapa fuera)", f3),
+    ("F4", "08: 600 rasgos con texto", "08 PASA (sin 'Argument list too long')", f4),
     ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]
 

@@ -550,3 +550,31 @@ control.json (arpegios y ligaduras). 07 ahora tiene 5 comprobaciones; evaluar.py
 Resultado: tono medido en 25 fotogramas, error máx. 2,8 cents; notas exactas PASA; 07 5 PASA.
 Nota: salidas/rasgos.json, control.json, rocola.mid y validacion.png quedaron con los datos de la corrida
 sintética de 40 fotogramas; rocola.wav/demo_gistemp.mp4 del video real no se regeneraron en esta ronda.
+
+RONDA 16 - hallazgos [ARREGLAR HOY] de docs/AUDITORIA.md   (2026-11-13)
+Antes: commit + tag "antes-auditoria". Se aplicó uno por uno con evaluar.py después de cada uno.
+1. GitHub atrás: aplicado el push (origin/master al día); queda PENDIENTE invitar a los compañeros
+   (hace falta su usuario de GitHub).
+2. calibrar: --fechas ya no tiene valor por defecto (el time.txt de GISTEMP no se pega a otros videos);
+   el config se llama config_<video>.json (o --salida) y, si existe, conserva las claves que calibrar no calcula
+   (vmin_sonido, vmax_sonido, dron_*, reverb, instrumento_melodia, densidad_umbrales...). README: GISTEMP usa
+   --fechas datos/time.txt --salida config/config_eic.json. Comprobado: git diff config/ vacío tras recalibrar.
+3. 06: umbrales de densidad relativos al rango de sonido (por defecto 50 % y 72 % del rango: 0,3 y 0,7 con
+   -0,6..1,2) o "densidad_umbrales" [u1, u2] (copiada por 05; config_eic.json = [0.3, 0.7]). 05 imprime el
+   mín./máx. de la media y sugiere vmin_sonido/vmax_sonido. GISTEMP: rocola.mid idéntico (cmp).
+4. 05: la tabla de la barra se toma del primer fotograma con degradado (ptp > 30); si ninguno lo tiene, sale con
+   mensaje y sin tocar rasgos.json; aviso si la mediana de "validos" < 0,5.
+5. 05: comprueba que el video abre y que mapa/barra caben en el fotograma (mensaje con el tamaño real);
+   06 sale con mensaje si rasgos.json no trae fotogramas.
+6. 08: -filter_complex_script con grafo.txt, fuente y textos con nombre relativo y ffmpeg con cwd en la
+   carpeta temporal (rutas absolutas de entrada/salida). 600 rasgos: antes OSError, ahora PASA.
+7. 05: la máscara estática se calcula por bandas de 32 filas (sin materializar mediana y resta de todo el
+   recorte; resultado idéntico: C1 0,0049 y rasgos GISTEMP cmp igual); calibrar --escala automática deja el mapa
+   en ~1024 px de ancho (1920 -> 0,533; 4096 -> 0,25). Memoria máxima con GISTEMP: 0,99 GB.
+8. README: instalación para Ubuntu, macOS y Windows (Windows NO probado); avisos de 06 y 08 con alternativas
+   (brew, winget, ROCOLA_SF2).
+9. salidas/ deja de versionarse (git rm --cached; /salidas/ en .gitignore).
+Falsos: ninguno. Nada marcado [PUEDE ESPERAR] se tocó (barra horizontal en calibrar, texto del README).
+evaluar.py: pruebas nuevas F1 (densidad con datos 270-310), F2 (video que abre en negro), F3 (video
+inexistente / mapa fuera, rasgos.json intacto), F4 (08 con 600 rasgos). Con los 05/06/08 de antes de la ronda,
+las 4 FALLAN; con los nuevos PASAN. evaluar.py: 25 PASA, 0 FALLA.
