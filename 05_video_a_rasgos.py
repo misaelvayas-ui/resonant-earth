@@ -43,6 +43,8 @@ Claves opcionales del config (valores por defecto):
   "dron_octava": null       octava del dron respecto a la nota de "referencia" (0 por defecto; -1 = una
                             octava más grave); se copia a rasgos.json
   "dron_nivel": null        amplitud del dron (0.08 por defecto); se copia a rasgos.json
+  "instrumento_melodia", "instrumento_dron", "reverb": null   solo para 06b (programas GM desde 1:
+                            13 marimba, 49 cuerdas; CC91 0-127, 50); se copian a rasgos.json
 """
 import json
 import sys
@@ -213,7 +215,8 @@ salida = {"fuente": cfg["video"], "vmin": cfg["vmin"], "vmax": cfg["vmax"],
           "fps_rasgos": fps_video / paso, "rasgos": rasgos}
 if cfg.get("referencia") is not None:
     salida["referencia"] = cfg["referencia"]
-for k in ("vmin_sonido", "vmax_sonido", "dron_octava", "dron_nivel"):
+for k in ("vmin_sonido", "vmax_sonido", "dron_octava", "dron_nivel",
+          "instrumento_melodia", "instrumento_dron", "reverb"):
     if cfg.get(k) is not None:
         salida[k] = cfg[k]
 with open(sal("rasgos.json"), "w") as fh:

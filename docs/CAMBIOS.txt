@@ -467,3 +467,19 @@ Medido (video GISTEMP): dron = nota 60 (261,6 Hz). Voz MIDI 48-81. Voz < dron en
 fotogramas anteriores a 1960 y >= dron en 22 de 28 desde 1960; la voz queda por encima del dron
 de forma estable desde 1978 (1976: 57; 1978: 60). Antes hay roces (1941: 62, 1958: 60, 1973: 60).
 Pico de rocola.wav 0,8500. evaluar.py: 18 PASA, 0 FALLA en 8,7 s.
+
+RONDA 12 - segunda salida con instrumentos reales (06b, MIDI + fluidsynth)   (2026-11-13)
+Comprobado: fluidsynth y fluid-soundfont-gm (FluidR3_GM.sf2) instalados; mido añadido al .venv y a requirements.txt.
+- 06b_rasgos_a_midi.py (nuevo; 06 no se tocó): mismo mapeo que 06 (escala, "referencia",
+  vmin_sonido/vmax_sonido, dron_octava/dron_nivel, volumen por área, paneo). Escribe salidas/rocola.mid:
+  canal 1 melodía (marimba GM 13; velocidad 64-127 según el volumen en dB de 06; CC10 = paneo por nota),
+  canal 2 dron en la nota de referencia (cuerdas GM 49, sostenido, velocidad 45 con dron_nivel 0,08),
+  reverb CC91 = 50. Render con fluidsynth a 44,1 kHz estéreo -> salidas/rocola_real.wav, recortado a la
+  duración de rocola.wav (30,000 s), fundido de 50 ms, techo 0,85.
+- Claves nuevas (opcionales, copiadas por 05 a rasgos.json): instrumento_melodia, instrumento_dron, reverb.
+- 08 no se cambió: ya acepta otra ruta de audio (probado con rocola_real.wav).
+- evaluar.py: prueba E1 (notas y tiempos de rocola.mid = control.json, un solo dron, duración de
+  rocola_real.wav = la de rocola.wav; si faltara fluidsynth solo comprueba el .mid).
+- salidas/comparacion_ab.wav: 10 s de rocola.wav y luego los mismos 10 s de rocola_real.wav, con la
+  sintética bajada a igual RMS (x0,34) porque la marimba, percusiva, tiene RMS 3 veces menor a igual pico.
+evaluar.py: 19 PASA, 0 FALLA.

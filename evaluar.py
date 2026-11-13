@@ -386,6 +386,39 @@ def d1():
     return desfase <= 0.15, f"08 PASA; primer pts video {pts[0]:.3f} s, audio {pts[1]:.3f} s (desfase {desfase:.3f} s)"
 
 
+# ============================================================ E) salida con instrumentos (06b)
+def e1():
+    import mido
+    d = pipeline()["dir"]
+    sf = any(os.path.exists(x) for x in ("/usr/share/sounds/sf2/FluidR3_GM.sf2", "/usr/share/sounds/sf2/default-GM.sf2"))
+    render = bool(shutil.which("fluidsynth")) and sf
+    r = correr("06b_rasgos_a_midi.py", [] if render else ["--sin-render"], d)
+    if r.returncode != 0:
+        return False, f"06b código {r.returncode}: {r.stderr.strip()[-120:]}"
+    ctl = json.load(open(os.path.join(d, "salidas", "control.json")))
+    nota_ref = json.load(open(os.path.join(d, "salidas", "rasgos.json"))).get("referencia")
+    mid = mido.MidiFile(os.path.join(d, "salidas", "rocola.mid"))
+    t, mel, dron = 0, [], []
+    for m in mido.merge_tracks(mid.tracks):
+        t += m.time
+        if m.type == "note_on" and m.velocity > 0:
+            (mel if m.channel == 0 else dron).append((t, m.note))
+    seg = ctl["seg_por_fotograma"]
+    ticks = seg * 2 * mid.ticks_per_beat            # 120 bpm
+    esperado = [(round(i * ticks), n) for i, n in enumerate(ctl["midi"])]
+    ok = mel == esperado and len(dron) == 1
+    txt = f"{len(mel)} notas = control.json: {mel == esperado}; dron en {dron[0][1] if dron else None}"
+    if render:
+        w = os.path.join(d, "salidas")
+        fa, a = wavfile.read(os.path.join(w, "rocola.wav"))
+        fb, b = wavfile.read(os.path.join(w, "rocola_real.wav"))
+        ok = ok and fa == fb == 44100 and a.shape == b.shape and b.ndim == 2 and np.abs(b).max() > 0
+        txt += f"; rocola_real.wav {b.shape[0] / fb:.3f} s = rocola.wav {a.shape[0] / fa:.3f} s"
+    else:
+        txt += "; sin fluidsynth/SoundFont: solo se comprobó el .mid"
+    return ok, txt
+
+
 EVALUACIONES = [
     ("A1", "fase inicial = 0", "|x[0]| < 1e-12", a1),
     ("A2", "tono(440) → 440 Hz", "440 ± 1 Hz", a2),
@@ -405,6 +438,7 @@ EVALUACIONES = [
     ("C4", "05 ponderar_latitud", f"error < {UMBRAL_LAT}; separación > {SEPARACION_LAT}", c4),
     ("C5", "05 escala + fechas", f"|Δmedia| < {UMBRAL_ESCALA}; defecto = escala 1.0", c5),
     ("D1", "sincronía de 08", "PASA; desfase de inicio ≤ 0,15 s", d1),
+    ("E1", "06b: rocola.mid vs control.json", "notas y tiempos idénticos; 1 dron; wav real = misma duración", e1),
 ]
 
 

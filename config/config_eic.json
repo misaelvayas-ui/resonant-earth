@@ -27,5 +27,8 @@
   "vmin_sonido": -0.6,
   "vmax_sonido": 1.2,
   "dron_octava": 0,
-  "dron_nivel": 0.08
+  "dron_nivel": 0.08,
+  "instrumento_melodia": 13,
+  "instrumento_dron": 49,
+  "reverb": 50
 }
