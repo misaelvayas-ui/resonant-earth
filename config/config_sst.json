@@ -1,0 +1,34 @@
+{
+  "video": "datos/ecco2_sst_flow.mp4",
+  "mapa": [
+    0,
+    0,
+    2048,
+    1024
+  ],
+  "barra_imagen": "datos/sst_ecco2_cbar.png",
+  "barra": [
+    15,
+    28,
+    291,
+    68
+  ],
+  "barra_vertical": false,
+  "vmin": 0.0,
+  "vmax": 32.0,
+  "umbral": 25.0,
+  "fps_muestreo": 0.9,
+  "escala": 0.5,
+  "ponderar_latitud": true,
+  "modo_color": "matiz",
+  "mascara_estatica": false,
+  "borde_px": 0,
+  "dist_max": 4,
+  "fechas": "datos/flat_ecco2_dates.txt",
+  "fechas_formato": "mes",
+  "paneo": "y",
+  "referencia": 21.97,
+  "vmin_sonido": 21.47,
+  "vmax_sonido": 22.45,
+  "umbral_evento": 0.15
+}

@@ -745,6 +745,112 @@ def e5():
     return r7.returncode == 0 and max4 == 4, f"notas por fotograma hasta {max4}; 07 código {r7.returncode}; {err[0] if err else r7.stdout.strip()[-100:]}"
 
 
+def _barra_png(ruta, horizontal, mesetas=False):
+    """PNG RGBA de una barra de colores con borde negro, margen transparente y 'texto' (marcas de otro color).
+    mesetas=True: el degradado se hace por tramos de color constante de 30 px (peor caso para la detección)."""
+    L, G = 120, 24                                         # largo y grosor del degradado
+    t = np.linspace(0, 1, L)
+    if mesetas:
+        t = np.floor(t * 4) / 3
+    colores = (np.stack([255 * (1 - t), 255 * np.abs(t - 0.5) * 2, 255 * t], axis=1)).astype(np.uint8)   # BGR
+    img = np.zeros((G + 40, L + 30, 4), np.uint8)          # transparente
+    img[10:10 + G + 4, 8:8 + L + 4] = (0, 0, 0, 255)       # borde negro opaco
+    img[12:12 + G, 10:10 + L, :3] = colores[None, :, :]
+    img[12:12 + G, 10:10 + L, 3] = 255
+    img[G + 20:G + 30, 12:50] = (255, 255, 255, 255)       # 'texto' bajo la barra
+    if not horizontal:
+        img = img.transpose(1, 0, 2)
+        # las marcas de la transposición quedan a un lado; el degradado queda en filas
+    cv2.imwrite(ruta, img)
+    x0, y0 = (10, 12) if horizontal else (12, 10)
+    return (x0, y0, x0 + L, y0 + G) if horizontal else (x0, y0, x0 + G, y0 + L)
+
+
+def h1():
+    """calibrar: barra horizontal detectada; la vertical (incluida una con mesetas de color) sigue igual."""
+    from herramientas.calibrar import rect_degradado, rect_degradado_orientado
+    with tempfile.TemporaryDirectory() as d:
+        res = []
+        for nombre, hor, mes in (("horizontal", True, False), ("vertical", False, False), ("vertical con mesetas", False, True)):
+            png = os.path.join(d, nombre.replace(" ", "_") + ".png")
+            esperado = _barra_png(png, hor, mes)
+            rect, vertical = rect_degradado_orientado(png)
+            res.append((nombre, rect == esperado and vertical == (not hor)))
+        # la función de siempre (solo vertical) da lo mismo que antes en la vertical
+        vieja = rect_degradado(os.path.join(d, "vertical.png")) == _barra_png(os.path.join(d, "v2.png"), False)
+    return all(ok for _, ok in res) and vieja, "; ".join(f"{n}: {'sí' if ok else 'NO'}" for n, ok in res) + f"; rect_degradado vertical: {'igual' if vieja else 'CAMBIÓ'}"
+
+
+def video_matiz(carpeta, nombre="matiz"):
+    """Video 320x180 con barra HORIZONTAL (matiz azul -> rojo, 0..32) y mapa cuyo color es el de la barra
+    pero atenuado a 40-90 % de brillo (como las líneas de flujo de ECCO2). Devuelve (ruta_cfg, verdad)."""
+    x0, y0, x1, y1 = MAPA
+    mh, mw = y1 - y0, x1 - x0
+    yy, xx = np.mgrid[0:mh, 0:mw]
+    def pintar(v, brillo):                                 # v en 0..32 -> BGR con el matiz de la barra
+        v = np.asarray(v, float)
+        hsv = np.stack([110 - 105 * v / 32, np.full(v.shape, 220.0), 240 * np.broadcast_to(brillo, v.shape)], axis=-1)
+        return cv2.cvtColor(np.clip(hsv, 0, 255).astype(np.uint8), cv2.COLOR_HSV2BGR)
+    barra_xy = (x0, 4, x1, 14)
+    ruta_video = os.path.join(carpeta, nombre + ".mp4")
+    out = cv2.VideoWriter(ruta_video, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+    verdad = []
+    for k in range(N_FRAMES):
+        p = k / (N_FRAMES - 1)
+        campo = np.clip(10 + 12 * p + 6 * np.sin(xx / 40 + 3 * p) + 3 * np.cos(yy / 30), 0, 32)
+        brillo = 0.65 + 0.25 * np.sin(xx / 7 + yy / 5)             # 0,40 .. 0,90
+        f = np.full((H, W, 3), 0, np.uint8)
+        f[y0:y1, x0:x1] = pintar(campo, brillo)
+        f[barra_xy[1]:barra_xy[3], barra_xy[0]:barra_xy[2]] = pintar(np.linspace(0, 32, barra_xy[2] - barra_xy[0])[None, :].repeat(barra_xy[3] - barra_xy[1], 0), 1.0)
+        out.write(f)
+        if k % 5 == 0:
+            verdad.append(float(campo.mean()))
+    out.release()
+    ruta_fechas = os.path.join(carpeta, nombre + "_fechas.txt")
+    with open(ruta_fechas, "w") as fh:
+        fh.write("\n".join(f"{23000 + 4 * k}  2007-{3 + k // 14:02d}-25T{(k % 6) * 4:02d}:00Z" for k in range(N_FRAMES)) + "\n")
+    cfg = {"video": ruta_video, "mapa": list(MAPA), "barra": list(barra_xy), "barra_vertical": False, "vmin": 0.0,
+           "vmax": 32.0, "umbral": 25.0, "fps_muestreo": 4, "modo_color": "matiz", "dist_max": 6, "mascara_estatica": False,
+           "borde_px": 0, "fechas": ruta_fechas}
+    ruta_cfg = os.path.join(carpeta, nombre + ".json")
+    with open(ruta_cfg, "w") as fh:
+        json.dump(cfg, fh)
+    return ruta_cfg, verdad
+
+
+def h2():
+    """05 modo_color 'matiz' con barra horizontal y color atenuado; el modo 'lab' por defecto no lo resuelve."""
+    with tempfile.TemporaryDirectory() as d:
+        cfg, verdad = video_matiz(d)
+        R, _ = correr05(d, cfg)
+        err = max(abs(r["media"] - v) for r, v in zip(R, verdad))
+        val = float(np.median([r["validos"] for r in R]))
+        Rl, _ = correr05(d, cfg, modo_color="lab", dist_max=8.0)
+        val_lab = float(np.median([r["validos"] for r in Rl]))
+    return len(R) == len(verdad) and err < 0.5 and val > 0.95 and val_lab < 0.5, \
+        f"error máx de media {err:.3f} °C; validos matiz {val:.2f}, lab {val_lab:.2f}"
+
+
+def h3():
+    """Fechas ISO (2.ª columna): 'mar 2007' con fechas_formato 'mes', año con el formato por defecto; error claro si no es válido."""
+    from fechas import etiqueta, leer_fechas
+    with tempfile.TemporaryDirectory() as d:
+        cfg, _ = video_matiz(d)
+        Rm, _ = correr05(d, cfg, fechas_formato="mes")
+        Ra, _ = correr05(d, cfg)
+        malo = {**json.load(open(cfg)), "fechas_formato": "dia"}
+        json.dump(malo, open(os.path.join(d, "malo.json"), "w"))
+        r = correr("05_video_a_rasgos.py", [os.path.join(d, "malo.json")], d)
+        crudos = leer_fechas(json.load(open(cfg))["fechas"])
+        anio = os.path.join(d, "time.txt")
+        open(anio, "w").write("# c\n1881\n1882\n")
+        ok_msg = r.returncode != 0 and "fechas_formato" in (r.stderr + r.stdout) and "Traceback" not in r.stderr
+        unit = (crudos[0] == "2007-03-25T00:00Z" and etiqueta(crudos[0], "mes") == "mar 2007" and etiqueta(crudos[0]) == 2007
+                and etiqueta("1881", "mes") == 1881 and etiqueta("2008-12-01T00:00Z", "mes") == "dic 2008" and leer_fechas(anio) == ["1881", "1882"])
+    return unit and Rm[0]["fecha"] == "mar 2007" and Ra[0]["fecha"] == 2007 and ok_msg, \
+        f"fecha 'mes' = {Rm[0]['fecha']!r}, por defecto = {Ra[0]['fecha']!r}, time.txt = año suelto: {'sí' if unit else 'NO'}; formato inválido: mensaje {'sí' if ok_msg else 'NO'}"
+
+
 EVALUACIONES = [
     ("A1", "fase inicial = 0", "|x[0]| < 1e-12", a1),
     ("A2", "tono(440) → 440 Hz", "440 ± 1 Hz", a2),
@@ -778,6 +884,9 @@ EVALUACIONES = [
     ("G5", "06: paneo con centroide fijo", "|pan| máx. < 0,1 con centroide 0,5 ± 0,002", g5),
     ("E5", "06 numpy + 07 con 4 notas", "07 sin FALLA con arpegios de 4 notas", e5),
     ("E4", "06: retardo media → notas", "|retardo| ≤ 1 fotograma (correlación cruzada), r > 0,8", e4),
+    ("H1", "calibrar: orientación de la barra", "horizontal detectada; vertical (también con mesetas) igual que antes", h1),
+    ("H2", "05: modo_color 'matiz'", "barra horizontal + color atenuado: error < 0,5 °C, validos > 0,95; 'lab' < 0,5", h2),
+    ("H3", "fechas ISO: 'mar 2007'", "mes con fechas_formato 'mes', año por defecto, time.txt intacto, error claro", h3),
     ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]
 

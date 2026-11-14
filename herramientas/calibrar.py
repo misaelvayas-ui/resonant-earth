@@ -7,11 +7,16 @@ Uso (desde la raíz):  python -m herramientas.calibrar [opciones]
   --cuadro  posición del fotograma de referencia, 0-1 (0.6)
   --fps-muestreo 2   --escala AUTO (deja el mapa en ~1024 px de ancho: 0.25 para 4096, 0.533 para 1920)
   --umbral  valor sobre el que se mide 'area'     --referencia  valor del dron (06)
+  --orientacion auto|vertical|horizontal   de la barra PNG (auto: la que tenga el degradado más grande)
+  --mapa X0,Y0,X1,Y1   rectángulo del mapa medido a mano (omite la detección automática por paleta, que
+                        falla en videos cuyo color pierde brillo, como ECCO2; con --modo-color matiz es obligatorio)
+  --modo-color lab|matiz   se copia a 'modo_color' del config (ver 05); con matiz no se calcula dist_max
 Genera ese config (conserva las claves musicales que ya tuviera) y salidas/calibracion.png (revísalo: rectángulos y cuadrícula).
 
 Qué detecta:
-  - Barra PNG: el degradado es el bloque donde cada fila es de un solo color (marcas y texto
-    no cumplen eso) y que ocupa filas contiguas; así se separa de las marcas de graduación.
+  - Barra PNG: el degradado es el bloque donde cada fila (barra vertical) o cada columna (horizontal) es de
+    un solo color (marcas y texto no cumplen eso) y que ocupa filas/columnas contiguas; así se separa de
+    las marcas de graduación. Se prueban las dos orientaciones y gana el degradado de mayor área.
   - Mapa: filas y columnas del fotograma donde una fracción mínima de píxeles casa con la
     paleta de la barra (Lab); los títulos y márgenes sin datos quedan fuera.
   - Rango en °C: la barra PNG trae las cifras como imagen (texto blanco sobre transparente);
@@ -32,13 +37,8 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 
-def rect_degradado(png):
-    """Rectángulo (x0, y0, x1, y1) del degradado de una barra PNG (con o sin canal alfa)."""
-    img = cv2.imread(png, cv2.IMREAD_UNCHANGED)
-    if img is None:
-        sys.exit(f"No se pudo leer la barra '{png}'.")
-    alfa = img[..., 3] if img.ndim == 3 and img.shape[2] == 4 else np.full(img.shape[:2], 255, np.uint8)
-    rgb = img[..., :3].astype(int)
+def _rect_por_filas(alfa, rgb):
+    """(x0, y0, x1, y1) del bloque de filas contiguas donde cada fila es de un solo color, o None."""
     h, w = alfa.shape
     corridas = {}
     for y in range(h):
@@ -56,10 +56,41 @@ def rect_degradado(png):
         corridas[y] = mejor
     tramos = [(r[1], r[2]) for r in corridas.values() if r[0] >= 20]
     if not tramos:
-        sys.exit("No encontré un degradado en la barra (filas de un solo color).")
+        return None
     x0, x1 = max(set(tramos), key=tramos.count)
     filas = [y for y, r in corridas.items() if (r[1], r[2]) == (x0, x1)]
     return x0, min(filas), x1, max(filas) + 1
+
+
+def rect_degradado_orientado(png, orientacion="auto"):
+    """((x0, y0, x1, y1), vertical) del degradado de una barra PNG (con o sin canal alfa).
+    Vertical = el color cambia a lo largo del eje y (cada FILA es de un solo color)."""
+    img = cv2.imread(png, cv2.IMREAD_UNCHANGED)
+    if img is None:
+        sys.exit(f"No se pudo leer la barra '{png}'.")
+    alfa = img[..., 3] if img.ndim == 3 and img.shape[2] == 4 else np.full(img.shape[:2], 255, np.uint8)
+    rgb = img[..., :3].astype(int)
+    vert = _rect_por_filas(alfa, rgb) if orientacion in ("auto", "vertical") else None
+    hor = _rect_por_filas(alfa.T, rgb.transpose(1, 0, 2)) if orientacion in ("auto", "horizontal") else None
+    if hor is not None:
+        hor = (hor[1], hor[0], hor[3], hor[2])                 # deshace la transposición
+    if vert is None and hor is None:
+        sys.exit("No encontré un degradado en la barra (filas o columnas de un solo color).")
+    area = lambda r: (r[2] - r[0]) * (r[3] - r[1])
+    # una barra es más larga que ancha EN LA DIRECCIÓN DEL DEGRADADO: vertical = alta, horizontal = ancha.
+    # (Sin esta regla, una barra vertical también deja tramos de columnas de un solo color y ganaba el área.)
+    def forma_ok(r, vertical):
+        alto, ancho = r[3] - r[1], r[2] - r[0]
+        return alto >= ancho if vertical else ancho >= alto
+    validas = [(r, v) for r, v in ((vert, True), (hor, False)) if r is not None and forma_ok(r, v)]
+    if validas:
+        return max(validas, key=lambda rv: area(rv[0]))
+    return (vert, True) if vert is not None else (hor, False)       # ninguna con forma de barra: como antes
+
+
+def rect_degradado(png):
+    """Rectángulo (x0, y0, x1, y1) del degradado de una barra PNG vertical (como siempre)."""
+    return rect_degradado_orientado(png, "vertical")[0]
 
 
 def lab(bgr):
@@ -99,7 +130,7 @@ def rect_mapa(frame, arbol, tol=20.0, frac=0.2, lado=0.25, borde=0.03):
     return (int(x0 * k), int(y0 * k), int(x1 * k), int(y1 * k)), d[y0:y1, x0:x1]
 
 
-def dibujar(frame, rect_m, barra_png, rect_b, salida):
+def dibujar(frame, rect_m, barra_png, rect_b, salida, vertical=True):
     """calibracion.png: fotograma con cuadrícula y rectángulo del mapa (izquierda); barra PNG sobre
     fondo gris con su degradado enmarcado y líneas en sus extremos (derecha, para leer el rango)."""
     ancho = 1024
@@ -120,8 +151,12 @@ def dibujar(frame, rect_m, barra_png, rect_b, salida):
     c = (img[..., :3] * a + 90.0 * (1 - a)).astype(np.uint8)       # fondo gris: el texto blanco se lee
     bx0, by0, bx1, by1 = rect_b
     cv2.rectangle(c, (bx0, by0), (bx1, by1), (255, 255, 0), 1)                          # cian
-    for y in (by0, by1):
-        cv2.line(c, (0, y), (c.shape[1] - 1, y), (255, 255, 0), 1)
+    if vertical:                                       # líneas en los extremos: de ahí se lee el rango
+        for y in (by0, by1):
+            cv2.line(c, (0, y), (c.shape[1] - 1, y), (255, 255, 0), 1)
+    else:
+        for x in (bx0, bx1):
+            cv2.line(c, (x, 0), (x, c.shape[0] - 1), (255, 255, 0), 1)
     c = cv2.resize(c, None, fx=0.75, fy=0.75, interpolation=cv2.INTER_AREA)
     alto = max(s.shape[0], c.shape[0])
     lienzo = np.zeros((alto, s.shape[1] + c.shape[1], 3), np.uint8)
@@ -142,6 +177,12 @@ def main():
     ap.add_argument("--escala", type=float)
     ap.add_argument("--umbral", type=float)
     ap.add_argument("--referencia", type=float)
+    ap.add_argument("--orientacion", choices=("auto", "vertical", "horizontal"), default="auto",
+                    help="orientación de la barra PNG (auto: el degradado de mayor área)")
+    ap.add_argument("--mapa", default=None, metavar="X0,Y0,X1,Y1",
+                    help="rectángulo del mapa en píxeles del video; omite la detección automática")
+    ap.add_argument("--modo-color", choices=("lab", "matiz"), default=None,
+                    help="se copia a 'modo_color' (ver 05); con 'matiz' hace falta --mapa")
     ap.add_argument("--salida", default=None)
     a = ap.parse_args()
 
@@ -149,16 +190,28 @@ def main():
         if os.path.normpath(a.video) != os.path.normpath("datos/2023GISTEMP_Map_SOS.mp4"):
             sys.exit(f"Indica --barra <PNG de la barra de colores de '{a.video}'>: la de GISTEMP no sirve para otro video.")
         a.barra = "datos/giss_navy_anomaly_Vertical-both.png"
-    rect_b = rect_degradado(a.barra)
-    print(f"Degradado de la barra PNG (x0, y0, x1, y1) = {rect_b}")
+    rect_b, vertical = rect_degradado_orientado(a.barra, a.orientacion)
+    print(f"Degradado de la barra PNG (x0, y0, x1, y1) = {rect_b} ({'vertical' if vertical else 'horizontal'})")
     frame, n_frames, fps = leer_cuadro(a.video, a.cuadro)
     alto, ancho = frame.shape[:2]
     img = cv2.imread(a.barra)
-    perfil = img[rect_b[1]:rect_b[3], rect_b[0]:rect_b[2]].mean(axis=1)
+    perfil = img[rect_b[1]:rect_b[3], rect_b[0]:rect_b[2]].mean(axis=1 if vertical else 0)
     arbol = cKDTree(lab(perfil))
-    rect_m, dist = rect_mapa(frame, arbol)
+    if a.mapa is not None:
+        try:
+            rect_m = tuple(int(v) for v in a.mapa.split(","))
+            x0, y0, x1, y1 = rect_m
+        except ValueError:
+            sys.exit(f"--mapa '{a.mapa}' no es válido: usa X0,Y0,X1,Y1 (enteros, píxeles del video).")
+        if not (0 <= x0 < x1 <= ancho and 0 <= y0 < y1 <= alto):
+            sys.exit(f"--mapa {rect_m} se sale del video ({ancho}x{alto}).")
+        dist = arbol.query(lab(cv2.resize(frame[y0:y1, x0:x1], None, fx=0.25, fy=0.25, interpolation=cv2.INTER_AREA)))[0]
+    elif a.modo_color == "matiz":
+        sys.exit("Con --modo-color matiz indica el mapa a mano (--mapa X0,Y0,X1,Y1): la detección usa la paleta en Lab.")
+    else:
+        rect_m, dist = rect_mapa(frame, arbol)
     print(f"Mapa en el video (x0, y0, x1, y1) = {rect_m}  (video {ancho}x{alto}, {n_frames} fotogramas, {fps:g} fps)")
-    dibujar(frame, rect_m, a.barra, rect_b, sal("calibracion.png"))
+    dibujar(frame, rect_m, a.barra, rect_b, sal("calibracion.png"), vertical)
     print(f"Imagen de revisión: {sal('calibracion.png')}")
     if a.vmin is None or a.vmax is None:
         sys.exit("No puedo leer el rango de °C de la barra (las cifras son una imagen y no hay OCR).\n"
@@ -171,11 +224,19 @@ def main():
     # pálido que la barra), acotado a [8, 20]
     dist_max = float(np.clip(np.ceil(np.percentile(dist, 95)), 8, 20))
     cfg = {"video": a.video, "mapa": list(rect_m), "barra_imagen": a.barra, "barra": list(rect_b),
-           "barra_vertical": True, "barra_arriba_es_max": True, "vmin": vmin, "vmax": vmax,
+           "barra_vertical": vertical, "vmin": vmin, "vmax": vmax,
            "umbral": a.umbral if a.umbral is not None else round(vmin + 0.75 * (vmax - vmin), 3),
            "fps_muestreo": a.fps_muestreo,
            "escala": a.escala if a.escala is not None else round(min(1.0, 1024 / ancho), 3),
-           "ponderar_latitud": bool(lat_ok), "dist_max": dist_max}
+           "ponderar_latitud": bool(lat_ok)}
+    if vertical:
+        cfg["barra_arriba_es_max"] = True            # horizontal: la izquierda es vmin (05 no lo necesita)
+    if a.modo_color == "matiz":
+        cfg["modo_color"] = "matiz"                  # dist_max serían unidades de matiz: se pone a mano en el config
+    else:
+        cfg["dist_max"] = dist_max
+        if a.modo_color == "lab":
+            cfg["modo_color"] = "lab"
     if a.fechas:
         if not os.path.exists(a.fechas):
             sys.exit(f"No existe el archivo de fechas '{a.fechas}'.")
@@ -197,7 +258,8 @@ def main():
             print(f"Se conservaron de {ruta}: {', '.join(conservar)}")
     with open(ruta, "w") as fh:
         json.dump(cfg, fh, indent=2)
-    print(f"Rango: {vmin:g} .. {vmax:g} °C | ponderar_latitud={lat_ok} | dist_max={dist_max:g} | escala={cfg['escala']}")
+    print(f"Rango: {vmin:g} .. {vmax:g} °C | ponderar_latitud={lat_ok} | "
+          f"{'dist_max=' + format(dist_max, 'g') if 'dist_max' in cfg else 'dist_max: a mano (modo matiz)'} | escala={cfg['escala']}")
     print(f"Config: {ruta}")
 
 

@@ -729,3 +729,22 @@ Verificado con GISTEMP (05 + 06 en carpeta temporal): rocola.mid y rocola.wav ID
 añade "umbral_evento": 0,15; cruce_dron 1976.
 evaluar.py: pruebas nuevas G4 (cruce), F5 (umbral_evento), G5 (paneo con centroide fijo), E5 (numpy + 07 con 4 notas) y F3 ampliada (sin 'umbral',
 barra fuera del PNG). Con 05/06/07 de antes de la ronda las 5 FALLAN; con los nuevos, 33 PASA, 0 FALLA en 50,0 s.
+
+RONDA 24 - segunda visualización: SVS 3912 ECCO2 (temperatura y corrientes del mar) en la rama misael/sst   (2026-11-14)
+Antes: commit 072b2d7. GISTEMP no cambia: rasgos.json de 05 con config_eic.json idéntico (cmp); calibrar con GISTEMP da el mismo config y el mismo calibracion.png.
+Datos (datos/, ignorado por git): ecco2_sst_flow.mp4 (2048x1024, 30 fps, 2001 fotogramas, 66,7 s), sst_ecco2_cbar.png (barra HORIZONTAL 0-32 °C),
+flat_ecco2_dates.txt (2001 fechas, 2007-03-25 a 2008-03-03, paso ~4 h 8 min). Fotograma k = línea k. Todo el fotograma es mapa (sin barra ni texto).
+1. 05: modo_color "matiz" (por defecto "lab", sin cambios). Las líneas de flujo conservan el matiz de la barra pero no su brillo: en Lab solo
+   0,1-0,4 % de los píxeles eran válidos; por matiz (HSV, V y S >= 60) ~26 %. Claves nuevas: modo_color, brillo_min, saturacion_min, fechas_formato.
+   Con este video borde_px = 0 (con 1 la dilatación se come las líneas: validos 26 -> 7 % y la media sube a 25 °C).
+2. fechas.py (nuevo): lee time.txt (año) o "ID  ISO" (2.ª columna); fechas_formato "mes" -> "mar 2007". 08 no cambia (ya imprimía 'fecha').
+3. calibrar: barra vertical u horizontal (--orientacion auto|vertical|horizontal; auto = la que tenga forma de barra: elegir por área rompía GISTEMP),
+   --mapa X0,Y0,X1,Y1 (la detección por paleta no encuentra el mapa de ECCO2), --modo-color.
+4. config/config_sst.json: mapa [0,0,2048,1024], barra [15,28,291,68], vmin 0, vmax 32, umbral 25, fps_muestreo 0,9 (61 fotogramas, 30,5 s),
+   escala 0,5, dist_max 4 (matiz), ponderar_latitud, paneo "y", referencia 21,97 (media de la serie), vmin/vmax_sonido 21,47-22,45, umbral_evento 0,15
+   (con el defecto 1/12 del rango saldrían 27 de 60 eventos fuertes, por ruido; con 0,15, 7).
+5. Resultados (ROCOLA_SALIDAS=salidas_sst): validos 25,0-27,6 % (mediana 26,1); media 21,48-22,44 °C (máx mar 2007, mín nov 2007); centroide_y 0,487-0,539
+   (norte may 2007, máx ago 2007, sur ene 2008); 07: 2 PASA + 3 NO APLICA; 08: diferencia 0,000 s.
+   LIMITACIÓN: la media sale ~2-4 °C por encima de lo esperable (solo cuentan las líneas brillantes, y las cálidas lo son más; brillo_min 30/60/100 -> 20,6/22,0/23,6).
+6. evaluar.py: pruebas H1 (calibrar, barra horizontal y vertical con mesetas), H2 (modo matiz, error 0,107 °C) y H3 (fechas "mar 2007"). 36 PASA, 0 FALLA.
+7. README y .gitignore (/salidas_sst/).

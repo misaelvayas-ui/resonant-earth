@@ -51,7 +51,7 @@ Todos los comandos se ejecutan **desde la raíz del proyecto**; si no, el script
 ## Uso rápido
 
 ```bash
-python evaluar.py                                  # 33 pruebas PASA/FALLA en ~50 s (no toca salidas/)
+python evaluar.py                                  # 36 pruebas PASA/FALLA en ~50 s (no toca salidas/)
 python 04_video_sintetico.py && python 05_video_a_rasgos.py && python 06_rasgos_a_audio.py && python 07_validar.py
 python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 ```
@@ -93,7 +93,10 @@ Obligatorias: `video`, `mapa` y `barra` (rectángulos `[x0, y0, x1, y1]` en píx
 | `barra_imagen` | — | leer la barra de un PNG aparte |
 | `escala` | 1.0 | reducir el mapa antes de procesar (0.25 para 4096×2048) |
 | `ponderar_latitud` | false | media ponderada por cos(latitud) en mapas equirectangulares completos |
-| `fechas` | — | `time.txt` → añade `fecha` a cada rasgo |
+| `fechas` | — | `time.txt` (un año por línea) o un archivo `ID  AAAA-MM-DDTHH:MMZ` (2.ª columna) → añade `fecha` a cada rasgo |
+| `fechas_formato` | `"anio"` | `"mes"` → `"mar 2007"` (solo con fechas ISO; con `time.txt` siempre es el año) |
+| `modo_color` | `"lab"` | `"matiz"`: compara solo el matiz (HSV) con la barra; para videos cuyo color pierde brillo (líneas de flujo de ECCO2). `dist_max` pasa a unidades de matiz (0-179) |
+| `brillo_min`, `saturacion_min` | 60, 60 | solo con `modo_color: "matiz"`: V y S mínimos para que un píxel cuente (la media sube al subir `brillo_min`) |
 | `referencia` | primer fotograma | valor en el que suena el dron (0 = sin anomalía) |
 | `vmin_sonido`, `vmax_sonido` | `vmin`, `vmax` | rango de la media que se reparte entre las notas (GISTEMP: −0,6 a 1,2) |
 | `densidad_umbrales` | 50 % y 72 % del rango de sonido | `[u1, u2]`: media bajo u1 → 1 nota; hasta u2 → 2; más → 4 |
@@ -128,11 +131,11 @@ Después de **cada cambio** de código o de config: `python evaluar.py` (debe da
 ## Estructura
 
 ```
-sintesis.py  rutas.py  04…08_*.py  evaluar.py    código (raíz)
+sintesis.py  rutas.py  fechas.py  04…08_*.py  evaluar.py    código (raíz)
 config/        configuraciones de 05
 datos/         videos y barras descargados (ignorado por git)
-salidas/       todo lo generado (WAV, MP4, PNG, JSON)
-herramientas/  calibrar.py   →  python -m herramientas.calibrar
+salidas/       todo lo generado (WAV, MP4, PNG, JSON); salidas_sst/ = el de ECCO2 (ROCOLA_SALIDAS=salidas_sst)
+herramientas/  calibrar.py   →  python -m herramientas.calibrar (barra vertical u horizontal; --mapa, --modo-color)
 web/           rocola web accesible (la mantiene Juan; ver web/README.md)
 docs/          CAMBIOS.txt (historial de cambios), AUDITORIA.md y AUDITORIA_2.md (auditorías)
 archivo/       ejercicios 01–03, verificar_01/graficar_01, PLAN.md y sus salidas (nada se borró;
@@ -143,6 +146,7 @@ Variables de entorno: `ROCOLA_SALIDAS` y `ROCOLA_CONFIG` redirigen las carpetas;
 
 ## Limitaciones conocidas
 
+- Segundo video, SVS 3912 (ECCO2, `config/config_sst.json`): `python 05_video_a_rasgos.py config/config_sst.json` con `ROCOLA_SALIDAS=salidas_sst`. Solo ~26 % del mapa es válido (líneas brillantes) y la media sale unos °C más alta que la real (sesgo hacia lo cálido); sirve para la forma estacional, no para el valor absoluto.
 - El rango de °C de la barra se lee a ojo en `calibracion.png` (no hay OCR).
 - El mapa del video SVS 5207 es más pálido que su barra, por eso `dist_max` es 17 en ese config.
 - Cada fotograma muestreado dura 0,5 s de audio (`SEG_POR_FOTOGRAMA` en 06): con `fps_muestreo` distinto de 2, el video de 08 se estira o se comprime para igualar el audio (el ejemplo sintético, a 4, se ve a mitad de velocidad).
