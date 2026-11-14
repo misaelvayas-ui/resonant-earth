@@ -1,8 +1,17 @@
 # Rocola de la Tierra
 
+**English version: [README_EN.md](README_EN.md)**
+
 Convierte una visualización científica en video en sonido: lee los colores de cada fotograma, los traduce a valores con la barra de colores y los toca como una melodía estéreo.
 
-Prototipo para NASA Space Apps (reto 9), probado con el video **NASA SVS 5207 — Anomalías de temperatura global 1880–2023 (GISTEMP)**.
+Prototipo del equipo **Resonant Earth** para el NASA Space Apps Challenge 2026 (reto 9, "The Earth Information Jukebox"). Está pensado para personas ciegas o con baja visión: lo que el mapa muestra con colores, aquí se oye.
+
+Tiene dos partes:
+
+- **El programa (Python)**: convierte un video en música y comprueba que el sonido diga lo mismo que los datos.
+- **La página web** ([web/](web/README.md)): una rocola accesible para elegir una visualización y escucharla, en español e inglés, con descripción en texto, voz, subtítulos, teclado y lector de pantalla.
+
+Datos de la NASA usados: **SVS 5207 — Anomalías de temperatura global 1880–2023 (GISTEMP)** y **SVS 3912 — Corrientes y temperatura del mar (ECCO2), 2007–2008**.
 
 ## Qué se oye
 
@@ -16,6 +25,15 @@ Prototipo para NASA Space Apps (reto 9), probado con el video **NASA SVS 5207 �
 | anomalía alta | **más notas por fotograma** (1, 2 o 4, en arpegio ascendente) |
 
 Con el video real, la media extraída sigue la curva oficial de GISTEMP con una correlación de **0,99** (58 años muestreados).
+
+## La página web
+
+```bash
+cd web
+python -m http.server 8000
+```
+
+Abre <http://localhost:8000> (o <http://localhost:8000/?lang=en> para inglés). Los detalles están en [web/README.md](web/README.md).
 
 ## Instalación
 
@@ -51,7 +69,7 @@ Todos los comandos se ejecutan **desde la raíz del proyecto**; si no, el script
 ## Uso rápido
 
 ```bash
-python evaluar.py                                  # 37 pruebas PASA/FALLA en ~50 s (no toca salidas/)
+python evaluar.py                                  # 37 pruebas PASA/FALLA en 1-2 minutos (no toca salidas/)
 python 04_video_sintetico.py && python 05_video_a_rasgos.py && python 06_rasgos_a_audio.py && python 07_validar.py
 python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 ```
@@ -137,7 +155,7 @@ datos/         videos y barras descargados (ignorado por git)
 salidas/       todo lo generado (WAV, MP4, PNG, JSON); salidas_sst/ = el de ECCO2 (ROCOLA_SALIDAS=salidas_sst)
 herramientas/  calibrar.py   →  python -m herramientas.calibrar (barra vertical u horizontal; --mapa, --modo-color)
                exportar_mapeo.py → python -m herramientas.exportar_mapeo (mapeo rasgo→sonido para el modo en vivo; ver docs/ESPEC_MODO_EN_VIVO.md)
-web/           rocola web accesible (la mantiene Juan; ver web/README.md)
+web/           rocola web accesible, en español e inglés (ver web/README.md)
 docs/          CAMBIOS.txt (historial de cambios), AUDITORIA.md y AUDITORIA_2.md (auditorías)
 archivo/       ejercicios 01–03, verificar_01/graficar_01, PLAN.md y sus salidas (nada se borró;
                también está en el tag git "practica-completa")
@@ -152,5 +170,24 @@ Variables de entorno: `ROCOLA_SALIDAS` y `ROCOLA_CONFIG` redirigen las carpetas;
 - El mapa del video SVS 5207 es más pálido que su barra, por eso `dist_max` es 17 en ese config.
 - Cada fotograma muestreado dura 0,5 s de audio (`SEG_POR_FOTOGRAMA` en `parametros.py`): con `fps_muestreo` distinto de 2, el video de 08 se estira o se comprime para igualar el audio (el ejemplo sintético, a 4, se ve a mitad de velocidad).
 - `demo_rocola.mp4`: el video empieza 0,1 s después del audio. Es la configuración que no se entrecorta en VLC.
+
+## Uso de IA
+
+Las reglas del NASA Space Apps Challenge permiten usar IA si se declara. Esto es lo que se hizo con ayuda de IA:
+
+- **Código**: buena parte del programa en Python (`04`–`08`, `sintesis.py`, `evaluar.py`, `herramientas/`) y toda la página web (`web/`) se escribieron con ayuda de un asistente de IA (Claude, de Anthropic, con Claude Code). El equipo revisó y probó el resultado. Cada ronda de cambios hecha con IA está anotada como tal en [docs/CAMBIOS.txt](docs/CAMBIOS.txt).
+- **Documentación**: este README, su versión en inglés y los documentos de `docs/` y `web/` también se redactaron con ayuda de IA.
+- **Logo**: el logo de Resonant Earth (`web/assets/logo*.jpg`) fue generado con IA. Lleva la marca visible «Generado con IA» escrita dentro de la imagen. No usa logos ni marcas de la NASA. El ícono de la pestaña se dibuja por código (`web/hacer_icono.py`), sin IA.
+- **Lo que NO es IA**: el sonido y las descripciones en texto. La música sale de reglas fijas sobre los números leídos del video (ver "Qué se oye"), y las frases de «Qué pasa ahora» se arman con plantillas a partir de los mismos números (`web/describir.js`). Con los mismos datos, el resultado es siempre el mismo. La voz que narra es la del navegador.
+- **Datos**: no hay datos generados con IA. Los videos son de la NASA (Scientific Visualization Studio); el tercer ejemplo de la web es un video sintético hecho por código (`04_video_sintetico.py`) y está rotulado como ejemplo.
+
+## Referencias
+
+- NASA Scientific Visualization Studio, SVS 5207: anomalías de temperatura global de 1880 a 2023 (GISTEMP). <https://svs.gsfc.nasa.gov/5207/>
+- NASA Scientific Visualization Studio, SVS 3912: corrientes y temperatura de la superficie del mar (modelo ECCO2). <https://svs.gsfc.nasa.gov/3912/>
+- Fuentes tipográficas de la web: Unbounded, Plus Jakarta Sans y Space Mono (licencia SIL OFL; ver `web/assets/fonts/`).
+- Bibliotecas: numpy, scipy, opencv-python, matplotlib, mido (ver `requirements.txt`); FluidSynth y ffmpeg, opcionales.
+
+Este proyecto no está avalado por la NASA.
 
 El detalle de cada cambio y de cada medición está en [docs/CAMBIOS.txt](docs/CAMBIOS.txt).

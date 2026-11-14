@@ -875,9 +875,9 @@ Problemas encontrados y cambios:
    escuchando" va a todo el ancho, en seis fichas iguales (3 por fila; 2 en tableta; 1 en teléfono). Las dos columnas
    terminan a la misma altura (diferencia: 320 -> 0 px en las 8 combinaciones medidas); si la derecha es más alta, el
    gráfico crece (160 -> hasta 300 px). Alto de la página a 1440 px (español, GISTEMP): 4095 -> 3909 px.
-2. El video quedaba fuera de la primera pantalla (empezaba a 906 px con 900 de alto). La cabecera baja de 276 a 226 px
+2. El video quedaba fuera de la primera pantalla (empezaba a 906 px con 900 de alto). La cabecera baja de 276 a 228 px
    (logo 184 -> 152 px; en tableta y móvil 136 px, no menos, para que la marca "Generado con IA" se lea) y la
-   explicación larga de la pista pasa debajo de los controles. El video empieza ahora a 630 px.
+   explicación larga de la pista pasa debajo de los controles. El video empieza ahora a 702 px (medido a 1440 x 900): se ve desde la primera pantalla.
 3. La explicación de la pista medía hasta 782 px de ancho (unas 100 letras por línea): ahora 40em (unas 75-80).
 4. "Colores de este video" estaba al final de la leyenda de sonidos, lejos del mapa: ahora va justo debajo del video.
 5. Momentos clave: cada botón repetía la frase entera ("Temperatura media: 0,24 °C por debajo de la referencia.";
@@ -907,3 +907,15 @@ voz (habla en el idioma elegido, la música baja de 0,40 a 0,14 y se calla al pa
 recordar idioma, tema y casillas al recargar, abrir con #id y con ?lang=, y el aviso cuando el catálogo no carga.
 No probado: alto contraste forzado de Windows ni un lector de pantalla real (solo nombres accesibles por código).
 evaluar.py no se volvió a correr: no se tocó ningún script del pipeline desde la ronda 29.
+
+RONDA 31 - Documentación: uso de IA, referencias y README en inglés   (2026-11-14)
+Hecho con ayuda de IA (Claude, de Anthropic). Rama mejora/auditoria-clean-code. Antes: commit d5862ec.
+Problema: las reglas del evento piden declarar el uso de IA, una lista de referencias e inglés en todo material
+enlazado desde la entrega. El README solo tenía una línea sobre la web, no mencionaba la segunda pista de la NASA en
+la presentación y solo estaba en español.
+1. README.md: presentación (equipo, reto, para quién es, las dos partes del proyecto y los dos datos de la NASA),
+   sección "La página web", sección "Uso de IA" (código, documentación, logo con marca visible, qué NO es IA: el sonido
+   y las descripciones salen de reglas fijas; datos) y "Referencias". Enlace a la versión en inglés arriba.
+2. README_EN.md (nuevo): la misma información en inglés, con una nota: el código y el registro de cambios están en español.
+3. docs/CAMBIOS.txt, ronda 30: corregidos dos números con la medida real (cabecera 228 px, video a 702 px).
+No se tocó código. evaluar.py no se volvió a correr.
