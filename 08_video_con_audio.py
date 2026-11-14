@@ -73,6 +73,24 @@ def fuente_tipografica():
         return None
 
 
+def opcion_grafo():
+    """Opción de ffmpeg para leer el grafo de filtros desde un archivo.
+    ffmpeg >= 7: '-/filter_complex archivo' ('-filter_complex_script' queda obsoleta y desaparece en las
+    versiones nuevas). ffmpeg <= 6: solo '-filter_complex_script'. Se prueba con un grafo mínimo en lugar de
+    leer el número de versión (las compilaciones de git no lo traen)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        with open(os.path.join(tmp, "g.txt"), "w") as fh:
+            fh.write("[0:v]null[v]")
+        for opcion in ("-/filter_complex", "-filter_complex_script"):
+            r = subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=s=16x16:d=0.04",
+                                opcion, "g.txt", "-map", "[v]", "-f", "null", "-"],
+                               capture_output=True, text=True, cwd=tmp)
+            if r.returncode == 0:
+                return opcion
+    sys.exit("Este ffmpeg no acepta ni '-/filter_complex' ni '-filter_complex_script'. "
+             "Actualiza ffmpeg (>= 4).")
+
+
 def alto_video(ruta):
     return int(ejecutar(["ffprobe", "-v", "error", "-select_streams", "v:0",
                          "-show_entries", "stream=height", "-of", "csv=p=0", ruta]).strip())
@@ -144,7 +162,7 @@ def main():
         with open(os.path.join(tmp, "grafo.txt"), "w") as fh:
             fh.write("[0:v]" + ",".join(cadena or ["null"]) + "[v]")
         cmd = ["ffmpeg", "-y", "-v", "error", "-i", os.path.abspath(video), "-i", os.path.abspath(audio),
-               "-filter_complex_script", "grafo.txt", "-map", "[v]",
+               opcion_grafo(), "grafo.txt", "-map", "[v]",
                "-map", "1:a:0", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
                "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
                # sin listas de edición: VLC las maneja mal y el audio se entrecortaba al inicio

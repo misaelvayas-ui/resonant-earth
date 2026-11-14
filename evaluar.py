@@ -1,4 +1,4 @@
-"""evaluar.py — mini evaluaciones rápidas (< 30 s) con tabla PASA/FALLA.
+"""evaluar.py — mini evaluaciones (~50 s) con tabla PASA/FALLA.
 
 Uso (desde la raíz del proyecto):
     python evaluar.py            # todas
@@ -583,13 +583,36 @@ def f3():
         os.makedirs(os.path.join(d, "salidas"), exist_ok=True)
         previo = os.path.join(d, "salidas", "rasgos.json")
         open(previo, "w").write('{"marca": 1}')
+        png = os.path.join(d, "barra.png")
+        cv2.imwrite(png, np.zeros((50, 10, 3), np.uint8))
+        sin_umbral = {k: v for k, v in base.items() if k != "umbral"}
         res = []
-        for nombre, cambio, frase in (("sin video", {"video": os.path.join(d, "no_existe.mp4")}, "No se pudo abrir"),
-                                      ("mapa fuera", {"mapa": [10, 20, 900, 700]}, "se sale del video")):
-            json.dump({**base, **cambio}, open(cfg, "w"))
+        for nombre, config, frase in (("sin video", {**base, "video": os.path.join(d, "no_existe.mp4")}, "No se pudo abrir"),
+                                      ("mapa fuera", {**base, "mapa": [10, 20, 900, 700]}, "se sale del video"),
+                                      ("sin 'umbral'", sin_umbral, "Faltan claves obligatorias"),
+                                      ("barra fuera del PNG", {**base, "barra_imagen": png}, "se sale del PNG")):
+            json.dump(config, open(cfg, "w"))
             r = correr("05_video_a_rasgos.py", [cfg], d)
-            res.append((nombre, r.returncode != 0 and frase in (r.stderr + r.stdout), open(previo).read() == '{"marca": 1}'))
+            res.append((nombre, r.returncode != 0 and frase in (r.stderr + r.stdout) and "Traceback" not in r.stderr,
+                        open(previo).read() == '{"marca": 1}'))
     return all(a and b for _, a, b in res), "; ".join(f"{n}: mensaje {'sí' if a else 'NO'}, rasgos.json {'intacto' if b else 'PISADO'}" for n, a, b in res)
+
+
+def _06(R, d, *extra):
+    """Escribe R como rasgos.json en d/salidas, corre 06 --sintetico y devuelve (control.json | None, r)."""
+    os.makedirs(os.path.join(d, "salidas"), exist_ok=True)
+    ruta = os.path.join(d, "salidas", "rasgos.json")
+    json.dump(R, open(ruta, "w"))
+    r = correr("06_rasgos_a_audio.py", [ruta, "--sintetico", *extra], d)
+    ctl = os.path.join(d, "salidas", "control.json")
+    return (json.load(open(ctl)) if r.returncode == 0 else None), r
+
+
+def _serie(n=60, fechas=False):
+    """rasgos mínimos con n fotogramas (media = 0, se sustituye después)."""
+    return {"fuente": "x.mp4", "vmin": 0.0, "vmax": 1.0, "fps_rasgos": 2.0,
+            "rasgos": [{"t": i * 0.5, **({"fecha": 1900 + i} if fechas else {}), "media": 0.5, "area": 0.1 + 0.005 * i,
+                        "centroide_x": 0.5, "centroide_y": 0.5, "cambio": 0.0, "validos": 1.0} for i in range(n)]}
 
 
 def f4():
@@ -658,6 +681,229 @@ def g3():
         f"paneo {ctl['paneo']}: pan {p[0]:.2f} → {p[-1]:.2f}, creciente: {bool(np.all(np.diff(p) >= -1e-9))}"
 
 
+def g4():
+    """cruce_dron: primer fotograma desde el que la melodía ya no baja de la nota de la referencia (no del dron)."""
+    R = _serie(40)
+    media = np.linspace(-0.6, 1.2, 40)
+    for r, m in zip(R["rasgos"], media):
+        r["media"] = float(m)
+    R.update(vmin=-2.0, vmax=2.0, vmin_sonido=-0.6, vmax_sonido=1.2, referencia=0.0, suavizado=0)
+    with tempfile.TemporaryDirectory() as d:
+        ctl, r = _06(R, d)
+    if ctl is None:
+        return False, "06 falló: " + r.stderr.strip()[-120:]
+    notas = escala(48, 3)
+    ref = int(valor_a_nota(0.0, -0.6, 1.2, notas)) + 12
+    voz = valor_a_nota(media, -0.6, 1.2, notas) + 12
+    esp = next(i for i in range(40) if (voz[i:] >= ref).all())
+    return ctl["cruce_dron"] == esp and esp > 0, f"cruce_dron = {ctl['cruce_dron']}; esperado {esp} (primer fotograma con la nota de referencia {ref}; con el dron saldría 0)"
+
+
+def f5():
+    """umbral_evento relativo: la misma serie en 0-1 y en 270-310 da los mismos eventos fuertes (ni 0 ni todos)."""
+    cuentas = []
+    for a, b in ((0.0, 1.0), (270.0, 310.0)):
+        R = _serie(60)
+        for i, r in enumerate(R["rasgos"]):
+            r["media"] = a + (0.5 + 0.3 * np.sin(0.9 * i)) * (b - a)
+        R.update(vmin=a, vmax=b)
+        with tempfile.TemporaryDirectory() as d:
+            ctl, r = _06(R, d)
+        if ctl is None:
+            return False, "06 falló: " + r.stderr.strip()[-120:]
+        cuentas.append(sum(ctl["evento_fuerte"]))
+    return cuentas[0] == cuentas[1] and 0 < cuentas[0] < 59, f"eventos fuertes con rango 0-1: {cuentas[0]}; con 270-310: {cuentas[1]} (de 60)"
+
+
+def g5():
+    """paneo con centroide casi fijo (0,5 ± 0,002): no se estira a todo el campo estéreo."""
+    R = _serie(60)
+    rng = np.random.default_rng(0)
+    for r in R["rasgos"]:
+        r["centroide_y"] = 0.5 + float(rng.uniform(-0.002, 0.002))
+    R["paneo"] = "y"
+    with tempfile.TemporaryDirectory() as d:
+        ctl, r = _06(R, d)
+    if ctl is None:
+        return False, "06 falló: " + r.stderr.strip()[-120:]
+    m = float(np.abs(ctl["pan"]).max())
+    return m < 0.1, f"centroide_y 0,498-0,502 -> |pan| máx. {m:.3f}"
+
+
+def e5():
+    """Respaldo numpy con arpegios de 4 notas: 07 mide el tono sin FALLA (glide corto, golpe en la misma octava)."""
+    R = _serie(60)
+    for i, r in enumerate(R["rasgos"]):
+        r["media"] = i / 59
+    with tempfile.TemporaryDirectory() as d:
+        ctl, r = _06(R, d)
+        if ctl is None:
+            return False, "06 falló: " + r.stderr.strip()[-120:]
+        r7 = subprocess.run([sys.executable, "07_validar.py"], capture_output=True, text=True, env=entorno(d), timeout=120)
+    err = [l for l in r7.stdout.splitlines() if l.startswith("Error máximo")]
+    max4 = max(len(n) for n in ctl["notas"])
+    return r7.returncode == 0 and max4 == 4, f"notas por fotograma hasta {max4}; 07 código {r7.returncode}; {err[0] if err else r7.stdout.strip()[-100:]}"
+
+
+def _barra_png(ruta, horizontal, mesetas=False):
+    """PNG RGBA de una barra de colores con borde negro, margen transparente y 'texto' (marcas de otro color).
+    mesetas=True: el degradado se hace por tramos de color constante de 30 px (peor caso para la detección)."""
+    L, G = 120, 24                                         # largo y grosor del degradado
+    t = np.linspace(0, 1, L)
+    if mesetas:
+        t = np.floor(t * 4) / 3
+    colores = (np.stack([255 * (1 - t), 255 * np.abs(t - 0.5) * 2, 255 * t], axis=1)).astype(np.uint8)   # BGR
+    img = np.zeros((G + 40, L + 30, 4), np.uint8)          # transparente
+    img[10:10 + G + 4, 8:8 + L + 4] = (0, 0, 0, 255)       # borde negro opaco
+    img[12:12 + G, 10:10 + L, :3] = colores[None, :, :]
+    img[12:12 + G, 10:10 + L, 3] = 255
+    img[G + 20:G + 30, 12:50] = (255, 255, 255, 255)       # 'texto' bajo la barra
+    if not horizontal:
+        img = img.transpose(1, 0, 2)
+        # las marcas de la transposición quedan a un lado; el degradado queda en filas
+    cv2.imwrite(ruta, img)
+    x0, y0 = (10, 12) if horizontal else (12, 10)
+    return (x0, y0, x0 + L, y0 + G) if horizontal else (x0, y0, x0 + G, y0 + L)
+
+
+def h1():
+    """calibrar: barra horizontal detectada; la vertical (incluida una con mesetas de color) sigue igual."""
+    from herramientas.calibrar import rect_degradado, rect_degradado_orientado
+    with tempfile.TemporaryDirectory() as d:
+        res = []
+        for nombre, hor, mes in (("horizontal", True, False), ("vertical", False, False), ("vertical con mesetas", False, True)):
+            png = os.path.join(d, nombre.replace(" ", "_") + ".png")
+            esperado = _barra_png(png, hor, mes)
+            rect, vertical = rect_degradado_orientado(png)
+            res.append((nombre, rect == esperado and vertical == (not hor)))
+        # la función de siempre (solo vertical) da lo mismo que antes en la vertical
+        vieja = rect_degradado(os.path.join(d, "vertical.png")) == _barra_png(os.path.join(d, "v2.png"), False)
+    return all(ok for _, ok in res) and vieja, "; ".join(f"{n}: {'sí' if ok else 'NO'}" for n, ok in res) + f"; rect_degradado vertical: {'igual' if vieja else 'CAMBIÓ'}"
+
+
+def video_matiz(carpeta, nombre="matiz"):
+    """Video 320x180 con barra HORIZONTAL (matiz azul -> rojo, 0..32) y mapa cuyo color es el de la barra
+    pero atenuado a 40-90 % de brillo (como las líneas de flujo de ECCO2). Devuelve (ruta_cfg, verdad)."""
+    x0, y0, x1, y1 = MAPA
+    mh, mw = y1 - y0, x1 - x0
+    yy, xx = np.mgrid[0:mh, 0:mw]
+    def pintar(v, brillo):                                 # v en 0..32 -> BGR con el matiz de la barra
+        v = np.asarray(v, float)
+        hsv = np.stack([110 - 105 * v / 32, np.full(v.shape, 220.0), 240 * np.broadcast_to(brillo, v.shape)], axis=-1)
+        return cv2.cvtColor(np.clip(hsv, 0, 255).astype(np.uint8), cv2.COLOR_HSV2BGR)
+    barra_xy = (x0, 4, x1, 14)
+    ruta_video = os.path.join(carpeta, nombre + ".mp4")
+    out = cv2.VideoWriter(ruta_video, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+    verdad = []
+    for k in range(N_FRAMES):
+        p = k / (N_FRAMES - 1)
+        campo = np.clip(10 + 12 * p + 6 * np.sin(xx / 40 + 3 * p) + 3 * np.cos(yy / 30), 0, 32)
+        brillo = 0.65 + 0.25 * np.sin(xx / 7 + yy / 5)             # 0,40 .. 0,90
+        f = np.full((H, W, 3), 0, np.uint8)
+        f[y0:y1, x0:x1] = pintar(campo, brillo)
+        f[barra_xy[1]:barra_xy[3], barra_xy[0]:barra_xy[2]] = pintar(np.linspace(0, 32, barra_xy[2] - barra_xy[0])[None, :].repeat(barra_xy[3] - barra_xy[1], 0), 1.0)
+        out.write(f)
+        if k % 5 == 0:
+            verdad.append(float(campo.mean()))
+    out.release()
+    ruta_fechas = os.path.join(carpeta, nombre + "_fechas.txt")
+    with open(ruta_fechas, "w") as fh:
+        fh.write("\n".join(f"{23000 + 4 * k}  2007-{3 + k // 14:02d}-25T{(k % 6) * 4:02d}:00Z" for k in range(N_FRAMES)) + "\n")
+    cfg = {"video": ruta_video, "mapa": list(MAPA), "barra": list(barra_xy), "barra_vertical": False, "vmin": 0.0,
+           "vmax": 32.0, "umbral": 25.0, "fps_muestreo": 4, "modo_color": "matiz", "dist_max": 6, "mascara_estatica": False,
+           "borde_px": 0, "fechas": ruta_fechas}
+    ruta_cfg = os.path.join(carpeta, nombre + ".json")
+    with open(ruta_cfg, "w") as fh:
+        json.dump(cfg, fh)
+    return ruta_cfg, verdad
+
+
+def h2():
+    """05 modo_color 'matiz' con barra horizontal y color atenuado; el modo 'lab' por defecto no lo resuelve."""
+    with tempfile.TemporaryDirectory() as d:
+        cfg, verdad = video_matiz(d)
+        R, _ = correr05(d, cfg)
+        err = max(abs(r["media"] - v) for r, v in zip(R, verdad))
+        val = float(np.median([r["validos"] for r in R]))
+        Rl, _ = correr05(d, cfg, modo_color="lab", dist_max=8.0)
+        val_lab = float(np.median([r["validos"] for r in Rl]))
+    return len(R) == len(verdad) and err < 0.5 and val > 0.95 and val_lab < 0.5, \
+        f"error máx de media {err:.3f} °C; validos matiz {val:.2f}, lab {val_lab:.2f}"
+
+
+def h3():
+    """Fechas ISO (2.ª columna): 'mar 2007' con fechas_formato 'mes', año con el formato por defecto; error claro si no es válido."""
+    from fechas import etiqueta, leer_fechas
+    with tempfile.TemporaryDirectory() as d:
+        cfg, _ = video_matiz(d)
+        Rm, _ = correr05(d, cfg, fechas_formato="mes")
+        Ra, _ = correr05(d, cfg)
+        malo = {**json.load(open(cfg)), "fechas_formato": "dia"}
+        json.dump(malo, open(os.path.join(d, "malo.json"), "w"))
+        r = correr("05_video_a_rasgos.py", [os.path.join(d, "malo.json")], d)
+        crudos = leer_fechas(json.load(open(cfg))["fechas"])
+        anio = os.path.join(d, "time.txt")
+        open(anio, "w").write("# c\n1881\n1882\n")
+        ok_msg = r.returncode != 0 and "fechas_formato" in (r.stderr + r.stdout) and "Traceback" not in r.stderr
+        unit = (crudos[0] == "2007-03-25T00:00Z" and etiqueta(crudos[0], "mes") == "mar 2007" and etiqueta(crudos[0]) == 2007
+                and etiqueta("1881", "mes") == 1881 and etiqueta("2008-12-01T00:00Z", "mes") == "dic 2008" and leer_fechas(anio) == ["1881", "1882"])
+    return unit and Rm[0]["fecha"] == "mar 2007" and Ra[0]["fecha"] == 2007 and ok_msg, \
+        f"fecha 'mes' = {Rm[0]['fecha']!r}, por defecto = {Ra[0]['fecha']!r}, time.txt = año suelto: {'sí' if unit else 'NO'}; formato inválido: mensaje {'sí' if ok_msg else 'NO'}"
+
+
+def i1():
+    """Especificación del modo en vivo (docs/ESPEC_MODO_EN_VIVO.md): aplicar sus fórmulas a rasgos.json reproduce
+    lo que sonó (control.json de 06; sintético) y los _esperado.json de las pistas reales (con su _mapeo.json)."""
+    from herramientas.exportar_mapeo import aplicar_mapeo, comparar_con_control, construir_mapeo
+    rng = np.random.default_rng(7)
+    n = 60
+    casos = {
+        # eje x, rama amplia, rango de sonido propio, referencia, valores fuera de rango
+        "x amplia": dict(extra={"vmin_sonido": 0.2, "vmax_sonido": 0.8, "referencia": 0.5},
+                         cx=np.clip(0.5 + 0.35 * np.sin(np.arange(n) / 7), 0, 1), cy=np.full(n, 0.5)),
+        # eje y, rama estrecha (recorrido < 0,1), sin referencia, umbrales de densidad propios, octava 0, dron +1
+        "y estrecha": dict(extra={"paneo": "y", "densidad_umbrales": [0.4, 0.6], "octava": 0, "dron_octava": 1},
+                           cx=np.full(n, 0.5), cy=0.5 + 0.02 * np.sin(np.arange(n) / 9)),
+        # eje y con rama amplia, sin densidad ni suavizado, umbral de evento propio
+        "y amplia sin densidad": dict(extra={"paneo": "y", "densidad": False, "suavizado": 0, "umbral_evento": 0.1},
+                                      cx=np.full(n, 0.5), cy=np.clip(0.5 + 0.3 * np.cos(np.arange(n) / 6), 0, 1)),
+    }
+    res = []
+    with tempfile.TemporaryDirectory() as d:
+        for nombre, c in casos.items():
+            R = _serie(n)
+            media = np.clip(0.5 + 0.45 * np.sin(np.arange(n) / 5) + 0.05 * rng.standard_normal(n), 0, 1)
+            for i, r in enumerate(R["rasgos"]):
+                r.update(media=float(media[i]), area=float(np.clip(0.1 + 0.4 * abs(np.sin(i / 11)), 0, 1)),
+                         centroide_x=float(c["cx"][i]), centroide_y=float(c["cy"][i]))
+            R["rasgos"][5]["media"] = None                    # dato ausente: se rellena con el anterior
+            R.update(c["extra"])
+            ctl, r = _06(R, d)
+            if ctl is None:
+                return False, "06 falló: " + r.stderr.strip()[-120:]
+            m = construir_mapeo(R, nombre)
+            f = comparar_con_control(aplicar_mapeo(R["rasgos"], m), ctl, tol_pan=0.02)
+            res.append((nombre + f" (rama {m['paneo']['rama']})", f))
+    # pistas reales: solo si están sus archivos (web/assets/<id>_esperado.json, _mapeo.json y los rasgos)
+    reales = []
+    for id_, carpeta in (("gistemp_1880_2023", "salidas_gistemp"), ("sst_ecco2_2007_2008", "salidas_sst")):
+        ruta = lambda suf: os.path.join("web", "assets", f"{id_}_{suf}.json")
+        rasgos = next((q for q in (ruta("rasgos"), os.path.join(carpeta, "rasgos.json")) if os.path.exists(q)), None)
+        if not (os.path.exists(ruta("esperado")) and os.path.exists(ruta("mapeo")) and rasgos):
+            continue
+        esp = json.load(open(ruta("esperado")))["fotogramas"]
+        calc = aplicar_mapeo(json.load(open(rasgos))["rasgos"], json.load(open(ruta("mapeo"))))
+        fallas = [] if len(calc) == len(esp) else [f"{len(calc)} fotogramas frente a {len(esp)}"]
+        for e, c in zip(esp, calc):
+            if (e["nota"], e["notas"], e["dron"]) != (c["nota"], c["notas"], c["dron"]) or abs(e["pan"] - c["pan"]) > 0.02 \
+                    or abs(e["ganancia"] - c["ganancia"]) > 1e-4:
+                fallas.append(f"f{e['i']}")
+        reales.append((id_, fallas))
+    todo = res + reales
+    return all(not f for _, f in todo), "; ".join(f"{n_}: {'reproduce' if not f else str(len(f)) + ' discrepancias ' + str(f[:3])}" for n_, f in todo) \
+        + ("" if reales else "; pistas reales: sin archivos (no se comprobaron)")
+
+
 EVALUACIONES = [
     ("A1", "fase inicial = 0", "|x[0]| < 1e-12", a1),
     ("A2", "tono(440) → 440 Hz", "440 ± 1 Hz", a2),
@@ -681,12 +927,20 @@ EVALUACIONES = [
     ("E2", "06: valores por defecto", "notas, arpegio, ligar, ±10 ms, dron y duración = cálculo independiente", e2),
     ("F1", "06: densidad con datos 270-310", "más de un nº de notas por fotograma, alguno = 1", f1),
     ("F2", "05: video que abre en negro", "validos > 0,9 y media creciente", f2),
-    ("F3", "05: errores claros", "mensaje y rasgos.json intacto (sin video / mapa fuera)", f3),
+    ("F3", "05: errores claros", "mensaje sin traza y rasgos.json intacto (4 casos)", f3),
     ("F4", "08: 600 rasgos con texto", "08 PASA (sin 'Argument list too long')", f4),
     ("G1", "06: dron = melodía(0 °C) - 12", "dron = nota de la melodía con 0 °C - 12 (medido en el .mid)", g1),
     ("G2", "05: centroide_y", "presente, entre 0 y 1, ≈ 0,5 en el video sintético", g2),
     ("G3", "06: paneo 'y' normalizado", "pan sigue a centroide_y y recorre < -0,9 … > 0,9", g3),
+    ("G4", "06: cruce_dron = referencia", "primer fotograma con la nota de la referencia (no el 0)", g4),
+    ("F5", "06: umbral_evento relativo", "mismos eventos fuertes con rango 0-1 y 270-310 (ni 0 ni todos)", f5),
+    ("G5", "06: paneo con centroide fijo", "|pan| máx. < 0,1 con centroide 0,5 ± 0,002", g5),
+    ("E5", "06 numpy + 07 con 4 notas", "07 sin FALLA con arpegios de 4 notas", e5),
     ("E4", "06: retardo media → notas", "|retardo| ≤ 1 fotograma (correlación cruzada), r > 0,8", e4),
+    ("H1", "calibrar: orientación de la barra", "horizontal detectada; vertical (también con mesetas) igual que antes", h1),
+    ("H2", "05: modo_color 'matiz'", "barra horizontal + color atenuado: error < 0,5 °C, validos > 0,95; 'lab' < 0,5", h2),
+    ("H3", "fechas ISO: 'mar 2007'", "mes con fechas_formato 'mes', año por defecto, time.txt intacto, error claro", h3),
+    ("I1", "especificación modo en vivo", "fórmulas de la ESPEC = control.json: notas exactas, pan ± 0,02 (3 casos sintéticos + 2 pistas)", i1),
     ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]
 

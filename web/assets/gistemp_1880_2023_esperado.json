@@ -1,0 +1,877 @@
+{
+ "id": "gistemp_1880_2023",
+ "seg_por_fotograma": 0.5,
+ "tolerancia_pan": 0.02,
+ "nota": "nota/notas/dron/pan salen de control.json (lo que sonó); ganancia = 10^((-6 + 6*area/area_max)/20) (velocidad MIDI nominal = round(127*ganancia)); t = inicio del fotograma en el audio (s)",
+ "fotogramas": [
+  {
+   "i": 0,
+   "t": 0.0,
+   "nota": 67,
+   "notas": [
+    67
+   ],
+   "dron": 60,
+   "pan": -0.432059,
+   "ganancia": 0.507904,
+   "velocidad": 65,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 1,
+   "t": 0.5,
+   "nota": 64,
+   "notas": [
+    64
+   ],
+   "dron": 60,
+   "pan": -0.711454,
+   "ganancia": 0.50815,
+   "velocidad": 65,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 2,
+   "t": 1.0,
+   "nota": 64,
+   "notas": [
+    64
+   ],
+   "dron": 60,
+   "pan": -0.725169,
+   "ganancia": 0.505757,
+   "velocidad": 64,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 3,
+   "t": 1.5,
+   "nota": 64,
+   "notas": [
+    64
+   ],
+   "dron": 60,
+   "pan": -0.704463,
+   "ganancia": 0.514648,
+   "velocidad": 65,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 4,
+   "t": 2.0,
+   "nota": 64,
+   "notas": [
+    64
+   ],
+   "dron": 60,
+   "pan": -0.50063,
+   "ganancia": 0.504534,
+   "velocidad": 64,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 5,
+   "t": 2.5,
+   "nota": 64,
+   "notas": [
+    64
+   ],
+   "dron": 60,
+   "pan": -0.539756,
+   "ganancia": 0.511048,
+   "velocidad": 65,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 6,
+   "t": 3.0,
+   "nota": 64,
+   "notas": [
+    64
+   ],
+   "dron": 60,
+   "pan": -0.877505,
+   "ganancia": 0.502523,
+   "velocidad": 64,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 7,
+   "t": 3.5,
+   "nota": 67,
+   "notas": [
+    67
+   ],
+   "dron": 60,
+   "pan": -0.80732,
+   "ganancia": 0.506431,
+   "velocidad": 64,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 8,
+   "t": 4.0,
+   "nota": 64,
+   "notas": [
+    64
+   ],
+   "dron": 60,
+   "pan": -0.828161,
+   "ganancia": 0.505573,
+   "velocidad": 64,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 9,
+   "t": 4.5,
+   "nota": 64,
+   "notas": [
+    64
+   ],
+   "dron": 60,
+   "pan": -0.371285,
+   "ganancia": 0.502402,
+   "velocidad": 64,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 10,
+   "t": 5.0,
+   "nota": 62,
+   "notas": [
+    62
+   ],
+   "dron": 60,
+   "pan": -0.380025,
+   "ganancia": 0.506002,
+   "velocidad": 64,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 11,
+   "t": 5.5,
+   "nota": 62,
+   "notas": [
+    62
+   ],
+   "dron": 60,
+   "pan": 0.1867,
+   "ganancia": 0.501916,
+   "velocidad": 64,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 12,
+   "t": 6.0,
+   "nota": 60,
+   "notas": [
+    60
+   ],
+   "dron": 60,
+   "pan": -0.065671,
+   "ganancia": 0.502828,
+   "velocidad": 64,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 13,
+   "t": 6.5,
+   "nota": 62,
+   "notas": [
+    62
+   ],
+   "dron": 60,
+   "pan": -0.528059,
+   "ganancia": 0.501187,
+   "velocidad": 64,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 14,
+   "t": 7.0,
+   "nota": 62,
+   "notas": [
+    62
+   ],
+   "dron": 60,
+   "pan": -1.0,
+   "ganancia": 0.501612,
+   "velocidad": 64,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 15,
+   "t": 7.5,
+   "nota": 64,
+   "notas": [
+    64
+   ],
+   "dron": 60,
+   "pan": -0.643421,
+   "ganancia": 0.505268,
+   "velocidad": 64,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 16,
+   "t": 8.0,
+   "nota": 64,
+   "notas": [
+    64
+   ],
+   "dron": 60,
+   "pan": 0.391742,
+   "ganancia": 0.511729,
+   "velocidad": 65,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 17,
+   "t": 8.5,
+   "nota": 64,
+   "notas": [
+    64
+   ],
+   "dron": 60,
+   "pan": 1.0,
+   "ganancia": 0.50895,
+   "velocidad": 65,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 18,
+   "t": 9.0,
+   "nota": 64,
+   "notas": [
+    64
+   ],
+   "dron": 60,
+   "pan": 0.999879,
+   "ganancia": 0.51111,
+   "velocidad": 65,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 19,
+   "t": 9.5,
+   "nota": 67,
+   "notas": [
+    67
+   ],
+   "dron": 60,
+   "pan": 0.857626,
+   "ganancia": 0.511296,
+   "velocidad": 65,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 20,
+   "t": 10.0,
+   "nota": 64,
+   "notas": [
+    64
+   ],
+   "dron": 60,
+   "pan": 0.917055,
+   "ganancia": 0.528598,
+   "velocidad": 67,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 21,
+   "t": 10.5,
+   "nota": 67,
+   "notas": [
+    67
+   ],
+   "dron": 60,
+   "pan": 1.0,
+   "ganancia": 0.546949,
+   "velocidad": 69,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 22,
+   "t": 11.0,
+   "nota": 67,
+   "notas": [
+    67
+   ],
+   "dron": 60,
+   "pan": 1.0,
+   "ganancia": 0.521797,
+   "velocidad": 66,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 23,
+   "t": 11.5,
+   "nota": 69,
+   "notas": [
+    69
+   ],
+   "dron": 60,
+   "pan": 0.719273,
+   "ganancia": 0.590637,
+   "velocidad": 75,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 24,
+   "t": 12.0,
+   "nota": 72,
+   "notas": [
+    72
+   ],
+   "dron": 60,
+   "pan": 0.732718,
+   "ganancia": 0.577072,
+   "velocidad": 73,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 25,
+   "t": 12.5,
+   "nota": 72,
+   "notas": [
+    72
+   ],
+   "dron": 60,
+   "pan": 0.431944,
+   "ganancia": 0.583039,
+   "velocidad": 74,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 26,
+   "t": 13.0,
+   "nota": 69,
+   "notas": [
+    69
+   ],
+   "dron": 60,
+   "pan": 0.741592,
+   "ganancia": 0.511419,
+   "velocidad": 65,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 27,
+   "t": 13.5,
+   "nota": 69,
+   "notas": [
+    69
+   ],
+   "dron": 60,
+   "pan": 0.577827,
+   "ganancia": 0.527192,
+   "velocidad": 67,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 28,
+   "t": 14.0,
+   "nota": 69,
+   "notas": [
+    69
+   ],
+   "dron": 60,
+   "pan": 0.884517,
+   "ganancia": 0.507351,
+   "velocidad": 64,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 29,
+   "t": 14.5,
+   "nota": 67,
+   "notas": [
+    67
+   ],
+   "dron": 60,
+   "pan": 0.246666,
+   "ganancia": 0.561095,
+   "velocidad": 71,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 30,
+   "t": 15.0,
+   "nota": 69,
+   "notas": [
+    69
+   ],
+   "dron": 60,
+   "pan": 0.087876,
+   "ganancia": 0.528662,
+   "velocidad": 67,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 31,
+   "t": 15.5,
+   "nota": 69,
+   "notas": [
+    69
+   ],
+   "dron": 60,
+   "pan": 0.086262,
+   "ganancia": 0.50895,
+   "velocidad": 65,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 32,
+   "t": 16.0,
+   "nota": 72,
+   "notas": [
+    72
+   ],
+   "dron": 60,
+   "pan": 0.506835,
+   "ganancia": 0.503741,
+   "velocidad": 64,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 33,
+   "t": 16.5,
+   "nota": 69,
+   "notas": [
+    69
+   ],
+   "dron": 60,
+   "pan": -0.233201,
+   "ganancia": 0.505696,
+   "velocidad": 64,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 34,
+   "t": 17.0,
+   "nota": 69,
+   "notas": [
+    69
+   ],
+   "dron": 60,
+   "pan": -0.762816,
+   "ganancia": 0.506186,
+   "velocidad": 64,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 35,
+   "t": 17.5,
+   "nota": 69,
+   "notas": [
+    69
+   ],
+   "dron": 60,
+   "pan": -1.0,
+   "ganancia": 0.503985,
+   "velocidad": 64,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 36,
+   "t": 18.0,
+   "nota": 69,
+   "notas": [
+    69
+   ],
+   "dron": 60,
+   "pan": -1.0,
+   "ganancia": 0.515645,
+   "velocidad": 65,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 37,
+   "t": 18.5,
+   "nota": 69,
+   "notas": [
+    69
+   ],
+   "dron": 60,
+   "pan": -0.998245,
+   "ganancia": 0.51677,
+   "velocidad": 66,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 38,
+   "t": 19.0,
+   "nota": 72,
+   "notas": [
+    72
+   ],
+   "dron": 60,
+   "pan": -0.068898,
+   "ganancia": 0.513652,
+   "velocidad": 65,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 39,
+   "t": 19.5,
+   "nota": 72,
+   "notas": [
+    72
+   ],
+   "dron": 60,
+   "pan": 0.054531,
+   "ganancia": 0.511977,
+   "velocidad": 65,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 40,
+   "t": 20.0,
+   "nota": 74,
+   "notas": [
+    74
+   ],
+   "dron": 60,
+   "pan": 0.18038,
+   "ganancia": 0.576444,
+   "velocidad": 73,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 41,
+   "t": 20.5,
+   "nota": 76,
+   "notas": [
+    76
+   ],
+   "dron": 60,
+   "pan": -0.288461,
+   "ganancia": 0.554815,
+   "velocidad": 70,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 42,
+   "t": 21.0,
+   "nota": 76,
+   "notas": [
+    76
+   ],
+   "dron": 60,
+   "pan": -0.115016,
+   "ganancia": 0.510183,
+   "velocidad": 65,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 43,
+   "t": 21.5,
+   "nota": 76,
+   "notas": [
+    76
+   ],
+   "dron": 60,
+   "pan": -0.008393,
+   "ganancia": 0.564227,
+   "velocidad": 72,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 44,
+   "t": 22.0,
+   "nota": 76,
+   "notas": [
+    76
+   ],
+   "dron": 60,
+   "pan": 0.231742,
+   "ganancia": 0.596167,
+   "velocidad": 76,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 45,
+   "t": 22.5,
+   "nota": 79,
+   "notas": [
+    79,
+    81
+   ],
+   "dron": 60,
+   "pan": 0.24465,
+   "ganancia": 0.541483,
+   "velocidad": 69,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 46,
+   "t": 23.0,
+   "nota": 79,
+   "notas": [
+    79,
+    81
+   ],
+   "dron": 60,
+   "pan": 0.115573,
+   "ganancia": 0.636736,
+   "velocidad": 81,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 47,
+   "t": 23.5,
+   "nota": 81,
+   "notas": [
+    81,
+    84
+   ],
+   "dron": 60,
+   "pan": 0.175137,
+   "ganancia": 0.664768,
+   "velocidad": 84,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 48,
+   "t": 24.0,
+   "nota": 81,
+   "notas": [
+    81,
+    84
+   ],
+   "dron": 60,
+   "pan": 0.114229,
+   "ganancia": 0.629762,
+   "velocidad": 80,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 49,
+   "t": 24.5,
+   "nota": 84,
+   "notas": [
+    84,
+    86
+   ],
+   "dron": 60,
+   "pan": 0.22865,
+   "ganancia": 0.688596,
+   "velocidad": 87,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 50,
+   "t": 25.0,
+   "nota": 84,
+   "notas": [
+    84,
+    86
+   ],
+   "dron": 60,
+   "pan": 0.156179,
+   "ganancia": 0.736345,
+   "velocidad": 94,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 51,
+   "t": 25.5,
+   "nota": 84,
+   "notas": [
+    84,
+    86
+   ],
+   "dron": 60,
+   "pan": 0.034498,
+   "ganancia": 0.719259,
+   "velocidad": 91,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 52,
+   "t": 26.0,
+   "nota": 84,
+   "notas": [
+    84,
+    86
+   ],
+   "dron": 60,
+   "pan": -0.068225,
+   "ganancia": 0.812083,
+   "velocidad": 103,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 53,
+   "t": 26.5,
+   "nota": 86,
+   "notas": [
+    86,
+    88,
+    91,
+    93
+   ],
+   "dron": 60,
+   "pan": -0.127385,
+   "ganancia": 0.791035,
+   "velocidad": 100,
+   "evento_fuerte": false,
+   "ataque": false
+  },
+  {
+   "i": 54,
+   "t": 27.0,
+   "nota": 88,
+   "notas": [
+    88,
+    91,
+    93,
+    96
+   ],
+   "dron": 60,
+   "pan": -0.119856,
+   "ganancia": 0.899849,
+   "velocidad": 114,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 55,
+   "t": 27.5,
+   "nota": 88,
+   "notas": [
+    88,
+    91,
+    93,
+    96
+   ],
+   "dron": 60,
+   "pan": -0.130478,
+   "ganancia": 0.877587,
+   "velocidad": 111,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 56,
+   "t": 28.0,
+   "nota": 91,
+   "notas": [
+    91,
+    93,
+    96,
+    96
+   ],
+   "dron": 60,
+   "pan": -0.154276,
+   "ganancia": 0.909924,
+   "velocidad": 116,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 57,
+   "t": 28.5,
+   "nota": 91,
+   "notas": [
+    91,
+    93,
+    96,
+    96
+   ],
+   "dron": 60,
+   "pan": -0.163822,
+   "ganancia": 0.992285,
+   "velocidad": 126,
+   "evento_fuerte": true,
+   "ataque": true
+  },
+  {
+   "i": 58,
+   "t": 29.0,
+   "nota": 93,
+   "notas": [
+    93,
+    96,
+    96,
+    96
+   ],
+   "dron": 60,
+   "pan": -0.206175,
+   "ganancia": 1.0,
+   "velocidad": 127,
+   "evento_fuerte": false,
+   "ataque": true
+  },
+  {
+   "i": 59,
+   "t": 29.5,
+   "nota": 93,
+   "notas": [
+    93,
+    96,
+    96,
+    96
+   ],
+   "dron": 60,
+   "pan": -0.217268,
+   "ganancia": 0.999758,
+   "velocidad": 127,
+   "evento_fuerte": false,
+   "ataque": true
+  }
+ ]
+}

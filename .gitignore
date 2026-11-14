@@ -4,3 +4,5 @@ __pycache__/
 *.mp4
 datos/
 /salidas/
+/salidas_sst/
+/salidas_gistemp/
