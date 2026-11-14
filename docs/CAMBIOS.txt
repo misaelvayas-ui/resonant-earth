@@ -769,6 +769,29 @@ Antes: commit c816180 (master). No se modificó ningún script del pipeline ni n
    y = _esperado.json de las 2 pistas con su _mapeo.json). 37 PASA, 0 FALLA. Con vmin/vmax_sonido = -2..2, con centroide_x o con dron 53 la comprobación FALLA (122, 61 y 61 discrepancias).
 Hallazgos: SST casi no varía de volumen (ganancia 0,912-1,0 con area/area_max); el pan de SST solo recorre -0,525..+0,495 (rama estrecha); GISTEMP usa rama amplia.
 
+RONDA 27 - web/: marca de agua "Generado con IA" en el logo (rama juan/marca-ia)   (2026-11-14)
+Hecho con ayuda de IA (Claude, de Anthropic) en el código; revisado por Juan.
+Antes: commit 0505d9d (master). Solo se tocó web/ y este archivo.
+Problema: el logo de Resonant Earth fue generado con IA y las reglas del evento piden una marca de agua visible en las
+imágenes o videos generados con IA. El README y el pie lo decían, pero la imagen descargada no llevaba nada.
+1. web/assets/logo.jpg (2048 px), logo-480.jpg y logo-240.jpg: el texto "Generado con IA" va ESCRITO DENTRO de cada
+   archivo, arriba a la izquierda, en blanco (DejaVu Sans Bold) sobre una píldora negra al 70 %. Tamaño de letra = 6,6 %
+   del lado; margen 5,5 %. En cada tamaño se dibuja sobre el original reescalado (no se reduce la marca ya dibujada).
+   A 136 px (móvil) la letra mide 9 px y la marca ocupa 92 px de ancho; con densidad 2 el navegador usa el de 480 px.
+   Peso: logo.jpg 2,32 -> 0,74 MB (JPEG calidad 92), logo-480 61 -> 76 KB, logo-240 22 -> 25 KB.
+   Los originales sin marca quedan fuera del repositorio (datos/originales_sin_marca/, ignorado por git).
+2. web/index.html: el texto alternativo del logo añade "Imagen generada con IA, con la marca «Generado con IA»"; en el
+   pie, una sola línea "Hecho con ayuda de IA (Claude). Logo generado con IA." (antes eran dos).
+3. web/README.md: explica la marca. web/capturas/escritorio.png y movil.png, actualizadas.
+4. Ícono de la pestaña: icono-64.png e icono-180.png eran un recorte del logo generado con IA y a 16-64 px la marca no se
+   leería. Se reemplazan por un ícono dibujado por código (web/hacer_icono.py, Pillow): círculo oscuro #0a0b12 con borde
+   fino y una onda de sonido de lila #cdbfff a turquesa #a8ece4. No viene del logo ni de una IA de imágenes, así que no
+   necesita marca. icono-64 con fondo transparente (6 KB), icono-180 con fondo negro (20 KB). Comprobado: la página los
+   pide y cargan (64x64 y 180x180); la onda se distingue a 16 y 32 px.
+Verificado (Windows 11, Chrome headless, axe-core 4.10.2): 0 violaciones en escritorio (1440 px) y móvil (390 px);
+teclado (Tab, Enter, Espacio, flechas) sin cambios; sin errores en la consola. La marca se lee en las dos capturas.
+evaluar.py no se volvió a correr: no se tocó ningún script del pipeline.
+
 RONDA 28 - auditoría 3 (docs/AUDITORIA_3.md): parche 1-4 y 12a, arpegio, volumen min-max, paneo al centro y protección en preparar_datos (rama misael/auditoria3)   (2026-11-14)
 Antes: commit 0505d9d (master, con los PR #3, #4 y #5). La ronda 26 es la de Juan (tono por hemisferios, PR #6, no tocado). Decisiones de Misael: 1-4, 5, 6 y 13 sí; 7 no se calibra.
 1. Hallazgo 1 (calibrar): con modo matiz escribe dist_max 4 (unidades de matiz), borde_px 0 y mascara_estatica false; sin --modo-color se mantiene el modo del config
