@@ -677,3 +677,82 @@ PENDIENTE (no es de la web): 08 usa -filter_complex_script, que ffmpeg 9 ya no r
 ejemplo generado antes de la ronda 19. Con ffmpeg >= 7 la opción equivalente es -/filter_complex <archivo>.
 evaluar.py en esta máquina (Windows, ffmpeg 9.0.2): 25 PASA, 4 FALLA (C2, C3, D1, F4), idéntico prueba por prueba
 al de origin/master sin web/ (D1 y F4 caen por la opción de ffmpeg; C2 y C3 ya fallaban aquí antes de esta ronda).
+
+RONDA 21 - 08 compatible con ffmpeg >= 7 (pendiente de la ronda 20)   (2026-11-14)
+Problema: 08 pasaba el grafo con -filter_complex_script, que ffmpeg 9 ya no reconoce ("Unrecognized option
+'filter_complex_script'"): D1 y F4 fallaban y web/preparar_datos.py se detenía en 08.
+Cambio: 08 tiene opcion_grafo(): prueba con un grafo mínimo (lavfi color 16x16, salida null) '-/filter_complex'
+(ffmpeg >= 7) y, si falla, '-filter_complex_script' (ffmpeg <= 6); si ninguna sirve, sale con mensaje. Se prueba
+en vez de leer la versión porque las compilaciones de git no la traen. El grafo, la carpeta temporal y las rutas
+no cambian.
+Verificado:
+  ffmpeg 6.1.1 (Ubuntu): elige -filter_complex_script; evaluar.py 29 PASA, 0 FALLA.
+  ffmpeg 9 SIMULADO (envoltorio que rechaza -filter_complex_script con el mensaje de ffmpeg 9 y traduce
+  -/filter_complex al ffmpeg 6 real): el 08 anterior falla con "Option not found"; el nuevo elige -/filter_complex,
+  D1 y F4 PASAN, evaluar.py 29 PASA, 0 FALLA. Falta probarlo con un ffmpeg 7/8/9 real (p. ej. en el Windows de Juan).
+
+RONDA 22 - auditoría 2 del pipeline (sin cambios de código)   (2026-11-14)
+Informe completo, con dónde, evidencia, corrección y verificación de cada punto: docs/AUDITORIA_2.md.
+Verificado: 05 + 06 sobre GISTEMP reproducen rasgos.json, rocola.mid y rocola.wav idénticos (cmp); r = 0,992 con la
+serie oficial (60 años, sesgo -0,094 °C); evaluar.py 29 PASA, 0 FALLA en 36,5 s; 05 37,7 s y 0,99 GB.
+Hallazgos confirmados:
+ 1. 06: cruce_dron = 1881 desde la ronda 19 (compara con el dron, que ahora va 12 semitonos abajo); debe ser 1976.
+ 2. 06: umbral_evento (0,15) está en °C: serie en 270-310 K -> 56/60 eventos fuertes; en 0-1 -> 0/60 (GISTEMP 19/60).
+ 3. calibrar: umbral por defecto solo válido para GISTEMP (270..310 -> 1,0; -80..-10 -> -5).
+ 4. 06: el paneo normaliza cualquier recorrido > 1e-6: centroide 0,498-0,502 -> pan -1..+1.
+ 5. 07: "media de rasgos crece" da FALLA con un video real cuya media baja.
+ 6. 06 --sintetico + 07 con GISTEMP: FALLA en tono (112 cents; 1200 con la serie invertida) por el glide de 40 ms
+    y el golpe una octava arriba.
+ 7-10. Robustez: errores crípticos de config en 05, ROCOLA_SF2/banderas ignoradas en 06, barra por defecto de
+    calibrar, cy_previo sin usar.
+ 11 y 13. Pendientes de decisión: paneo de GISTEMP guiado por < 1 % del mapa en 16/60 fotogramas; licencia y versiones.
+ 12. README/CONTRIBUTING/evaluar.py desactualizados (18 pruebas ~10 s -> 29 y ~37 s; tablas sin paneo ni centroide_y).
+Las correcciones 1-6 y 10 se probaron en una copia: evaluar.py 29 PASA, rocola.mid y rocola.wav de GISTEMP idénticos,
+cruce 1976. Nada de eso se aplicó al repositorio.
+
+RONDA 23 - correcciones de la auditoría 2 (docs/AUDITORIA_2.md, hallazgos 1-10 y 12)   (2026-11-14)
+Antes: commit fbb39e9 (rama misael/auditoria2). Pendientes de decisión, NO tocados: 11 (paneo de GISTEMP con < 1 % del mapa) y 13 (licencia, versiones).
+1. 06: cruce_dron compara con la nota de la melodía en la referencia (nota_ref + 12*octava), no con el dron. GISTEMP: 1881 -> 1976.
+2. 06: umbral_evento por defecto = 1/12 del rango de sonido (0,15 en GISTEMP; config_eic.json lo trae explícito). 0-1 y 270-310 K dan los mismos eventos.
+3. calibrar: umbral por defecto = vmin + 0,75*(vmax-vmin) (con -2..2 sigue siendo 1,0; con 270..310, 300).
+4. 06: el paneo solo se estira con los percentiles 5-95 si el centroide recorre >= 0,1; con menos, se reduce en proporción (0,5 ± 0,002 -> |pan| 0,03).
+5. 07: "media de rasgos crece" es NO APLICA con videos que no son el sintético (GISTEMP: 2 PASA + 3 NO APLICA).
+6. 06 (respaldo numpy): glide 40 -> 10 ms y golpe en la misma octava que la melodía. 07 con GISTEMP y --sintetico: 112 -> 8,2 cents (antes FALLA).
+7. 05: config inexistente, no JSON o con claves obligatorias ausentes -> mensaje (sin traza); 'barra' fuera del PNG de barra_imagen -> mensaje
+   con el tamaño del PNG (antes pisaba rasgos.json); aviso si time.txt tiene menos líneas que fotogramas. 07: mensaje si faltan archivos.
+8. 06: opción desconocida (--sintetco) -> sale con mensaje; AVISO si ROCOLA_SF2 no existe.
+9. calibrar: --barra ya no vale GISTEMP para otro video (sale con mensaje).
+10. 05: centroide_y repite el anterior si no hay zona caliente (antes saltaba a 0,5).
+12. README (33 pruebas ~50 s; tablas de sonido y config con paneo, vmin/vmax_sonido, densidad_umbrales, dron_octava, umbral_evento; centroide_y;
+    estructura con web/ y auditorías; limitación de 0,5 s por fotograma), CONTRIBUTING y cabecera de evaluar.py.
+Verificado con GISTEMP (05 + 06 en carpeta temporal): rocola.mid y rocola.wav IDENTICOS (cmp) a los de antes de la ronda; rasgos.json solo
+añade "umbral_evento": 0,15; cruce_dron 1976.
+evaluar.py: pruebas nuevas G4 (cruce), F5 (umbral_evento), G5 (paneo con centroide fijo), E5 (numpy + 07 con 4 notas) y F3 ampliada (sin 'umbral',
+barra fuera del PNG). Con 05/06/07 de antes de la ronda las 5 FALLAN; con los nuevos, 33 PASA, 0 FALLA en 50,0 s.
+
+RONDA 24 - segunda visualización: SVS 3912 ECCO2 (temperatura y corrientes del mar) en la rama misael/sst   (2026-11-14)
+Antes: commit 072b2d7. GISTEMP no cambia: rasgos.json de 05 con config_eic.json idéntico (cmp); calibrar con GISTEMP da el mismo config y el mismo calibracion.png.
+Datos (datos/, ignorado por git): ecco2_sst_flow.mp4 (2048x1024, 30 fps, 2001 fotogramas, 66,7 s), sst_ecco2_cbar.png (barra HORIZONTAL 0-32 °C),
+flat_ecco2_dates.txt (2001 fechas, 2007-03-25 a 2008-03-03, paso ~4 h 8 min). Fotograma k = línea k. Todo el fotograma es mapa (sin barra ni texto).
+1. 05: modo_color "matiz" (por defecto "lab", sin cambios). Las líneas de flujo conservan el matiz de la barra pero no su brillo: en Lab solo
+   0,1-0,4 % de los píxeles eran válidos; por matiz (HSV, V y S >= 60) ~26 %. Claves nuevas: modo_color, brillo_min, saturacion_min, fechas_formato.
+   Con este video borde_px = 0 (con 1 la dilatación se come las líneas: validos 26 -> 7 % y la media sube a 25 °C).
+2. fechas.py (nuevo): lee time.txt (año) o "ID  ISO" (2.ª columna); fechas_formato "mes" -> "mar 2007". 08 no cambia (ya imprimía 'fecha').
+3. calibrar: barra vertical u horizontal (--orientacion auto|vertical|horizontal; auto = la que tenga forma de barra: elegir por área rompía GISTEMP),
+   --mapa X0,Y0,X1,Y1 (la detección por paleta no encuentra el mapa de ECCO2), --modo-color.
+4. config/config_sst.json: mapa [0,0,2048,1024], barra [15,28,291,68], vmin 0, vmax 32, umbral 25, fps_muestreo 0,9 (61 fotogramas, 30,5 s),
+   escala 0,5, dist_max 4 (matiz), ponderar_latitud, paneo "y", referencia 21,97 (media de la serie), vmin/vmax_sonido 21,47-22,45, umbral_evento 0,15
+   (con el defecto 1/12 del rango saldrían 27 de 60 eventos fuertes, por ruido; con 0,15, 7).
+5. Resultados (ROCOLA_SALIDAS=salidas_sst): validos 25,0-27,6 % (mediana 26,1); media 21,48-22,44 °C (máx mar 2007, mín nov 2007); centroide_y 0,487-0,539
+   (norte may 2007, máx ago 2007, sur ene 2008); 07: 2 PASA + 3 NO APLICA; 08: diferencia 0,000 s.
+   LIMITACIÓN: la media sale ~2-4 °C por encima de lo esperable (solo cuentan las líneas brillantes, y las cálidas lo son más; brillo_min 30/60/100 -> 20,6/22,0/23,6).
+6. evaluar.py: pruebas H1 (calibrar, barra horizontal y vertical con mesetas), H2 (modo matiz, error 0,107 °C) y H3 (fechas "mar 2007"). 36 PASA, 0 FALLA.
+7. README y .gitignore (/salidas_sst/).
+
+RONDA 25 - GISTEMP en carpeta propia, versiones fijas y licencia (rama misael/sst)   (2026-11-14)
+Antes: commit d7390f0. Cierra el pendiente 13 de docs/AUDITORIA_2.md (licencia y versiones). No se modificó ningún script.
+1. salidas_gistemp/ (ROCOLA_SALIDAS) con config_eic.json y 05 -> 06 -> 07 -> 08: rasgos.json trae "umbral_evento": 0,15 y "referencia": 0,0; cruce_dron 1976;
+   07 = 2 PASA + 3 NO APLICA (como en la ronda 23; error de tono 2,6 cents); 08 diferencia 0,000 s. Los tamaños de rasgos.json, control.json, rocola.wav,
+   rocola.mid y demo_gistemp.mp4 coinciden byte a byte con los de salidas/ del 13 de nov. salidas/ no se tocó. /salidas_gistemp/ en .gitignore.
+2. requirements.txt: versiones fijas (== las del .venv): numpy 2.5.4, scipy 1.18.1, opencv-python-headless 5.0.0.93, matplotlib 3.11.2, sounddevice 0.5.6, mido 1.3.3.
+3. LICENSE (MIT, 2026). El titular queda como marcador: "Resonant Earth [COMPLETAR: titular]".

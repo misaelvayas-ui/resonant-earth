@@ -35,8 +35,16 @@ Claves opcionales del config (valores por defecto):
                             (los absorbe borde_px y dist_max)
   "ponderar_latitud": false true = la media pesa cada fila por cos(latitud), suponiendo que el
                             recorte del mapa cubre de +90 a -90 (equirectangular)
-  "fechas": null            ruta a un time.txt (una línea por fotograma del video): añade el
-                            campo "fecha" a cada rasgo
+  "fechas": null            ruta a un time.txt (una línea por fotograma del video) o a un archivo
+                            "ID  AAAA-MM-DDTHH:MMZ" (se usa la 2.ª columna): añade el campo "fecha" a
+                            cada rasgo (ver fechas.py)
+  "fechas_formato": "anio"  "anio" -> 2007 | "mes" -> "mar 2007" (solo con fechas ISO; GISTEMP sigue en año)
+  "modo_color": "lab"       "lab": color más cercano en CIE Lab (paletas que el video reproduce igual que
+                            la barra). "matiz": solo cuenta el MATIZ (HSV): para videos cuyo color pierde
+                            brillo/saturación según otra variable (líneas de flujo sobre fondo oscuro, p. ej.
+                            ECCO2). Entonces 'dist_max' son unidades de matiz de OpenCV (0-179; 2 = 4°)
+  "brillo_min", "saturacion_min": 60, 60   (solo "matiz") V y S mínimos (0-255) para que un píxel cuente;
+                            descartan el fondo oscuro y la tierra gris
   "referencia": null        valor que 06 usa para el dron (se copia a rasgos.json)
   "vmin_sonido", "vmax_sonido": null   rango que 06 usa para mapear media -> nota (por defecto
                             vmin/vmax; se copian a rasgos.json). No afectan a la paleta de 05
@@ -51,11 +59,28 @@ import numpy as np
 import cv2
 from scipy.spatial import cKDTree
 from rutas import sal, cfg_ruta
+from fechas import FORMATOS, etiqueta, leer_fechas
 
-with open(sys.argv[1] if len(sys.argv) > 1 else cfg_ruta("config_video.json")) as fh:
-    cfg = json.load(fh)
+_ruta_cfg = sys.argv[1] if len(sys.argv) > 1 else cfg_ruta("config_video.json")
+try:
+    with open(_ruta_cfg) as fh:
+        cfg = json.load(fh)
+except FileNotFoundError:
+    sys.exit(f"No existe el config '{_ruta_cfg}'. Créalo con 04 (video sintético) o con "
+             "'python -m herramientas.calibrar', o pasa su ruta como argumento.")
+except json.JSONDecodeError as e:
+    sys.exit(f"El config '{_ruta_cfg}' no es un JSON válido: {e}")
+_faltan = [k for k in ("video", "mapa", "barra", "vmin", "vmax", "umbral", "fps_muestreo", "barra_vertical")
+           + (("barra_arriba_es_max",) if cfg.get("barra_vertical") else ()) if k not in cfg]
+if _faltan:
+    sys.exit(f"Faltan claves obligatorias en '{_ruta_cfg}': {', '.join(_faltan)} (ver la cabecera de 05 y el README).")
 DIST_MAX = cfg.get("dist_max", 8.0)
 ESC = cfg.get("escala", 1.0)
+MODO = cfg.get("modo_color", "lab")
+if MODO not in ("lab", "matiz"):
+    sys.exit(f"'modo_color' = {MODO!r} no es válido: usa \"lab\" o \"matiz\".")
+if cfg.get("fechas_formato", "anio") not in FORMATOS:
+    sys.exit(f"'fechas_formato' = {cfg['fechas_formato']!r} no es válido: usa " + " o ".join(f'"{f}"' for f in FORMATOS) + ".")
 MAX_REF = 31   # fotogramas de referencia para la máscara estática (se guardan hasta 2*MAX_REF)
 
 
@@ -64,6 +89,32 @@ def a_lab(bgr):
     distancia dejaría de ser ΔE; por eso se convierte en float32 dentro de [0, 1]."""
     bgr = np.asarray(bgr, dtype=np.float32).reshape(-1, 1, 3) / 255
     return cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB).reshape(-1, 3).astype(float)
+
+
+class TablaMatiz:
+    """Como cKDTree pero por MATIZ (HSV de OpenCV, 0-179, circular): query(bgr Nx3) -> (distancia en
+    unidades de matiz, índice en la barra). Un píxel con poca saturación o brillo (tierra gris, fondo
+    oscuro) devuelve distancia infinita: su matiz es ruido."""
+
+    def __init__(self, perfil_bgr, s_min, v_min):
+        h = cv2.cvtColor(np.round(perfil_bgr).astype(np.uint8).reshape(-1, 1, 3), cv2.COLOR_BGR2HSV)[:, 0, 0]
+        h = np.rad2deg(np.unwrap(np.deg2rad(h.astype(float) * 2))) / 2     # continuo (el rojo 177 -> -3)
+        self.orden = np.argsort(h)
+        self.h = h[self.orden]
+        self.s_min, self.v_min = s_min, v_min
+
+    def query(self, bgr):
+        hsv = cv2.cvtColor(np.ascontiguousarray(bgr, np.uint8).reshape(-1, 1, 3), cv2.COLOR_BGR2HSV).reshape(-1, 3)
+        mejor, idx = np.full(len(hsv), np.inf), np.zeros(len(hsv), int)
+        for vuelta in (-180, 0, 180):                       # el matiz es circular: se prueba cada vuelta
+            p = hsv[:, 0].astype(float) + vuelta
+            j = np.clip(np.searchsorted(self.h, p), 1, len(self.h) - 1)
+            izq = np.abs(p - self.h[j - 1]) <= np.abs(p - self.h[j])
+            j = np.where(izq, j - 1, j)
+            d = np.abs(p - self.h[j])
+            mejor, idx = np.where(d < mejor, d, mejor), np.where(d < mejor, self.orden[j], idx)
+        mejor[(hsv[:, 1] < self.s_min) | (hsv[:, 2] < self.v_min)] = np.inf
+        return mejor, idx
 
 
 def tabla_desde_barra(frame):
@@ -80,6 +131,8 @@ def tabla_desde_barra(frame):
     vals = np.linspace(cfg["vmin"], cfg["vmax"], n)
     if cfg["barra_vertical"] and cfg["barra_arriba_es_max"]:
         vals = vals[::-1]
+    if MODO == "matiz":
+        return TablaMatiz(perfil, cfg.get("saturacion_min", 60), cfg.get("brillo_min", 60)), vals
     return cKDTree(a_lab(perfil)), vals
 
 
@@ -146,7 +199,7 @@ def mascara_fija(paso):
 
 def invertir(frame, arbol, vals, fija):
     zona = recortar(frame)
-    d, idx = arbol.query(a_lab(zona))
+    d, idx = arbol.query(zona.reshape(-1, 3) if MODO == "matiz" else a_lab(zona))
     campo = vals[idx].astype(float).reshape(zona.shape[:2])
     malo = (d.reshape(zona.shape[:2]) > DIST_MAX) | fija    # no pertenece a la paleta
     b = cfg.get("borde_px", 1)
@@ -168,6 +221,14 @@ for _nombre in ("mapa",) + (() if cfg.get("barra_imagen") else ("barra",)):
     if not (0 <= _x0 < _x1 <= ANCHO_V and 0 <= _y0 < _y1 <= ALTO_V):
         sys.exit(f"'{_nombre}' = {cfg[_nombre]} se sale del video ({ANCHO_V}x{ALTO_V}). Los rectángulos van "
                  "en píxeles del video original [x0, y0, x1, y1]; mídelos en salidas/fotograma_ref.png.")
+if cfg.get("barra_imagen"):
+    _png = cv2.imread(cfg["barra_imagen"])
+    if _png is None:
+        sys.exit(f"No se pudo leer la barra '{cfg['barra_imagen']}'. Revisa la ruta.")
+    _x0, _y0, _x1, _y1 = cfg["barra"]
+    if not (0 <= _x0 < _x1 <= _png.shape[1] and 0 <= _y0 < _y1 <= _png.shape[0]):
+        sys.exit(f"'barra' = {cfg['barra']} se sale del PNG de la barra ({_png.shape[1]}x{_png.shape[0]}). Con "
+                 "'barra_imagen' el rectángulo va en píxeles de ese PNG, no del video.")
 paso = max(1, round(fps_video / cfg["fps_muestreo"]))
 fija = mascara_fija(paso)
 if fija.any():
@@ -180,8 +241,7 @@ else:
     PESOS_FILA = None
 FECHAS = None
 if cfg.get("fechas"):
-    with open(cfg["fechas"]) as fh:
-        FECHAS = [l.strip() for l in fh if l.strip() and not l.startswith("#")]
+    FECHAS = leer_fechas(cfg["fechas"])
 
 
 def media_campo(campo):
@@ -211,13 +271,13 @@ for k, frame in fotogramas_muestreados(cfg["video"], paso):
     caliente = (campo > cfg["umbral"]) & validos
     area = caliente.sum() / max(validos.sum(), 1)
     # centroide_y: latitud media (ponderada por cos(lat), el área real de cada píxel) de lo que está sobre el
-    # umbral; 0 = sur, 1 = norte, 0,5 si no hay nada. Supone que el recorte va de +90 a -90.
+    # umbral; 0 = sur, 1 = norte; si no hay nada, el valor anterior (0,5 al inicio). Supone que el recorte va de +90 a -90.
     if caliente.any():
         lat = 90 - (np.arange(caliente.shape[0]) + 0.5) * 180 / caliente.shape[0]
         w = caliente.sum(axis=1) * np.cos(np.deg2rad(lat))
         cy = float((w * lat).sum() / w.sum() + 90) / 180
     else:
-        cy = 0.5
+        cy = cy_previo
     if validos.any():
         media = media_campo(campo)
         # centroide de lo que está POR ENCIMA de la media, ponderado por el exceso AL
@@ -232,7 +292,7 @@ for k, frame in fotogramas_muestreados(cfg["video"], paso):
         print(f"Aviso: t={k / fps_video:.2f} s sin píxeles válidos; se repite el valor anterior")
     rasgos.append({
         "t": round(k / fps_video, 3),
-        **({"fecha": (lambda f: int(f) if f.isdigit() else f)(FECHAS[min(k, len(FECHAS) - 1)])} if FECHAS else {}),
+        **({"fecha": etiqueta(FECHAS[min(k, len(FECHAS) - 1)], cfg.get("fechas_formato", "anio"))} if FECHAS else {}),
         "media": round(media, 4),
         "area": round(float(area), 4),
         "centroide_x": round(float(cx), 4),            # 0 = izquierda, 1 = derecha
@@ -240,11 +300,14 @@ for k, frame in fotogramas_muestreados(cfg["video"], paso):
         "cambio": round(0.0 if previo is None else media - previo, 4),
         "validos": round(float(validos.mean()), 3),
     })
-    previo, cx_previo = media, cx
+    previo, cx_previo, cy_previo = media, cx, cy
 
 if not rasgos:
     sys.exit(f"Ningún fotograma del video tiene el degradado de la barra en {cfg['barra']}: revisa 'barra' "
              "(¿coordenadas de otra resolución?). rasgos.json no se modificó.")
+if FECHAS and k > len(FECHAS) - 1:
+    print(f"AVISO: '{cfg['fechas']}' tiene {len(FECHAS)} líneas y el video llega al fotograma {k}: "
+          f"la última fecha ({FECHAS[-1]}) se repite al final.")
 _med = float(np.median([r["validos"] for r in rasgos]))
 if _med < 0.5:
     print(f"AVISO: la mediana de 'validos' es {_med:.2f} (< 0,5): casi ningún píxel del mapa coincide con la barra. "

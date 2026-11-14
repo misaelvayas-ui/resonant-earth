@@ -25,7 +25,7 @@ Claves opcionales (van en el config de 05 y se copian a rasgos.json); entre par�
   "densidad" (true)        notas por fotograma según la anomalía; false = una nota por fotograma
   "regolpe_ligado" (2)     en una nota ligada, la vuelve a tocar cada N fotogramas (0 = nunca)
   "regolpe_vel" (0.4)      velocidad del re-golpe como fracción de la de la nota
-  "umbral_evento" (0.15)   si la media CRUDA cambia más que esto entre fotogramas, ataque fuerte (vel >= 100)
+  "umbral_evento" (1/12 del rango de sonido; 0,15 en GISTEMP)   si la media CRUDA cambia más que esto entre fotogramas, ataque fuerte (vel >= 100)
                            aunque la nota no cambie
   "octava" (1)             desplaza melodía y dron (+1 = una octava arriba)
   "humanizar" (true)       velocidad ±10 %, tiempo ±10 ms, semilla fija (12345)
@@ -34,7 +34,7 @@ Claves opcionales (van en el config de 05 y se copian a rasgos.json); entre par�
   "dron_nivel" (0.048)     volumen del dron (velocidad MIDI = 45 * dron_nivel / 0,08; amplitud en el respaldo)
   "reverb" (50)            CC91, 0..127
   "paneo" ("x")            eje del paneo: "x" = izquierda-derecha del mapa, "y" = sur (izq.) - norte (der.);
-                           el centroide se suaviza y se normaliza (percentiles 5-95) antes de panear
+                           el centroide se suaviza y se normaliza (percentiles 5-95, si recorren >= 0,1 del mapa) antes de panear
   "vmin_sonido"/"vmax_sonido" (vmin/vmax)   rango de la media que se reparte entre las notas
   "densidad_umbrales" ([u1, u2])   media por debajo de u1 -> 1 nota; hasta u2 -> 2; más -> 4 (por defecto
                            el 50 % y el 72 % del rango de sonido; GISTEMP usa [0.3, 0.7])
@@ -63,8 +63,11 @@ SF2 = [os.environ.get("ROCOLA_SF2", ""), "/usr/share/sounds/sf2/FluidR3_GM.sf2",
 APT = "sudo apt install fluidsynth fluid-soundfont-gm"
 DEFECTOS = {"ligar": True, "suavizado": 3, "densidad": True, "octava": 1, "humanizar": True,
             "instrumento_melodia": 13, "dron_programa": 89, "dron_octava": 0, "dron_nivel": 0.048,
-            "reverb": 50, "paneo": "x", "regolpe_ligado": 2, "regolpe_vel": 0.4, "umbral_evento": 0.15}
+            "reverb": 50, "paneo": "x", "regolpe_ligado": 2, "regolpe_vel": 0.4, "umbral_evento": None}
 
+_raras = [a for a in sys.argv[1:] if a.startswith("--") and a != "--sintetico"]
+if _raras:
+    sys.exit(f"Opción desconocida: {' '.join(_raras)}. La única opción es --sintetico (respaldo numpy).")
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 with open(args[0] if args else sal("rasgos.json")) as fh:
     d = json.load(fh)
@@ -101,6 +104,8 @@ media_s = media_movil(media, cfg["suavizado"]) if int(cfg["suavizado"]) > 1 else
 notas = escala(tonica_midi=48, octavas=3)                   # Do3 ... Do6
 v0, v1 = d.get("vmin_sonido", d["vmin"]), d.get("vmax_sonido", d["vmax"])   # rango propio del sonido
 midi = valor_a_nota(media_s, v0, v1, notas)
+if cfg["umbral_evento"] is None:                            # por defecto: 1/12 del rango de sonido (0,15 en GISTEMP)
+    cfg["umbral_evento"] = (v1 - v0) / 12
 octava = int(cfg["octava"])
 ref = d.get("referencia")
 nota_ref = int(valor_a_nota(ref, v0, v1, notas)) if ref is not None else int(midi[0])
@@ -119,7 +124,8 @@ if eje == "y" and not any("centroide_y" in r for r in R):
 c_eje = cx if eje == "x" else rellenar([r.get("centroide_y") for r in R], 0.5)
 c_suave = media_movil(c_eje, 3)
 p5, p95 = np.percentile(c_suave, [5, 95])
-c_pan = np.clip((c_suave - p5) / (p95 - p5), 0, 1) if p95 - p5 > 1e-6 else np.full(len(R), 0.5)
+c_pan = (np.clip((c_suave - p5) / (p95 - p5), 0, 1) if p95 - p5 >= 0.1      # recorrido < 0,1 (10 % del mapa): no se estira
+         else np.clip(0.5 + (c_suave - (p5 + p95) / 2) / 0.1, 0, 1))
 pan = np.clip(np.round(64 + 63 * (2 * c_pan - 1)), 0, 127).astype(int)
 vel_dron = int(np.clip(round(45 * cfg["dron_nivel"] / 0.08), 1, 127))
 reverb = int(np.clip(cfg["reverb"], 0, 127))
@@ -254,6 +260,9 @@ def renderizar_fluidsynth():
     """Devuelve el estéreo float (N, 2) o None si falta fluidsynth/SoundFont o falla el render."""
     fs_bin = shutil.which("fluidsynth")
     sf2 = next((s for s in SF2 if s and os.path.exists(s)), None)
+    if os.environ.get("ROCOLA_SF2") and not os.path.exists(os.environ["ROCOLA_SF2"]):
+        print(f"AVISO: ROCOLA_SF2='{os.environ['ROCOLA_SF2']}' no existe; "
+              f"{'uso otra SoundFont del sistema' if sf2 else 'no hay otra SoundFont'}.")
     if fs_bin is None or sf2 is None:
         print(f"AVISO: falta {'fluidsynth' if fs_bin is None else 'la SoundFont GM'}; uso la síntesis "
               f"numpy de respaldo (suena distinto, mismas notas).\n       Para instrumentos reales:  {APT}\n"
@@ -283,13 +292,13 @@ def sintetizar_numpy():
     nota_m = np.full(N, float(mel[0][2]))
     for k, ini in enumerate(inicios):
         nota_m[ini: (inicios[k + 1] if k + 1 < len(inicios) else N)] = mel[k][2]
-    f_lead = suavizar_rapido(midi_a_hz(nota_m), 0.04)           # glide 40 ms
+    f_lead = suavizar_rapido(midi_a_hz(nota_m), 0.01)           # glide 10 ms
     amp = suavizar_rapido(lineal(db_a_lineal(-6 + 6 * np.clip(area / max(area.max(), 1e-6), 0, 1))), 0.08)
     lead = 0.5 * amp * oscilador(f_lead, "suave")
     plucks = np.zeros(N)                                       # un golpe en cada ataque
     n_pl = int(0.35 * FS)
     for (ini_t, _, nota, vl), ini in zip(mel, inicios):
-        seg = oscilador(np.full(n_pl, midi_a_hz(nota + 12)), "triangular")
+        seg = oscilador(np.full(n_pl, midi_a_hz(nota)), "triangular")
         seg *= adsr(n_pl, a=0.003, d=0.12, s=0.0, r=0.05)
         fin = min(ini + n_pl, N)
         plucks[ini:fin] += 0.35 * (vl / 90) * seg[: fin - ini]
@@ -309,7 +318,7 @@ guardar_wav(sal("rocola.wav"), estereo)
 # --- control.json: lo leen 07 y evaluar.py -----------------------------------------------------
 voz = midi + 12 * octava
 fechas = [r.get("fecha") for r in R]
-tras = [i for i in range(n_f) if (voz[i:] >= nota_dron).all()]
+tras = [i for i in range(n_f) if (voz[i:] >= nota_ref + 12 * octava).all()]
 cruce = (fechas[tras[0]] if fechas[tras[0]] is not None else tras[0]) if tras else None
 with open(sal("control.json"), "w") as fh:
     json.dump({"seg_por_fotograma": SEG_POR_FOTOGRAMA,
@@ -323,7 +332,7 @@ with open(sal("control.json"), "w") as fh:
                "nota_min": min(m[2] for m in mel), "nota_max": max(m[2] for m in mel),
                "modo": modo}, fh)
 print(f"Modo: {modo} | ataques {len(mel)} (sin ligar {ataques_sin_ligar}) | notas "
-      f"{min(m[2] for m in mel)}-{max(m[2] for m in mel)} | dron {nota_dron} | cruce del dron: {cruce}")
+      f"{min(m[2] for m in mel)}-{max(m[2] for m in mel)} | dron {nota_dron} | cruce de la referencia: {cruce}")
 print("Nota base por fotograma:", voz.astype(int).tolist())
 reproducir(estereo)
 

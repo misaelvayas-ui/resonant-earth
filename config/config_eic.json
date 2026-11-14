@@ -33,5 +33,6 @@
     0.3,
     0.7
   ],
-  "paneo": "y"
+  "paneo": "y",
+  "umbral_evento": 0.15
 }

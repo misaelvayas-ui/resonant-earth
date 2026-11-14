@@ -18,6 +18,9 @@ import matplotlib.pyplot as plt
 from scipy.io import wavfile
 from scipy.signal import spectrogram
 
+for _n in ("rasgos.json", "control.json", "rocola.wav", "rocola.mid"):
+    if not os.path.exists(sal(_n)):
+        sys.exit(f"Falta {sal(_n)}: ejecuta antes 05 y 06 (en ese orden).")
 fs, x = wavfile.read(sal("rocola.wav"))
 x = x.astype(float) / 32768
 ctl = json.load(open(sal("control.json")))
@@ -83,7 +86,7 @@ checks = {
     "el tono no baja (serie creciente)": bool(np.all(np.diff(esperado) >= 0)) if sintetico else None,
     # el dron central "diluye" el balance, así que se valida la TENDENCIA, no un valor fijo
     "paneo va de izquierda a derecha": bool(bal_a[0] < 0 < bal_a[-1] and np.corrcoef(idx_a, bal_a)[0, 1] > 0.9) if sintetico else None,
-    "media de rasgos crece": bool(r[-1]["media"] > r[0]["media"]),
+    "media de rasgos crece": bool(r[-1]["media"] > r[0]["media"]) if sintetico else None,
 }
 for k, v in checks.items():
     print(f"[{'NO APLICA' if v is None else 'PASA' if v else 'FALLA'}] {k}" + ("" if v is not None else " (solo para el video sintético)"))
