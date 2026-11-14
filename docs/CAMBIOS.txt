@@ -857,3 +857,66 @@ Decisión de Misael: aplicar la opción que quedó sin aplicar en la ronda 29.
 Resultados (ventanas de 0,5 s; marimba = canal 0 solo, "más de 15 dB bajo su nivel medio"):
    GISTEMP  marimba floja 14 de 60 (regolpe_vel 0,7, cada 2) -> 4 de 60;  WAV completo: 0 ventanas < -40 dB, 0 caídas > 12 dB, mínima -25,9 dB
    SST      marimba floja  7 de 61 -> 3 de 61;                              WAV completo: 0 ventanas < -40 dB, 0 caídas > 12 dB, mínima -25,3 dB
+
+RONDA 31 - tono por diferencia entre hemisferios: "hemisferios" (05) y "rasgo_tono" (06), rama juan/tono-hemisferios   (2026-11-14)
+Hecho con ayuda de IA (Claude, de Anthropic) en el código; revisado y probado por Juan.
+Antes: commit 575023f (misael/sst, ya en master). Solo se tocaron 05, 06 y este archivo.
+Problema: en el video del mar (SVS 3912, ECCO2) la media global casi no cambia en el año: varía menos de 1 °C (ronda 24:
+21,48-22,44). Para que la melodía use la escala hay que estirar ese grado sobre 3 octavas, y entonces se oye sobre todo el
+ruido. Lo que sí cambia es la diferencia entre hemisferios: de 1,5 °C (febrero) a 8,3 °C (agosto), el ciclo de las estaciones.
+1. 05: clave opcional "hemisferios" (false). Con true añade a cada rasgo media_norte, media_sur (media de cada mitad del
+   mapa, filas pesadas por cos(latitud); supone recorte de +90 a -90) y dif_hemisferios = media_norte - media_sur; None si
+   un hemisferio no tiene píxeles válidos. Los demás campos no cambian. 05 copia también "rasgo_tono" a rasgos.json.
+2. 06: clave opcional "rasgo_tono" ("media"). Con otro rasgo (p. ej. "dif_hemisferios"), ese rasgo ocupa el lugar de la
+   media en la nota, la densidad, los eventos y el dron: vmin_sonido/vmax_sonido, referencia, densidad_umbrales y
+   umbral_evento van en sus unidades. Sale con mensaje claro si el rasgo no está en rasgos.json o si faltan
+   vmin_sonido/vmax_sonido. Volumen (area) y paneo no cambian.
+Sin las claves nuevas no cambia nada: con config_sst.json, rasgos.json, rocola.mid, rocola.wav y control.json son
+idénticos (cmp) a los de misael/sst; con "hemisferios": true y sin "rasgo_tono", el WAV también es idéntico.
+Prueba (Windows 11, sin FluidSynth: síntesis numpy). OJO: esta máquina no tiene ecco2_sst_flow.mp4 ni flat_ecco2_dates.txt;
+se usó otra copia del mismo SVS 3912 (2048x1024, 2061 fotogramas, 68,7 s) que trae la leyenda dibujada abajo a la izquierda,
+con config_sst.json cambiando solo las rutas y quitando "fechas". 63 fotogramas, validos 20,5-22,9 %.
+  rasgo             mín      máx      variación   salto típico entre muestras   ruido / variación
+  media             22,08    23,04    0,96 °C     0,075 °C                      7,8 %
+  media_norte       23,61    26,90    3,29 °C
+  media_sur         18,40    22,13    3,73 °C
+  dif_hemisferios   1,76     8,15     6,40 °C     0,216 °C                      1,7 %
+  (a 2 fotogramas/s y con la leyenda tapada, en la rama datos-oficiales: media 21,52-22,51; dif_hemisferios 1,53-8,28)
+  audio (31,5 s)                                         notas base   MIDI     Hz          cambios de nota   cambios de dirección
+  a) config_sst.json tal cual (tono = media)             6            84-96    1047-2093   13                -
+  b) tono = media, vmin/vmax_sonido 22,08-23,04          15           62-96    294-2093    34                7
+  c) rasgo_tono dif_hemisferios, 1,5-8,3, referencia 5,08   15        62-96    294-2093    28                1
+  En (a) la media de esta copia queda por encima de vmax_sonido (22,45, calibrado para el otro archivo) y la melodía se pega
+  a la nota más alta 44 de 63 fotogramas. (b) y (c) usan las mismas 15 notas, pero (b) sube y baja 7 veces siguiendo
+  variaciones de centésimas de grado y (c) hace un solo arco: sube hasta agosto-septiembre y baja hasta febrero.
+  El pico medido en el WAV coincide con las notas (294-2094 Hz).
+Para activarlo en el mar, añadir a config_sst.json (NO se cambió en esta ronda; decidir con el equipo):
+  "hemisferios": true, "rasgo_tono": "dif_hemisferios", "vmin_sonido": 1.5, "vmax_sonido": 8.3, "referencia": 5.08
+  y quitar "umbral_evento": 0.15 (está en °C de la media; por defecto queda en 1/12 del rango = 0,57).
+  La "referencia" 5,08 es el promedio de la serie medida aquí; conviene recalcularla con ecco2_sst_flow.mp4.
+Limitaciones: mismas de la ronda 24 (solo cuentan las líneas brillantes: las medias salen altas; sirven para comparar
+momentos, no como valor absoluto). "cruce de la referencia" sale None con (c): la melodía vuelve a bajar del dron al final del
+año, como corresponde a un ciclo. Sin pruebas nuevas en evaluar.py.
+evaluar.py en esta máquina: 33 PASA, 3 FALLA (C2, C3, D1), idéntico prueba por prueba al de misael/sst sin estos cambios
+(D1: 08 ya corre con ffmpeg 9, pero el video empieza 0,200 s después del audio y el límite es 0,15 s).
+Actualización tras fusionar master (rondas 27-30, PR #7 y #8): el bloque pasa de ronda 28 a ronda 31 y se añade el modo en vivo.
+Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Se tocaron herramientas/exportar_mapeo.py,
+docs/ESPEC_MODO_EN_VIVO.md, evaluar.py y este archivo. 05 y 06 no cambian respecto a la versión anterior de esta rama.
+3. Modo en vivo con "rasgo_tono": construir_mapeo() y aplicar_mapeo() leen el rasgo del tono igual que 06 (relleno
+   (vmin_sonido + vmax_sonido)/2, mensaje claro si falta el rasgo o el rango). El _mapeo.json lleva "rasgo_tono" SOLO si no
+   es "media": los _mapeo.json de GISTEMP y SST no cambian. ESPEC: sección 2.6 nueva y las citas 06:línea renumeradas
+   (06 tiene 14 líneas más por "rasgo_tono").
+4. evaluar.py, prueba I1: cuarto caso sintético, tono por dif_hemisferios (1,5-8,3 °C, tres datos ausentes, media casi fija).
+   Exige que las fórmulas del modo en vivo den las notas de control.json y que NO sean las que saldrían con la media.
+   Con el exportar_mapeo.py de master ese caso falla (113 discrepancias), como debe.
+Comprobado (Windows 11, sin FluidSynth: síntesis numpy), sin activar las opciones, 06 de master (329aa65) frente a esta rama:
+  - rasgos.json de GISTEMP y SST reconstruidos de web/assets (su sha256 coincide con el de _procedencia.json): rocola.mid,
+    rocola.wav y control.json idénticos (cmp) en las dos pistas.
+  - exportar_mapeo: _mapeo.json y _esperado.json de las dos pistas idénticos a los de master.
+  - 05 sobre la copia local de SVS 3912 (los videos originales no están en esta máquina): rasgos.json idéntico (cmp).
+evaluar.py: 43 PASA, 1 FALLA (D1), 1 OMITIDA (K1, sin FluidSynth); igual que master prueba por prueba, salvo que I1 cubre un
+caso más. D1 es la de siempre en esta máquina (ffmpeg 9: el video empieza 0,200 s después del audio).
+Mar con hemisferios (copia local, 63 fotogramas, carpeta temporal, nada en web/assets): dif_hemisferios 1,76-8,15 (media
+5,08); notas 62-96, dron 67; el modo en vivo reproduce control.json y el .mid.
+Pendiente: decidir con el equipo si el mar usa esta opción; la descripción en texto de la web (describir.js) sigue hablando
+de la media, no de la diferencia entre hemisferios.

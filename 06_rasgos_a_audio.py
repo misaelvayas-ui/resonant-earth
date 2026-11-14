@@ -42,6 +42,10 @@ Claves opcionales (van en el config de 05 y se copian a rasgos.json); entre par�
   "vmin_sonido"/"vmax_sonido" (vmin/vmax)   rango de la media que se reparte entre las notas
   "densidad_umbrales" ([u1, u2])   media por debajo de u1 -> 1 nota; hasta u2 -> 2; más -> 4 (por defecto
                            el 50 % y el 72 % del rango de sonido; GISTEMP usa [0.3, 0.7])
+  "rasgo_tono" ("media")   rasgo que se convierte en nota. Con otro (p. ej. "dif_hemisferios", que 05 calcula con
+                           "hemisferios": true), ese rasgo ocupa el lugar de la media en TODO lo de arriba:
+                           vmin_sonido/vmax_sonido, referencia (dron), densidad_umbrales y umbral_evento van en sus
+                           unidades. Sirve cuando la media casi no cambia y otro rasgo sí
 Para el sonido sin adornos: ligar false, suavizado 0, densidad false, octava 0, humanizar false.
 
 Uso:  python 06_rasgos_a_audio.py [rasgos.json] [--sintetico]
@@ -101,7 +105,17 @@ def media_movil(x, n):
     return np.array([x[max(0, i - h): i + h + 1].mean() for i in range(len(x))])
 
 
-media = rellenar([r["media"] for r in R], (d["vmin"] + d["vmax"]) / 2)
+RASGO_TONO = d.get("rasgo_tono") or "media"
+if RASGO_TONO == "media":
+    media = rellenar([r["media"] for r in R], (d["vmin"] + d["vmax"]) / 2)
+else:                                             # otro rasgo hace de "media" para el sonido
+    if not any(isinstance(r.get(RASGO_TONO), (int, float)) for r in R):
+        sys.exit(f"'rasgo_tono' = {RASGO_TONO!r} no está en los rasgos: revisa el nombre o vuelve a ejecutar 05 "
+                 "(para dif_hemisferios hace falta \"hemisferios\": true en el config).")
+    if d.get("vmin_sonido") is None or d.get("vmax_sonido") is None:
+        sys.exit(f"Con 'rasgo_tono' = {RASGO_TONO!r} hacen falta 'vmin_sonido' y 'vmax_sonido' en sus unidades "
+                 "(vmin/vmax son de la paleta de colores, no de este rasgo).")
+    media = rellenar([r.get(RASGO_TONO) for r in R], (d["vmin_sonido"] + d["vmax_sonido"]) / 2)
 area = rellenar([r["area"] for r in R], 0.0)
 cx = rellenar([r["centroide_x"] for r in R], 0.5)
 media_s = media_movil(media, cfg["suavizado"]) if int(cfg["suavizado"]) > 1 else media
