@@ -882,6 +882,11 @@ def i1():
         # eje y con rama amplia, sin densidad ni suavizado, umbral de evento propio
         "y amplia sin densidad": dict(extra={"paneo": "y", "densidad": False, "suavizado": 0, "umbral_evento": 0.1},
                                       cx=np.full(n, 0.5), cy=np.clip(0.5 + 0.3 * np.cos(np.arange(n) / 6), 0, 1), area="normal"),
+        # tono por otro rasgo (ronda 31): dif_hemisferios en °C (1,5 a 8,3), con la media casi fija como en el mar
+        "tono dif_hemisferios": dict(extra={"rasgo_tono": "dif_hemisferios", "vmin_sonido": 1.5, "vmax_sonido": 8.3,
+                                            "referencia": 5.08, "paneo": "y"},
+                                     cx=np.full(n, 0.5), cy=np.clip(0.5 + 0.3 * np.sin(np.arange(n) / 8), 0, 1), area="normal",
+                                     tono=4.9 + 3.6 * np.sin(np.arange(n) / 9) + 0.2 * np.random.default_rng(31).standard_normal(n)),
     }
     res = []
     with tempfile.TemporaryDirectory() as d:
@@ -897,12 +902,23 @@ def i1():
                 r.update(media=float(media[i]), area=float(area),
                          centroide_x=float(c["cx"][i]), centroide_y=float(c["cy"][i]))
             R["rasgos"][5]["media"] = None                    # dato ausente: se rellena con el anterior
+            if "tono" in c:                                   # la nota sale de dif_hemisferios, no de la media
+                for i, r in enumerate(R["rasgos"]):
+                    r.update(media=22.0 + 0.3 * float(media[i]), dif_hemisferios=float(c["tono"][i]))
+                for i in (0, 6, 7):                           # ausente al inicio (relleno) y dos seguidos
+                    R["rasgos"][i]["dif_hemisferios"] = None
             R.update(c["extra"])
             ctl, r = _06(R, d)
             if ctl is None:
                 return False, "06 falló: " + r.stderr.strip()[-120:]
             m = construir_mapeo(R, nombre)
             f = comparar_con_control(aplicar_mapeo(R["rasgos"], m), ctl, tol_pan=0.02)
+            if "tono" in c:                                   # y de verdad sigue a dif_hemisferios: con la media sale otra melodía
+                m_media = construir_mapeo({k: v for k, v in R.items() if k != "rasgo_tono"}, nombre)
+                if [x["nota"] for x in aplicar_mapeo(R["rasgos"], m_media)] == ctl["midi"]:
+                    f = f + ["las notas de 06 son las de 'media', no las de dif_hemisferios"]
+                if m.get("rasgo_tono") != "dif_hemisferios" or len(set(ctl["midi"])) < 8:
+                    f = f + [f"mapeo sin rasgo_tono o melodía con solo {len(set(ctl['midi']))} notas"]
             res.append((nombre + f" (rama {m['paneo']['rama']})", f))
     # pistas reales: solo si están sus archivos (web/assets/<id>_esperado.json, _mapeo.json y los rasgos)
     reales = []
@@ -1140,7 +1156,7 @@ EVALUACIONES = [
     ("J4", "preparar_datos: protección de la fuente", "aborta si rasgos.json no es del video de la pista; pasa si coincide", j4),
     ("K1", "06: dron continuo (FluidSynth)", "ninguna ventana de 0,5 s < -40 dB ni caída > 12 dB con notas ligadas", k1),
     ("K2", "exportar_web: audio web = rocola.wav", "acepta el MP4 de ese WAV; rechaza canales invertidos y 10 dB menos", k2),
-    ("I1", "especificación modo en vivo", "fórmulas de la ESPEC = control.json: notas exactas, pan ± 0,02 (3 casos sintéticos + 2 pistas)", i1),
+    ("I1", "especificación modo en vivo", "fórmulas de la ESPEC = control.json: notas exactas, pan ± 0,02 (4 casos sintéticos + 2 pistas)", i1),
     ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]
 
