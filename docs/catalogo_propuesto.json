@@ -1,0 +1,22 @@
+{
+  "visualizaciones": [
+    {
+      "id": "gistemp-1880-2023",
+      "titulo": "Temperatura del planeta, 1880–2023",
+      "descripcion": "Mapa mundial de anomalías de temperatura (GISTEMP, NASA), con 60 años muestreados entre 1881 y 2023. Cada anomalía compara la temperatura con el promedio de 1951–1980. En el sonido, el tono es la anomalía media del planeta (más agudo = más caliente); el volumen sube cuando una parte mayor del mapa está más de 1 °C por encima del promedio; el sonido va a la izquierda o a la derecha según esa zona caliente esté más al sur o más al norte. Un tono grave fijo marca el promedio de 1951–1980.",
+      "video": "assets/gistemp_1880_2023.mp4",
+      "rasgos": "assets/gistemp_1880_2023_rasgos.json",
+      "unidad": "°C",
+      "leyenda": "Azul: más frío que el promedio. Blanco: cerca del promedio. Rojo y amarillo: más caliente que el promedio."
+    },
+    {
+      "id": "sst-ecco2-2007-2008",
+      "titulo": "Corrientes y temperatura del mar, 2007–2008",
+      "descripcion": "Temperatura de la superficie del mar y corrientes oceánicas (modelo ECCO2, NASA SVS 3912). Los datos cubren 344 días, del 25 de marzo de 2007 al 3 de marzo de 2008, así que se oye cómo cambian las estaciones. El tono es la temperatura media del mar (más agudo = más cálido); el volumen sube cuando una parte mayor del océano supera los 25 °C; y el sonido va a la izquierda o a la derecha según el agua cálida esté más al sur o más al norte que su posición media del período. La temperatura es un índice relativo: solo se mide en las líneas de corriente brillantes, que son más cálidas que el mar completo, así que el número sale más alto que el real. Sirve para comparar un momento con otro, no para leer grados exactos. Un tono grave fijo marca el promedio del período.",
+      "video": "assets/sst_ecco2_2007_2008.mp4",
+      "rasgos": "assets/sst_ecco2_2007_2008_rasgos.json",
+      "unidad": "",
+      "leyenda": "Cada línea es una corriente del mar. Azul: agua fría (0 °C). Verde: unos 10 a 20 °C. Amarillo: unos 25 °C. Rojo: 32 °C. Gris: tierra."
+    }
+  ]
+}
