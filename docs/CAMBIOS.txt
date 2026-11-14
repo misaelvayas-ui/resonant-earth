@@ -783,8 +783,11 @@ imágenes o videos generados con IA. El README y el pie lo decían, pero la imag
 2. web/index.html: el texto alternativo del logo añade "Imagen generada con IA, con la marca «Generado con IA»"; en el
    pie, una sola línea "Hecho con ayuda de IA (Claude). Logo generado con IA." (antes eran dos).
 3. web/README.md: explica la marca. web/capturas/escritorio.png y movil.png, actualizadas.
-No se marcaron icono-64.png ni icono-180.png (ícono de la pestaña, recorte del logo): a 16-64 px el texto no se leería.
-PENDIENTE de decidir con el equipo si hace falta otra señal ahí.
+4. Ícono de la pestaña: icono-64.png e icono-180.png eran un recorte del logo generado con IA y a 16-64 px la marca no se
+   leería. Se reemplazan por un ícono dibujado por código (web/hacer_icono.py, Pillow): círculo oscuro #0a0b12 con borde
+   fino y una onda de sonido de lila #cdbfff a turquesa #a8ece4. No viene del logo ni de una IA de imágenes, así que no
+   necesita marca. icono-64 con fondo transparente (6 KB), icono-180 con fondo negro (20 KB). Comprobado: la página los
+   pide y cargan (64x64 y 180x180); la onda se distingue a 16 y 32 px.
 Verificado (Windows 11, Chrome headless, axe-core 4.10.2): 0 violaciones en escritorio (1440 px) y móvil (390 px);
 teclado (Tab, Enter, Espacio, flechas) sin cambios; sin errores en la consola. La marca se lee en las dos capturas.
 evaluar.py no se volvió a correr: no se tocó ningún script del pipeline.

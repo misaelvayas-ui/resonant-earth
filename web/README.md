@@ -29,7 +29,8 @@ Teclado: `Tab` recorre los controles · `Enter` elige · `Espacio` reproduce o p
 | `assets/` | videos (mp4 con el audio ya mezclado) y rasgos (.json) |
 | `assets/logo.jpg` | logo en grande (2048 px, generado con IA, con la marca «Generado con IA») |
 | `assets/logo-240.jpg`, `logo-480.jpg` | logo de la portada, con la misma marca (el navegador elige según la densidad de la pantalla) |
-| `assets/icono-64.png`, `icono-180.png` | ícono de la pestaña y del acceso directo (recorte del logo, sin marca: a 64 px no se leería) |
+| `assets/icono-64.png`, `icono-180.png` | ícono de la pestaña y del acceso directo: un círculo oscuro con una onda de sonido lila → turquesa, dibujado por código (no viene del logo ni de una IA de imágenes) |
+| `hacer_icono.py` | dibuja esos dos íconos: `python web/hacer_icono.py` |
 | `assets/fonts/` | Unbounded, Plus Jakarta Sans y Space Mono en woff2 (licencia SIL OFL); no depende de internet |
 | `GUIA_ESTILO.md` | guía de estilo en una página: paleta, fuentes, distribución, componentes y dónde vive cada cosa |
 | `capturas/` | capturas de escritorio y móvil |
