@@ -690,3 +690,22 @@ Verificado:
   ffmpeg 9 SIMULADO (envoltorio que rechaza -filter_complex_script con el mensaje de ffmpeg 9 y traduce
   -/filter_complex al ffmpeg 6 real): el 08 anterior falla con "Option not found"; el nuevo elige -/filter_complex,
   D1 y F4 PASAN, evaluar.py 29 PASA, 0 FALLA. Falta probarlo con un ffmpeg 7/8/9 real (p. ej. en el Windows de Juan).
+
+RONDA 22 - auditoría 2 del pipeline (sin cambios de código)   (2026-11-14)
+Informe completo, con dónde, evidencia, corrección y verificación de cada punto: docs/AUDITORIA_2.md.
+Verificado: 05 + 06 sobre GISTEMP reproducen rasgos.json, rocola.mid y rocola.wav idénticos (cmp); r = 0,992 con la
+serie oficial (60 años, sesgo -0,094 °C); evaluar.py 29 PASA, 0 FALLA en 36,5 s; 05 37,7 s y 0,99 GB.
+Hallazgos confirmados:
+ 1. 06: cruce_dron = 1881 desde la ronda 19 (compara con el dron, que ahora va 12 semitonos abajo); debe ser 1976.
+ 2. 06: umbral_evento (0,15) está en °C: serie en 270-310 K -> 56/60 eventos fuertes; en 0-1 -> 0/60 (GISTEMP 19/60).
+ 3. calibrar: umbral por defecto solo válido para GISTEMP (270..310 -> 1,0; -80..-10 -> -5).
+ 4. 06: el paneo normaliza cualquier recorrido > 1e-6: centroide 0,498-0,502 -> pan -1..+1.
+ 5. 07: "media de rasgos crece" da FALLA con un video real cuya media baja.
+ 6. 06 --sintetico + 07 con GISTEMP: FALLA en tono (112 cents; 1200 con la serie invertida) por el glide de 40 ms
+    y el golpe una octava arriba.
+ 7-10. Robustez: errores crípticos de config en 05, ROCOLA_SF2/banderas ignoradas en 06, barra por defecto de
+    calibrar, cy_previo sin usar.
+ 11 y 13. Pendientes de decisión: paneo de GISTEMP guiado por < 1 % del mapa en 16/60 fotogramas; licencia y versiones.
+ 12. README/CONTRIBUTING/evaluar.py desactualizados (18 pruebas ~10 s -> 29 y ~37 s; tablas sin paneo ni centroide_y).
+Las correcciones 1-6 y 10 se probaron en una copia: evaluar.py 29 PASA, rocola.mid y rocola.wav de GISTEMP idénticos,
+cruce 1976. Nada de eso se aplicó al repositorio.
