@@ -91,9 +91,20 @@ def opcion_grafo():
              "Actualiza ffmpeg (>= 4).")
 
 
+def tiene_filtro(nombre):
+    """True si este ffmpeg trae el filtro 'nombre' (p. ej. el ffmpeg de Homebrew 8 no trae drawtext)."""
+    salida = subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True).stdout
+    return any(linea.split()[1:2] == [nombre] for linea in salida.splitlines())
+
+
+def dato_video(ruta, campo):
+    """Un campo del primer flujo de video según ffprobe (p. ej. 'height' o 'r_frame_rate')."""
+    return ejecutar(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                     "-show_entries", f"stream={campo}", "-of", "csv=p=0", ruta]).strip()
+
+
 def alto_video(ruta):
-    return int(ejecutar(["ffprobe", "-v", "error", "-select_streams", "v:0",
-                         "-show_entries", "stream=height", "-of", "csv=p=0", ruta]).strip())
+    return int(dato_video(ruta, "height"))
 
 
 def filtros_texto(video, factor, carpeta):
@@ -105,6 +116,10 @@ def filtros_texto(video, factor, carpeta):
         d = json.load(fh)
     if os.path.basename(d.get("fuente", "")) != os.path.basename(video):
         print(f"rasgos.json es de '{d.get('fuente')}', no de '{video}': sin texto superpuesto.")
+        return []
+    if not tiene_filtro("drawtext"):
+        print("AVISO: este ffmpeg no trae el filtro drawtext (necesita libfreetype): el demo sale sin texto "
+              "superpuesto. Video y audio se unen igual.")
         return []
     fuente = fuente_tipografica()
     if fuente is None:
@@ -163,6 +178,9 @@ def main():
             fh.write("[0:v]" + ",".join(cadena or ["null"]) + "[v]")
         cmd = ["ffmpeg", "-y", "-v", "error", "-i", os.path.abspath(video), "-i", os.path.abspath(audio),
                opcion_grafo(), "grafo.txt", "-map", "[v]",
+               # salida a los fotogramas por segundo del video original aunque se estire: así ffmpeg 7-8
+               # se comporta como el 6 de la ronda 7 (con 10 fps el retardo de los B-frames sube a 0,2 s)
+               "-r", dato_video(video, "r_frame_rate"),
                "-map", "1:a:0", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
                "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
                # sin listas de edición: VLC las maneja mal y el audio se entrecortaba al inicio

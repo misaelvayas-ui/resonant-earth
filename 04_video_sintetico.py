@@ -12,6 +12,7 @@ Verdad conocida (lo que el audio DEBE contar):
 import json
 import sys
 import numpy as np
+from escritor_video import abrir_escritor
 from rutas import sal, cfg_ruta
 import cv2
 from matplotlib import colormaps
@@ -38,7 +39,7 @@ bx0, by0, bx1, by1 = BARRA
 col_barra = np.linspace(VMAX, VMIN, by1 - by0)[:, None].repeat(bx1 - bx0, 1)
 img_barra = a_bgr(col_barra)
 
-out = cv2.VideoWriter(sal("04_video_sintetico.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+out = abrir_escritor(sal("04_video_sintetico.mp4"), FPS, (W, H))
 n_frames = FPS * DUR
 for k in range(n_frames):
     p = k / (n_frames - 1)                                    # 0 -> 1

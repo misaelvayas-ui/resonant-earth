@@ -28,6 +28,7 @@ import numpy as np
 from matplotlib import colormaps
 from scipy.io import wavfile
 
+from escritor_video import abrir_escritor
 from sintesis import (FS, adsr, escala, guardar_wav, hz_a_midi, limitar, midi_a_hz,
                       oscilador, paneo, tono, valor_a_nota)
 
@@ -88,7 +89,7 @@ def video_c(carpeta, nombre, vacio_en=None, negro_en=None, titulo_en=None):
     bgr = lambda v: (cm(np.clip(v, 0, 1))[..., :3][..., ::-1] * 255).astype(np.uint8)
     barra = bgr(np.linspace(1, 0, BARRA[3] - BARRA[1])[:, None].repeat(BARRA[2] - BARRA[0], 1))
     ruta_video = os.path.join(carpeta, nombre + ".mp4")
-    out = cv2.VideoWriter(ruta_video, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+    out = abrir_escritor(ruta_video, FPS, (W, H))
     verdad = []
     for k in range(N_FRAMES):
         p = k / (N_FRAMES - 1)
@@ -295,7 +296,7 @@ def video_lat(carpeta, nombre):
     bgr = lambda v: (cm(np.clip(v, 0, 1))[..., :3][..., ::-1] * 255).astype(np.uint8)
     barra = bgr(np.linspace(1, 0, BARRA[3] - BARRA[1])[:, None].repeat(BARRA[2] - BARRA[0], 1))
     ruta_video = os.path.join(carpeta, nombre + ".mp4")
-    out = cv2.VideoWriter(ruta_video, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+    out = abrir_escritor(ruta_video, FPS, (W, H))
     ponderada, simple = [], []
     for k in range(N_FRAMES):
         p = k / (N_FRAMES - 1)
@@ -562,7 +563,7 @@ def f2():
         c = json.load(open(cfg))
         cap = cv2.VideoCapture(c["video"])
         ruta = os.path.join(d, "negro.mp4")
-        out = cv2.VideoWriter(ruta, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+        out = abrir_escritor(ruta, FPS, (W, H))
         for k in range(N_FRAMES):
             ok, f = cap.read()
             out.write(np.zeros_like(f) if k < 6 else f)
@@ -619,6 +620,9 @@ def f4():
     """08 con 600 rasgos (un drawtext por rasgo): la línea de comandos ya no revienta."""
     if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
         return None, "ffmpeg/ffprobe no instalados"
+    filtros = subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True).stdout
+    if not any(linea.split()[1:2] == ["drawtext"] for linea in filtros.splitlines()):
+        return None, "este ffmpeg no trae el filtro drawtext (08 une video y audio sin texto)"
     base = os.path.join(pipeline()["dir"], "salidas")
     with tempfile.TemporaryDirectory() as d:
         sal_ = os.path.join(d, "salidas")
@@ -793,7 +797,7 @@ def video_matiz(carpeta, nombre="matiz"):
         return cv2.cvtColor(np.clip(hsv, 0, 255).astype(np.uint8), cv2.COLOR_HSV2BGR)
     barra_xy = (x0, 4, x1, 14)
     ruta_video = os.path.join(carpeta, nombre + ".mp4")
-    out = cv2.VideoWriter(ruta_video, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+    out = abrir_escritor(ruta_video, FPS, (W, H))
     verdad = []
     for k in range(N_FRAMES):
         p = k / (N_FRAMES - 1)
