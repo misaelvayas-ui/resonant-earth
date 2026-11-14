@@ -106,6 +106,19 @@ function fraseValor(rasgo, contexto, F, idioma) {
   return frase + ".";
 }
 
+/* El valor solo, corto, para los botones de "Momentos clave": "+0,26 °C" si los datos ya son
+   diferencias con la referencia (anomalías); si no, "24,31" con su unidad. */
+function valorCorto(rasgo, contexto = {}) {
+  const idioma = FRASES[contexto.idioma] ? contexto.idioma : "es";
+  const unidad = contexto.unidad ? " " + contexto.unidad : "";
+  const num = (x) => x.toLocaleString(idioma, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (contexto.referencia === 0) {
+    const signo = Math.abs(rasgo.media) < 0.005 ? "" : rasgo.media > 0 ? "+" : "−";
+    return `${signo}${num(Math.abs(rasgo.media))}${unidad}`;
+  }
+  return `${num(rasgo.media).replace("-", "−")}${unidad}`;
+}
+
 /* Dónde está lo caliente, en el mismo eje que el paneo del sonido. */
 function fraseLugar(rasgo, paneo, F) {
   if (paneo === "y" && rasgo.centroide_y != null) {

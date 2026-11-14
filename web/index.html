@@ -32,8 +32,8 @@
     <span class="logo-marco">
       <img class="logo" src="assets/logo-480.jpg"
            srcset="assets/logo-240.jpg 240w, assets/logo-480.jpg 480w"
-           sizes="(max-width: 600px) 136px, (max-width: 999px) 148px, 184px"
-           width="184" height="184" fetchpriority="high"
+           sizes="(max-width: 999px) 136px, 152px"
+           width="152" height="152" fetchpriority="high"
            data-i18n-attr="alt:logo.alt"
            alt="Logo de Resonant Earth: la Tierra con auriculares y ondas de sonido, con el lema Hear the Earth. Imagen generada con IA, con la marca «Generado con IA»">
     </span>
@@ -68,11 +68,11 @@
 
     <section id="reproductor" class="reproductor" aria-labelledby="titulo-actual" tabindex="-1">
       <h2 id="titulo-actual" data-i18n="reproductor.ninguna">Ninguna visualización elegida</h2>
-      <p id="descripcion-actual" class="descripcion"></p>
 
       <div class="pantalla">
-        <video id="video" preload="metadata" playsinline aria-describedby="descripcion-actual leyenda-colores"></video>
+        <video id="video" preload="metadata" playsinline aria-describedby="leyenda-colores descripcion-actual"></video>
       </div>
+      <p id="leyenda-colores" class="leyenda-colores"></p>
 
       <div class="controles" role="group" aria-label="Controles del reproductor" data-i18n-attr="aria-label:reproductor.controles">
         <button id="play" class="boton-play" type="button" disabled>
@@ -110,6 +110,8 @@
         <kbd>?</kbd> abre la ayuda.
       </p>
 
+      <p id="descripcion-actual" class="descripcion"></p>
+
       <figure class="grafico">
         <figcaption class="rotulo" id="grafico-titulo" data-i18n="grafico.temperatura">Temperatura media</figcaption>
         <div class="grafico-marco">
@@ -144,12 +146,6 @@
           <span id="eje-x-fin">–</span>
         </div>
       </figure>
-
-      <div class="momentos" role="group" aria-labelledby="titulo-momentos" aria-describedby="nota-momentos">
-        <h3 id="titulo-momentos" class="rotulo" data-i18n="momentos.titulo">Momentos clave</h3>
-        <p id="nota-momentos" class="nota" data-i18n="momentos.nota">Detectados automáticamente a partir de los datos. Pulsa uno para saltar a ese momento.</p>
-        <ol id="momentos" class="lista-momentos"></ol>
-      </div>
     </section>
 
     <section class="en-vivo" aria-labelledby="titulo-descripcion">
@@ -179,6 +175,12 @@
           <span data-i18n="vivo.vibrar">Vibrar en los cambios bruscos (teléfonos)</span>
         </label>
       </div>
+    </section>
+
+    <section class="momentos" aria-labelledby="titulo-momentos" hidden>
+      <h2 id="titulo-momentos" data-i18n="momentos.titulo">Momentos clave</h2>
+      <p id="nota-momentos" class="nota" data-i18n="momentos.nota">Detectados automáticamente a partir de los datos. Pulsa uno para saltar a ese momento.</p>
+      <ol id="momentos" class="lista-momentos" aria-describedby="nota-momentos"></ol>
     </section>
 
     <section class="leyenda" aria-labelledby="titulo-leyenda">
@@ -222,7 +224,6 @@
                   aria-label="Oír ejemplo: tres notas suaves y un golpe fuerte"><span aria-hidden="true">▶</span> <span data-i18n="leyenda.oir">Oír ejemplo</span></button>
         </li>
       </ul>
-      <p id="leyenda-colores" class="leyenda-colores"></p>
     </section>
 
     <section id="ayuda" class="ayuda" aria-labelledby="titulo-ayuda">
@@ -237,7 +238,7 @@
             <li><strong>Lector de pantalla:</strong> la descripción de «Qué pasa ahora» se anuncia sola, como mucho cada 4 segundos mientras suena y enseguida al pausar o saltar. Se apaga con su casilla. El gráfico tiene un resumen en texto.</li>
             <li><strong>Voz:</strong> si no usas lector de pantalla, marca «Narrar con voz». El navegador lee la descripción y la música baja mientras habla. Se calla al pausar.</li>
             <li><strong>Subtítulos:</strong> la misma descripción puede verse escrita sobre el video.</li>
-            <li><strong>Momentos clave:</strong> debajo del gráfico hay botones que saltan al inicio, al valor más bajo, al más alto y al mayor salto.</li>
+            <li><strong>Momentos clave:</strong> el panel «Momentos clave» tiene botones que saltan al inicio, al valor más bajo, al más alto y al mayor salto.</li>
             <li><strong>Vibración:</strong> en teléfonos que vibran, puedes sentir los cambios bruscos.</li>
             <li><strong>Idioma y tema:</strong> arriba puedes cambiar entre español e inglés, y entre tema claro y oscuro. La página recuerda lo que eliges.</li>
           </ul>
@@ -267,7 +268,7 @@
             <li><strong>Screen reader:</strong> the “What is happening now” description is announced by itself, at most every 4 seconds while playing and right away when you pause or jump. Its checkbox turns it off. The chart has a text summary.</li>
             <li><strong>Voice:</strong> if you do not use a screen reader, tick “Narrate with a voice”. The browser reads the description and the music gets quieter while it speaks. It stops when you pause.</li>
             <li><strong>Captions:</strong> the same description can be shown as text over the video.</li>
-            <li><strong>Key moments:</strong> below the chart there are buttons that jump to the start, the lowest value, the highest value and the biggest jump.</li>
+            <li><strong>Key moments:</strong> the “Key moments” panel has buttons that jump to the start, the lowest value, the highest value and the biggest jump.</li>
             <li><strong>Vibration:</strong> on phones that vibrate, you can feel the sudden changes.</li>
             <li><strong>Language and theme:</strong> at the top you can switch between Spanish and English, and between a light and a dark theme. The page remembers your choice.</li>
           </ul>

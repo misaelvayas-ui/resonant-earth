@@ -34,6 +34,7 @@ const TEXTOS = {
     "reproductor.completa": "Pantalla completa",
     "reproductor.progreso": "Progreso",
     "reproductor.volumen": "Volumen",
+    "reproductor.volumen-valor": "{valor} %",
     "reproductor.video": "Video: {titulo}",
     "reproductor.cargando": "Cargando…",
     "reproductor.cargando-video": "Cargando video… {porcentaje} %",
@@ -63,7 +64,7 @@ const TEXTOS = {
     "momentos.minimo": "Valor más bajo",
     "momentos.maximo": "Valor más alto",
     "momentos.salto": "Mayor salto",
-    "momentos.cruce": "Desde aquí ya no baja de la referencia",
+    "momentos.cruce": "Ya no baja de la referencia",
     "momentos.fin": "Final",
 
     "vivo.titulo": "Qué pasa ahora",
@@ -136,6 +137,7 @@ const TEXTOS = {
     "reproductor.completa": "Full screen",
     "reproductor.progreso": "Progress",
     "reproductor.volumen": "Volume",
+    "reproductor.volumen-valor": "{valor}%",
     "reproductor.video": "Video: {titulo}",
     "reproductor.cargando": "Loading…",
     "reproductor.cargando-video": "Loading video… {porcentaje}%",
@@ -165,7 +167,7 @@ const TEXTOS = {
     "momentos.minimo": "Lowest value",
     "momentos.maximo": "Highest value",
     "momentos.salto": "Biggest jump",
-    "momentos.cruce": "From here on it never drops below the reference",
+    "momentos.cruce": "Stays above the reference",
     "momentos.fin": "End",
 
     "vivo.titulo": "What is happening now",

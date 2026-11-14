@@ -2,7 +2,9 @@
 
 > **Para el asistente de IA que lee esto:** tu tarea es ayudarme a escribir **prompts** que le daré a Claude Code (el asistente que programa en mi computadora) para probar variantes estéticas de la página web: colores, tamaños, formas, tipografía, espaciados y efectos. Este documento te da todo el contexto. Cuando te pida ideas, devuélveme prompts concretos, listos para pegar, que respeten las reglas de la sección 8.
 >
-> Estado descrito: **13 de noviembre de 2026**. La sección 4 describe la versión 5 ("espacial"); la variante 6, **"universo-movil"**, se probó encima de ella en la rama `estilo-universo-movil` (ver el recuadro de la sección 4). El código real en `web/` manda sobre este documento si algo no coincide.
+> **Actualizado el 14 de noviembre de 2026 (rondas 28 a 31):** la web ya tiene tres pistas (dos reales de la NASA y el ejemplo), español e inglés, tema claro, ayuda, voz, momentos clave y ejemplos de sonido. Las secciones 2 y 3 describen ese estado. Las secciones 4 y 5 son historia del diseño (versiones 5 y 6) y se dejan como estaban. La guía vigente y corta es `web/GUIA_ESTILO.md`.
+>
+> Estado descrito en las secciones históricas: **13 de noviembre de 2026**. La sección 4 describe la versión 5 ("espacial"); la variante 6, **"universo-movil"**, se probó encima de ella en la rama `estilo-universo-movil` (ver el recuadro de la sección 4). El código real en `web/` manda sobre este documento si algo no coincide.
 
 ---
 
@@ -41,12 +43,15 @@ La **web** (`web/`) es la cara visible: una "rocola" donde eliges una visualizac
 |---|---|
 | `estilos.css` | **todo el aspecto visual**: variables de color, fuentes, tamaños, formas, cielo, diseño adaptable |
 | `index.html` | la estructura y las clases; el `<div class="cielo">`; el SVG del gráfico (degradado de la estela y recorte); `theme-color` (color de la barra del navegador en móvil) y la precarga de la fuente |
-| `app.js` | crea los botones de la lista y cambia estados (`aria-pressed`, clase `reproduciendo`); dibuja la curva suave del gráfico, la estela recorrida y mueve el punto. Para cambios solo de colores o tamaños **no** hace falta tocarlo |
-| `describir.js` | genera el texto de "Qué pasa ahora". No es estético |
-| `catalogo.json` | lista de visualizaciones (hoy hay **una sola**: "Mancha de calor viajera (ejemplo)") |
+| `app.js` | crea los botones de la lista y de los momentos clave y cambia estados (`aria-pressed`, clase `reproduciendo`); dibuja la curva suave del gráfico, la estela recorrida y mueve el punto. Para cambios solo de colores o tamaños **no** hace falta tocarlo |
+| `arranque.js` | pone el idioma y el tema (`html[data-tema]`) antes de pintar. El tema claro solo cambia variables de color en `estilos.css` |
+| `textos.js` | textos de la interfaz en español e inglés. Un cambio de texto se hace aquí, en los dos idiomas |
+| `describir.js` | genera el texto de "Qué pasa ahora" en los dos idiomas. No es estético |
+| `momentos.js`, `sonidos.js`, `voz.js` | momentos clave, ejemplos de sonido y narración con voz. No son estéticos |
+| `catalogo.json` | lista de visualizaciones: **tres** (GISTEMP 1880–2023, ECCO2 2007–2008 y el ejemplo "Mancha de calor viajera"), con textos en español e inglés |
 | `assets/logo.jpg`, `logo-240.jpg`, `icono-64.png`, `icono-180.png` | logo generado con IA: **un cuadrado con fondo azul oscuro**, la Tierra con auriculares y ondas de sonido, anillos dorados y verde azulado |
-| `assets/fonts/` | Manrope 400, 600 y 700; IBM Plex Mono 400 y 600 (+ licencias) |
-| `capturas/escritorio.png`, `capturas/movil.png` | capturas del diseño actual (v5) |
+| `assets/fonts/` | Unbounded 500 y 600; Plus Jakarta Sans 400 y 600; Space Mono 400 y 700 (+ licencias) |
+| `capturas/escritorio.png`, `capturas/movil.png`, `capturas/escritorio_claro_en.png` | capturas del diseño actual (ronda 30) |
 | `README.md` | describe diseño y accesibilidad; **hay que actualizarlo** si cambian colores o fuentes |
 
 ---
@@ -57,25 +62,28 @@ De arriba abajo, en el HTML:
 
 1. **Cielo** (`div.cielo`, `aria-hidden="true"`): capa fija detrás de todo, pura decoración.
 2. **Enlace "Saltar al reproductor"** (`.saltar`): invisible hasta que se pulsa Tab.
-3. **Cabecera** (`.cabecera`, es un panel): logo dentro de un recuadro (`.logo-marco` > `.logo`), rótulo "RESONANT EARTH" (`.rotulo`), título `h1` "Rocola de la Tierra" y lema (`.lema`).
-4. **Rejilla principal** (`main.rejilla`) con 4 secciones; **cada una es un panel**:
+3. **Cabecera** (`.cabecera`, es un panel): logo dentro de un recuadro (`.logo-marco` > `.logo`), rótulo "RESONANT EARTH" (`.rotulo`), título `h1` "Rocola de la Tierra", lema (`.lema`) y los ajustes (`.ajustes`: botones de idioma, lista de tema y enlace a la ayuda).
+4. **Rejilla principal** (`main.rejilla`) con 6 secciones; **cada una es un panel**:
    - **Lista de pistas** (`.rocola` > `ol.lista` > `button.boton-rocola`): lista numerada 01, 02… Cada botón tiene `.titulo`, `.resumen` y `.sonando` (texto "ELEGIDA", visible solo en la pista elegida). Hay un `span.barras` con tres `<i>` **oculto**, que se podría usar para un ecualizador animado. El botón elegido lleva `aria-pressed="true"`; mientras suena, también la clase `.reproduciendo`.
-   - **Reproductor** (`.reproductor`): título `h2`, descripción, **video** (`.pantalla`, 16:9), **controles** (`.controles`: botón `.boton-play` "Reproducir/Pausar", barras de progreso y volumen `input[type=range]`, tiempo `.tiempo`), una línea de **atajos de teclado** con `<kbd>` y el **gráfico** (en ese orden).
+   - **Reproductor** (`.reproductor`): título `h2`, **video** (`.pantalla`, 16:9), el significado de los colores del mapa (`.leyenda-colores`), **controles** (`.controles`: botón `.boton-play` "Reproducir/Pausar", botón de pantalla completa `.boton-secundario`, volumen y, en su propia fila, la barra de progreso con el tiempo `.tiempo`), una línea de **atajos de teclado** con `<kbd>`, la explicación de la pista (`.descripcion`) y el **gráfico** (en ese orden).
      - El **gráfico** (`figure.grafico`) tiene: rótulo, eje Y (`.eje-y`), un área clicable (`.grafico-area`) con un SVG que se estira al ancho (`viewBox 0 0 1000 200`, `preserveAspectRatio="none"`) y contiene la órbita completa `.g-curva`, la estela recorrida `.g-estela` (recortada por `#grafico-recorte` y pintada con el degradado `#grad-estela`), la línea de referencia `.g-ref` y la línea del momento actual `.g-cursor`. Encima, en HTML: el punto que avanza `.g-punto` (HTML para que no se deforme al estirar el SVG) y el rótulo `.g-ref-rotulo`. Debajo, el eje X (`.eje-x`).
-   - **"Qué pasa ahora"** (`.en-vivo`): rótulo "DESCRIPCIÓN AUTOMÁTICA" y una caja de registro (`.registro`) con el tiempo (`.registro-tiempo`, p. ej. `00:12`) y la frase (`.descripcion-viva`). Debajo, dos casillas (`.casilla`): leer cambios con el lector de pantalla y mostrar subtítulos.
-   - **"Qué estás escuchando"** (`.leyenda`): tabla `.mapeo` de dos columnas, **Dato | Sonido**, y una línea con el significado de los colores del video (`.leyenda-colores`).
+   - **"Qué pasa ahora"** (`.en-vivo`): rótulo "DESCRIPCIÓN AUTOMÁTICA" y una caja de registro (`.registro`) con el tiempo (`.registro-tiempo`, p. ej. `00:12`) y la frase (`.descripcion-viva`). Debajo, cuatro casillas (`.casilla`): leer cambios con el lector de pantalla, mostrar subtítulos, narrar con voz y vibrar en los cambios bruscos.
+   - **"Momentos clave"** (`section.momentos` > `ol.lista-momentos` > `button.boton-momento`): botones que saltan a un momento; cada uno tiene `.cuando`, `.valor` y `.que`.
+   - **"Qué estás escuchando"** (`.leyenda`): lista `.mapeo` de seis fichas (dato, cómo suena y un botón `.boton-ejemplo` "Oír ejemplo").
+   - **"Ayuda"** (`.ayuda`): cómo se usa, por qué suena así y qué tan fiel es, en dos columnas (`.ayuda-columnas`), una vez por idioma.
 5. **Pie** (`.pie`, también es un panel): créditos (NASA SVS, hecho con IA, logo con IA, fuentes).
 
 ### Disposición
 
 - **Escritorio (≥ 1100 px)**, de arriba abajo:
-  1. Portada: logo grande + título + lema.
-  2. Franja "Elige una visualización": el título a la izquierda y las pistas como tarjetas en fila a la derecha. El resumen de cada tarjeta se corta en 2 líneas; el texto completo está en el reproductor y el lector de pantalla lo lee entero.
+  1. Portada: logo + título + lema + ajustes.
+  2. Franja "Elige una visualización": las pistas como tarjetas, tres en fila. El resumen de cada tarjeta se corta en 2 líneas; el texto completo está en el reproductor y el lector de pantalla lo lee entero.
   3. Escenario en dos columnas:
-     - izquierda (flexible): el reproductor, en el orden video → controles → atajos de teclado → gráfico;
-     - derecha (320–400 px): "Qué pasa ahora" junto al video y, debajo, "Qué estás escuchando".
-  4. Créditos en una franja delgada, en línea.
-- **Menos de 1100 px:** una columna, en el mismo orden del HTML: elegir → reproductor → qué pasa ahora → qué estás escuchando → créditos. A ≤ 600 px los controles se apilan, el gráfico baja a 120 px de alto, los paneles se compactan y los créditos van uno por línea.
+     - izquierda (flexible): el reproductor, en el orden video → colores → controles → atajos de teclado → explicación → gráfico;
+     - derecha (320–400 px): "Qué pasa ahora" junto al video y, debajo, "Momentos clave". Las dos columnas terminan a la misma altura.
+  4. "Qué estás escuchando" a todo el ancho (seis fichas en tres columnas) y, debajo, la ayuda.
+  5. Créditos en una franja delgada.
+- **Menos de 1100 px:** una columna, en el mismo orden del HTML: elegir → reproductor → qué pasa ahora → momentos clave → qué estás escuchando → ayuda → créditos. A ≤ 600 px los controles se apilan, el gráfico baja a 120 px de alto, los paneles se compactan y los créditos van uno por línea.
 - Ancho máximo 1280 px; márgenes laterales de 16 px en móvil y 32 px desde 760 px; separación entre paneles de 1,6rem.
 - **Por qué esta distribución:** antes "Qué pasa ahora" quedaba lejos del video, los controles estaban debajo del gráfico y la columna izquierda era una torre que repetía el texto del reproductor. Ahora la descripción en vivo está al lado de la imagen, los controles van pegados al video y la página de escritorio mide unos 1930 px de alto en vez de 2230.
 - **Texto base de 20 px** (`html { font-size: 125% }`): texto grande a propósito, por accesibilidad.
@@ -307,6 +315,6 @@ en el gráfico, capturas nuevas, evaluar.py, y explícame en español simple qu�
 ## 10. Pendientes conocidos
 
 - Nada tiene commit todavía. La variante 6 (universo-movil) está en la rama `estilo-universo-movil`. En `git stash list` están la 5 ("v5 espacial (respaldo antes de universo-movil)") y la 4 ("v4 familia Rumbo (respaldo antes del estilo espacial)").
-- `python evaluar.py` (pruebas del pipeline en Python, ajenas a la web) da **15 PASA, 3 FALLA** (C2, C3, D1). Antes daba 18/18; no se ha investigado. En la consola de Windows hay que correrlo con `PYTHONIOENCODING=utf-8`.
-- El catálogo solo tiene un video de ejemplo: con una sola pista no se ve cómo luce la lista con varias.
+- (Resuelto) `python evaluar.py` da 36 PASA, 0 FALLA y 1 OMITIDA en macOS (ronda 29). En la consola de Windows hay que correrlo con `PYTHONIOENCODING=utf-8`.
+- (Resuelto en la ronda 28) El catálogo ya tiene tres pistas.
 - No existe la carpeta `web/referencias/`. Si quiero que se usen capturas de referencia, hay que crearla y guardarlas ahí.

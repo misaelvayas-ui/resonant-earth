@@ -861,3 +861,49 @@ con cmp: rasgos.json, control.json, rocola.mid y rocola.wav IGUALES en las tres 
 config_video.json y el texto que imprime cada script (8 de 8).
 evaluar.py (macOS, respaldo numpy): antes 36 PASA, 0 FALLA, 1 OMITIDA -> después 36 PASA, 0 FALLA, 1 OMITIDA (F4:
 este ffmpeg no trae drawtext), 102 s.
+
+RONDA 30 - web/: revisión visual a fondo (distribución, tamaños, momentos clave, zonas táctiles)   (2026-11-14)
+Hecho con ayuda de IA (Claude, de Anthropic). Rama mejora/auditoria-clean-code. Antes: commit 365c14f.
+Solo se tocó web/, docs/CONTEXTO_ESTETICA_WEB.md y este archivo. Sin frameworks ni compilación.
+Cómo se revisó: mirando capturas a 1440, 1100, 768, 390 y 320 px, en tema oscuro y claro, en español e inglés, con las
+tres pistas; y midiendo por código cada combinación (ancho del documento, elementos que se salen, alto de columnas,
+tarjetas y controles).
+Problemas encontrados y cambios:
+1. Columnas desparejas en escritorio. La columna derecha ("Qué pasa ahora" + "Qué estás escuchando") medía 2131 px y el
+   reproductor 1813: quedaba un hueco de unos 320 px bajo el reproductor, y la leyenda, en 400 px de ancho, tenía el
+   texto apretado contra el botón. Ahora "Momentos clave" es un panel propio en la columna derecha y "Qué estás
+   escuchando" va a todo el ancho, en seis fichas iguales (3 por fila; 2 en tableta; 1 en teléfono). Las dos columnas
+   terminan a la misma altura (diferencia: 320 -> 0 px en las 8 combinaciones medidas); si la derecha es más alta, el
+   gráfico crece (160 -> hasta 300 px). Alto de la página a 1440 px (español, GISTEMP): 4095 -> 3909 px.
+2. El video quedaba fuera de la primera pantalla (empezaba a 906 px con 900 de alto). La cabecera baja de 276 a 226 px
+   (logo 184 -> 152 px; en tableta y móvil 136 px, no menos, para que la marca "Generado con IA" se lea) y la
+   explicación larga de la pista pasa debajo de los controles. El video empieza ahora a 630 px.
+3. La explicación de la pista medía hasta 782 px de ancho (unas 100 letras por línea): ahora 40em (unas 75-80).
+4. "Colores de este video" estaba al final de la leyenda de sonidos, lejos del mapa: ahora va justo debajo del video.
+5. Momentos clave: cada botón repetía la frase entera ("Temperatura media: 0,24 °C por debajo de la referencia.";
+   en la pista del mar, "... en una escala de 0 a 32 ..."). A la vista queda la fecha y el número ("1881   −0,24 °C") y
+   debajo qué pasó; el lector de pantalla sigue leyendo la frase completa (texto solo para lector). Alto de cada
+   botón: 125 -> 79 px. "Desde aquí ya no baja de la referencia" -> "Ya no baja de la referencia" ("Stays above the
+   reference"). valorCorto() nuevo en describir.js.
+6. Barra de progreso: el tiempo iba suelto debajo de la barra; ahora va a la derecha del rótulo, en la misma línea.
+7. "Qué pasa ahora": el reloj va arriba y la frase debajo a todo el ancho (en la columna de 400 px la frase tenía
+   solo 230 px: 8 líneas -> 6).
+8. Tarjetas de pistas: a 1100 px quedaban 2 + 1 suelta; ahora 3 en fila desde 900 px y una por línea debajo. La tarjeta
+   elegida ocupa todo el alto de la fila (antes 151 px en una fila de 179).
+9. A 1100-1279 px el volumen quedaba en 60 px de ancho: ahora baja a su propia fila (igual que en teléfono).
+10. Zonas táctiles: las casillas medían 27 px de alto; ahora 45 px o más. En 768, 390 y 320 px todos los controles
+    miden 44 px o más (lo único menor son los dos enlaces dentro del texto de los créditos).
+11. Textos: la ayuda decía que los momentos clave estaban "debajo del gráfico"; el volumen se anunciaba "80 %" también
+    en inglés (ahora "80%").
+12. Orden del HTML = orden visual = orden del tabulador: elegir -> reproductor -> qué pasa ahora -> momentos clave ->
+    qué estás escuchando -> ayuda -> créditos. "Momentos clave" pasa de h3 a h2 (ahora es una sección).
+Archivos: web/index.html, estilos.css, app.js, describir.js, textos.js, README.md, GUIA_ESTILO.md,
+capturas/escritorio.png, movil.png y escritorio_claro_en.png (nueva: inglés, tema claro); docs/CONTEXTO_ESTETICA_WEB.md.
+Verificado (macOS, navegador de Claude Code y Chrome headless, axe-core 4.10.2, WCAG 2.2 AA + buenas prácticas, con
+fondos planos): 0 violaciones en tema oscuro y claro, español e inglés, a 1440 y 390 px. Sin desplazamiento horizontal
+ni elementos fuera de su panel a 1440, 1100, 768, 390 y 320 px. Sin errores en la consola. Probado por código:
+reproducir y pausar, arrastrar el progreso, clic en el gráfico, los 5 momentos, los 6 ejemplos, subtítulos (60 cues),
+voz (habla en el idioma elegido, la música baja de 0,40 a 0,14 y se calla al pausar), Espacio, flechas y "?",
+recordar idioma, tema y casillas al recargar, abrir con #id y con ?lang=, y el aviso cuando el catálogo no carga.
+No probado: alto contraste forzado de Windows ni un lector de pantalla real (solo nombres accesibles por código).
+evaluar.py no se volvió a correr: no se tocó ningún script del pipeline desde la ronda 29.

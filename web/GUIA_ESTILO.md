@@ -23,6 +23,24 @@ Resumen de cómo se ve la web, para hacer materiales que combinen con ella. Est�
 | Degradado de marca | `#cdbfff → #a8ece4` | título (100°), barra de la pista elegida (vertical), borde del logo, estela del gráfico |
 | Botón | `#ece8ff → #e3f6f2` | botón Reproducir/Pausar, con texto `#000000` |
 
+### Tema claro
+
+Se elige con el selector Sistema / Claro / Oscuro de la cabecera. Es el mismo cielo, de día: sin estrellas, con los acentos oscurecidos para que se lean.
+
+| Color | Hex | Uso |
+|---|---|---|
+| Fondo | `#f3f1fa`, con un degradado `#f6f3ff → #eaf6f4` | cielo pálido, del lila al turquesa |
+| Panel | blanco al 92 % | todos los paneles |
+| Borde fino | `#1b1740` al 16 % | contorno de paneles y cajas |
+| Texto / Texto 2 / Texto 3 | `#15142b` / `#3b3a52` / `#55546c` | igual papel que en oscuro |
+| Línea fuerte | `#6f6d84` | ejes y bordes de controles |
+| Lila | `#5438c9` | acento |
+| Turquesa | `#0a6b62` | segundo acento |
+| Órbita | `#0a7a70` | tramo del gráfico por recorrer |
+| Dorado | `#8f5b00` | **solo** la línea del momento actual |
+| Botón | `#2b2168 → #0d4a44` | botón Reproducir/Pausar, con texto blanco |
+| Punto del gráfico | `#2b2168` | la posición actual |
+
 ## 2. Tipografías
 
 Las tres tienen licencia SIL OFL y van guardadas en `web/assets/fonts/`. Texto base: 20 px.
@@ -48,16 +66,20 @@ Las tres tienen licencia SIL OFL y van guardadas en `web/assets/fonts/`. Texto b
 ## 3. Orientación de la página
 
 **Escritorio (≥ 1100 px)**, ancho máximo 1280 px, separación de 1,6 rem entre paneles:
-1. **Encabezado:** logo grande (184 px) a la izquierda; rótulo, título y lema a la derecha.
-2. **Lista de visualizaciones:** franja con el título a la izquierda y las pistas como tarjetas en fila.
+1. **Encabezado:** logo (152 px) a la izquierda; rótulo, título y lema en el centro; a la derecha, los ajustes (idioma, tema y enlace a la ayuda).
+2. **Lista de visualizaciones:** franja con las pistas como tarjetas, tres en fila (desde 900 px; debajo de eso, una por línea).
 3. **Escenario en dos columnas:**
-   - izquierda: video → controles → atajos de teclado → gráfico;
-   - derecha (320–400 px): **descripción** ("Qué pasa ahora") y debajo la **leyenda** ("Qué estás escuchando").
-4. **Pie:** créditos en una franja delgada, en línea.
+   - izquierda: título → video → colores del mapa → controles → atajos de teclado → explicación de la pista → gráfico;
+   - derecha (320–400 px): **descripción** ("Qué pasa ahora") y debajo los **momentos clave**.
+   - Las dos columnas terminan a la misma altura: el panel más corto se estira y, si hace falta, el gráfico crece (de 160 a 300 px).
+4. **"Qué estás escuchando":** a todo el ancho, seis fichas en tres columnas, cada una con su botón "Oír ejemplo".
+5. **Ayuda:** a todo el ancho, en dos columnas.
+6. **Pie:** créditos en una franja delgada.
 
-**Móvil y tableta (< 1100 px):** una sola columna, en este orden: encabezado → lista → video, controles y gráfico → descripción → leyenda → pie.
+**Móvil y tableta (< 1100 px):** una sola columna, en este orden: encabezado → lista → video, controles y gráfico → descripción → momentos clave → leyenda → ayuda → pie.
 - A ≤ 600 px el encabezado va centrado (logo de 136 px), los controles se apilan, el gráfico baja de 160 a 120 px de alto y los créditos van uno por línea.
-- En tableta, el logo mide 148 px.
+- En tableta y móvil, el logo mide 136 px (no menos: la marca «Generado con IA» debe leerse).
+- Entre 1100 y 1279 px, y en móvil, el volumen baja a su propia fila.
 
 ## 4. Componentes
 
@@ -67,7 +89,7 @@ Las tres tienen licencia SIL OFL y van guardadas en `web/assets/fonts/`. Texto b
   - relleno de 1,6 rem (1,1 en móvil);
   - brillo interior de 1 px en el canto superior; no tienen sombras externas.
   - Dentro de un panel no hay más fondos, solo líneas finas: el gráfico y el registro son cajas de borde fino con esquinas de 12 px.
-- **Logo:** dentro de un marco de vidrio con 8 px de relleno, esquinas de 30 px y borde de 1 px con el degradado de marca. Lleva un resplandor lila y turquesa (36 y 90 px). La imagen tiene esquinas de 22 px.
+- **Logo:** dentro de un marco de vidrio con 8 px de relleno, esquinas de 28 px y borde de 1 px con el degradado de marca. Lleva un resplandor lila y turquesa (36 y 90 px). La imagen tiene esquinas de 20 px.
 - **Botón Reproducir/Pausar:** píldora (radio 100 px) con el degradado pálido y texto negro. Al pasar el ratón aparece un halo lila y turquesa.
 - **Barras de progreso y volumen, y casillas:** nativas, en color lila.
 - **Lista de pistas:** cada pista es una tarjeta con esquinas de 12 px, con el número en Space Mono, el título y un resumen de 2 líneas. La elegida lleva una barra izquierda de 3 px con el degradado de marca, un tinte lila muy suave, borde fino y el rótulo "ELEGIDA" en lila.
@@ -80,7 +102,15 @@ Las tres tienen licencia SIL OFL y van guardadas en `web/assets/fonts/`. Texto b
   - la línea dorada marca el momento actual;
   - la referencia es una línea gris punteada;
   - los ejes son líneas de 1 px en `#8d8c9c`.
-- **Línea de registro:** caja de borde fino con esquinas de 12 px. A la izquierda va el tiempo en Space Mono turquesa (`00:12`) y a la derecha la frase en texto normal.
+- **Línea de registro:** caja de borde fino con esquinas de 12 px. Arriba va el tiempo en Space Mono turquesa (`00:12`) y debajo la frase en texto normal, a todo el ancho.
+- **Ajustes (cabecera):** idioma como dos botones en una píldora (el elegido, con el color del texto de fondo); tema como lista desplegable en píldora; "Ayuda" como enlace lila.
+- **Botón secundario** (pantalla completa, "Oír ejemplo"): píldora con contorno de 1 px en línea fuerte y texto normal; al pasar el ratón, contorno y texto lila.
+- **Barra de progreso:** el rótulo a la izquierda y el tiempo (`0:21 / 0:30`, Space Mono) a la derecha, en la misma línea; la barra debajo, a todo el ancho.
+- **Momentos clave:** botones con contorno de línea fuerte y esquinas de 12 px. Arriba, la fecha (Space Mono, turquesa) y el valor (Space Mono, a la derecha); debajo, qué pasó, en negrita. En la columna derecha van uno debajo de otro; en tableta, en dos columnas.
+- **Fichas de sonido** ("Qué estás escuchando"): cajas de borde fino con esquinas de 12 px: el dato en negrita, cómo suena y, al pie, el botón "Oír ejemplo".
+- **Colores del mapa:** una línea de texto chico justo debajo del video, como el pie de una figura.
+- **Casillas:** cada fila mide 44 px de alto o más (zona táctil).
+- **Aviso de error:** caja con fondo y borde rosados muy suaves.
 - **Teclas (`kbd`):** borde de 1 px `#8d8c9c`, esquinas de 6 px, en Space Mono.
 
 ## 5. Efectos decorativos
@@ -111,7 +141,9 @@ Las tres tienen licencia SIL OFL y van guardadas en `web/assets/fonts/`. Texto b
   - la descripción se anuncia en una región viva;
   - el gráfico tiene un resumen en texto;
   - hay subtítulos opcionales.
-- **Verificado con axe-core** (WCAG 2.2 AA): 0 violaciones en escritorio y en móvil.
+- **Tema claro:** todo el texto da 5,4:1 o más; el gráfico, 5,2:1 o más; el botón, 10,1:1.
+- **Zonas táctiles:** en tableta y móvil, todos los controles miden 44 px de alto o más.
+- **Verificado con axe-core 4.10.2** (WCAG 2.2 AA): 0 violaciones en los dos temas y los dos idiomas.
 
 ## 7. Dónde vive cada cosa
 
@@ -128,4 +160,7 @@ Las tres tienen licencia SIL OFL y van guardadas en `web/assets/fonts/`. Texto b
 | Reducir movimiento y alto contraste | `web/estilos.css`, secciones "movimiento" y "alto contraste forzado", al final |
 | Estructura y orden de las secciones | `web/index.html` |
 | Curva suave y punto del gráfico | `web/app.js`, sección "gráfico" (`dibujarGrafico`, `pintarCursor`) |
-| Capturas | `web/capturas/escritorio.png` y `web/capturas/movil.png` |
+| Textos en español e inglés | `web/textos.js` (interfaz), `web/describir.js` (descripciones) y los bloques `data-solo-idioma` de `web/index.html` (ayuda y créditos) |
+| Idioma y tema al abrir | `web/arranque.js` |
+| Momentos clave, ejemplos de sonido, voz | `web/momentos.js`, `web/sonidos.js`, `web/voz.js` |
+| Capturas | `web/capturas/escritorio.png`, `movil.png` y `escritorio_claro_en.png` |

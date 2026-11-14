@@ -451,12 +451,17 @@ function pintarMomentos() {
     const que = document.createElement("span");
     que.className = "que";
     que.textContent = m.tipos.map((tipo) => t(`momentos.${tipo}`)).join(" · ");
+    // a la vista, el número solo; para el lector de pantalla, la frase completa
     const valor = document.createElement("span");
     valor.className = "valor";
+    valor.setAttribute("aria-hidden", "true");
+    valor.textContent = valorCorto(m.rasgo, estado.contexto);
+    const frase = document.createElement("span");
+    frase.className = "solo-lector";
     Promise.resolve(describir({ media: m.rasgo.media }, estado.contexto, { breve: true }))
-      .then((texto) => { valor.textContent = texto; })
+      .then((texto) => { frase.textContent = texto; })
       .catch(() => {});
-    b.append(cuando, que, valor);
+    b.append(cuando, valor, que, frase);
     b.addEventListener("click", () => saltarA(m.rasgo._t));
     li.append(b);
     return li;
@@ -663,7 +668,7 @@ function pintarProgreso() {
 function pintarVolumen() {
   // mientras habla la narración, la música baja para que se entienda la voz
   el.video.volume = (Number(el.volumen.value) / 100) * (estado.vozHabla ? VOLUMEN_CON_VOZ : 1);
-  el.volumen.setAttribute("aria-valuetext", `${el.volumen.value} %`);
+  el.volumen.setAttribute("aria-valuetext", t("reproductor.volumen-valor", { valor: el.volumen.value }));
 }
 
 el.play.addEventListener("click", alternar);
