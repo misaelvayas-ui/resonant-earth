@@ -1,4 +1,4 @@
-"""evaluar.py — mini evaluaciones rápidas (< 30 s) con tabla PASA/FALLA.
+"""evaluar.py — mini evaluaciones (~50 s) con tabla PASA/FALLA.
 
 Uso (desde la raíz del proyecto):
     python evaluar.py            # todas
@@ -583,13 +583,36 @@ def f3():
         os.makedirs(os.path.join(d, "salidas"), exist_ok=True)
         previo = os.path.join(d, "salidas", "rasgos.json")
         open(previo, "w").write('{"marca": 1}')
+        png = os.path.join(d, "barra.png")
+        cv2.imwrite(png, np.zeros((50, 10, 3), np.uint8))
+        sin_umbral = {k: v for k, v in base.items() if k != "umbral"}
         res = []
-        for nombre, cambio, frase in (("sin video", {"video": os.path.join(d, "no_existe.mp4")}, "No se pudo abrir"),
-                                      ("mapa fuera", {"mapa": [10, 20, 900, 700]}, "se sale del video")):
-            json.dump({**base, **cambio}, open(cfg, "w"))
+        for nombre, config, frase in (("sin video", {**base, "video": os.path.join(d, "no_existe.mp4")}, "No se pudo abrir"),
+                                      ("mapa fuera", {**base, "mapa": [10, 20, 900, 700]}, "se sale del video"),
+                                      ("sin 'umbral'", sin_umbral, "Faltan claves obligatorias"),
+                                      ("barra fuera del PNG", {**base, "barra_imagen": png}, "se sale del PNG")):
+            json.dump(config, open(cfg, "w"))
             r = correr("05_video_a_rasgos.py", [cfg], d)
-            res.append((nombre, r.returncode != 0 and frase in (r.stderr + r.stdout), open(previo).read() == '{"marca": 1}'))
+            res.append((nombre, r.returncode != 0 and frase in (r.stderr + r.stdout) and "Traceback" not in r.stderr,
+                        open(previo).read() == '{"marca": 1}'))
     return all(a and b for _, a, b in res), "; ".join(f"{n}: mensaje {'sí' if a else 'NO'}, rasgos.json {'intacto' if b else 'PISADO'}" for n, a, b in res)
+
+
+def _06(R, d, *extra):
+    """Escribe R como rasgos.json en d/salidas, corre 06 --sintetico y devuelve (control.json | None, r)."""
+    os.makedirs(os.path.join(d, "salidas"), exist_ok=True)
+    ruta = os.path.join(d, "salidas", "rasgos.json")
+    json.dump(R, open(ruta, "w"))
+    r = correr("06_rasgos_a_audio.py", [ruta, "--sintetico", *extra], d)
+    ctl = os.path.join(d, "salidas", "control.json")
+    return (json.load(open(ctl)) if r.returncode == 0 else None), r
+
+
+def _serie(n=60, fechas=False):
+    """rasgos mínimos con n fotogramas (media = 0, se sustituye después)."""
+    return {"fuente": "x.mp4", "vmin": 0.0, "vmax": 1.0, "fps_rasgos": 2.0,
+            "rasgos": [{"t": i * 0.5, **({"fecha": 1900 + i} if fechas else {}), "media": 0.5, "area": 0.1 + 0.005 * i,
+                        "centroide_x": 0.5, "centroide_y": 0.5, "cambio": 0.0, "validos": 1.0} for i in range(n)]}
 
 
 def f4():
@@ -658,6 +681,70 @@ def g3():
         f"paneo {ctl['paneo']}: pan {p[0]:.2f} → {p[-1]:.2f}, creciente: {bool(np.all(np.diff(p) >= -1e-9))}"
 
 
+def g4():
+    """cruce_dron: primer fotograma desde el que la melodía ya no baja de la nota de la referencia (no del dron)."""
+    R = _serie(40)
+    media = np.linspace(-0.6, 1.2, 40)
+    for r, m in zip(R["rasgos"], media):
+        r["media"] = float(m)
+    R.update(vmin=-2.0, vmax=2.0, vmin_sonido=-0.6, vmax_sonido=1.2, referencia=0.0, suavizado=0)
+    with tempfile.TemporaryDirectory() as d:
+        ctl, r = _06(R, d)
+    if ctl is None:
+        return False, "06 falló: " + r.stderr.strip()[-120:]
+    notas = escala(48, 3)
+    ref = int(valor_a_nota(0.0, -0.6, 1.2, notas)) + 12
+    voz = valor_a_nota(media, -0.6, 1.2, notas) + 12
+    esp = next(i for i in range(40) if (voz[i:] >= ref).all())
+    return ctl["cruce_dron"] == esp and esp > 0, f"cruce_dron = {ctl['cruce_dron']}; esperado {esp} (primer fotograma con la nota de referencia {ref}; con el dron saldría 0)"
+
+
+def f5():
+    """umbral_evento relativo: la misma serie en 0-1 y en 270-310 da los mismos eventos fuertes (ni 0 ni todos)."""
+    cuentas = []
+    for a, b in ((0.0, 1.0), (270.0, 310.0)):
+        R = _serie(60)
+        for i, r in enumerate(R["rasgos"]):
+            r["media"] = a + (0.5 + 0.3 * np.sin(0.9 * i)) * (b - a)
+        R.update(vmin=a, vmax=b)
+        with tempfile.TemporaryDirectory() as d:
+            ctl, r = _06(R, d)
+        if ctl is None:
+            return False, "06 falló: " + r.stderr.strip()[-120:]
+        cuentas.append(sum(ctl["evento_fuerte"]))
+    return cuentas[0] == cuentas[1] and 0 < cuentas[0] < 59, f"eventos fuertes con rango 0-1: {cuentas[0]}; con 270-310: {cuentas[1]} (de 60)"
+
+
+def g5():
+    """paneo con centroide casi fijo (0,5 ± 0,002): no se estira a todo el campo estéreo."""
+    R = _serie(60)
+    rng = np.random.default_rng(0)
+    for r in R["rasgos"]:
+        r["centroide_y"] = 0.5 + float(rng.uniform(-0.002, 0.002))
+    R["paneo"] = "y"
+    with tempfile.TemporaryDirectory() as d:
+        ctl, r = _06(R, d)
+    if ctl is None:
+        return False, "06 falló: " + r.stderr.strip()[-120:]
+    m = float(np.abs(ctl["pan"]).max())
+    return m < 0.1, f"centroide_y 0,498-0,502 -> |pan| máx. {m:.3f}"
+
+
+def e5():
+    """Respaldo numpy con arpegios de 4 notas: 07 mide el tono sin FALLA (glide corto, golpe en la misma octava)."""
+    R = _serie(60)
+    for i, r in enumerate(R["rasgos"]):
+        r["media"] = i / 59
+    with tempfile.TemporaryDirectory() as d:
+        ctl, r = _06(R, d)
+        if ctl is None:
+            return False, "06 falló: " + r.stderr.strip()[-120:]
+        r7 = subprocess.run([sys.executable, "07_validar.py"], capture_output=True, text=True, env=entorno(d), timeout=120)
+    err = [l for l in r7.stdout.splitlines() if l.startswith("Error máximo")]
+    max4 = max(len(n) for n in ctl["notas"])
+    return r7.returncode == 0 and max4 == 4, f"notas por fotograma hasta {max4}; 07 código {r7.returncode}; {err[0] if err else r7.stdout.strip()[-100:]}"
+
+
 EVALUACIONES = [
     ("A1", "fase inicial = 0", "|x[0]| < 1e-12", a1),
     ("A2", "tono(440) → 440 Hz", "440 ± 1 Hz", a2),
@@ -681,11 +768,15 @@ EVALUACIONES = [
     ("E2", "06: valores por defecto", "notas, arpegio, ligar, ±10 ms, dron y duración = cálculo independiente", e2),
     ("F1", "06: densidad con datos 270-310", "más de un nº de notas por fotograma, alguno = 1", f1),
     ("F2", "05: video que abre en negro", "validos > 0,9 y media creciente", f2),
-    ("F3", "05: errores claros", "mensaje y rasgos.json intacto (sin video / mapa fuera)", f3),
+    ("F3", "05: errores claros", "mensaje sin traza y rasgos.json intacto (4 casos)", f3),
     ("F4", "08: 600 rasgos con texto", "08 PASA (sin 'Argument list too long')", f4),
     ("G1", "06: dron = melodía(0 °C) - 12", "dron = nota de la melodía con 0 °C - 12 (medido en el .mid)", g1),
     ("G2", "05: centroide_y", "presente, entre 0 y 1, ≈ 0,5 en el video sintético", g2),
     ("G3", "06: paneo 'y' normalizado", "pan sigue a centroide_y y recorre < -0,9 … > 0,9", g3),
+    ("G4", "06: cruce_dron = referencia", "primer fotograma con la nota de la referencia (no el 0)", g4),
+    ("F5", "06: umbral_evento relativo", "mismos eventos fuertes con rango 0-1 y 270-310 (ni 0 ni todos)", f5),
+    ("G5", "06: paneo con centroide fijo", "|pan| máx. < 0,1 con centroide 0,5 ± 0,002", g5),
+    ("E5", "06 numpy + 07 con 4 notas", "07 sin FALLA con arpegios de 4 notas", e5),
     ("E4", "06: retardo media → notas", "|retardo| ≤ 1 fotograma (correlación cruzada), r > 0,8", e4),
     ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]

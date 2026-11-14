@@ -52,8 +52,19 @@ import cv2
 from scipy.spatial import cKDTree
 from rutas import sal, cfg_ruta
 
-with open(sys.argv[1] if len(sys.argv) > 1 else cfg_ruta("config_video.json")) as fh:
-    cfg = json.load(fh)
+_ruta_cfg = sys.argv[1] if len(sys.argv) > 1 else cfg_ruta("config_video.json")
+try:
+    with open(_ruta_cfg) as fh:
+        cfg = json.load(fh)
+except FileNotFoundError:
+    sys.exit(f"No existe el config '{_ruta_cfg}'. Créalo con 04 (video sintético) o con "
+             "'python -m herramientas.calibrar', o pasa su ruta como argumento.")
+except json.JSONDecodeError as e:
+    sys.exit(f"El config '{_ruta_cfg}' no es un JSON válido: {e}")
+_faltan = [k for k in ("video", "mapa", "barra", "vmin", "vmax", "umbral", "fps_muestreo", "barra_vertical")
+           + (("barra_arriba_es_max",) if cfg.get("barra_vertical") else ()) if k not in cfg]
+if _faltan:
+    sys.exit(f"Faltan claves obligatorias en '{_ruta_cfg}': {', '.join(_faltan)} (ver la cabecera de 05 y el README).")
 DIST_MAX = cfg.get("dist_max", 8.0)
 ESC = cfg.get("escala", 1.0)
 MAX_REF = 31   # fotogramas de referencia para la máscara estática (se guardan hasta 2*MAX_REF)
@@ -168,6 +179,14 @@ for _nombre in ("mapa",) + (() if cfg.get("barra_imagen") else ("barra",)):
     if not (0 <= _x0 < _x1 <= ANCHO_V and 0 <= _y0 < _y1 <= ALTO_V):
         sys.exit(f"'{_nombre}' = {cfg[_nombre]} se sale del video ({ANCHO_V}x{ALTO_V}). Los rectángulos van "
                  "en píxeles del video original [x0, y0, x1, y1]; mídelos en salidas/fotograma_ref.png.")
+if cfg.get("barra_imagen"):
+    _png = cv2.imread(cfg["barra_imagen"])
+    if _png is None:
+        sys.exit(f"No se pudo leer la barra '{cfg['barra_imagen']}'. Revisa la ruta.")
+    _x0, _y0, _x1, _y1 = cfg["barra"]
+    if not (0 <= _x0 < _x1 <= _png.shape[1] and 0 <= _y0 < _y1 <= _png.shape[0]):
+        sys.exit(f"'barra' = {cfg['barra']} se sale del PNG de la barra ({_png.shape[1]}x{_png.shape[0]}). Con "
+                 "'barra_imagen' el rectángulo va en píxeles de ese PNG, no del video.")
 paso = max(1, round(fps_video / cfg["fps_muestreo"]))
 fija = mascara_fija(paso)
 if fija.any():
@@ -211,13 +230,13 @@ for k, frame in fotogramas_muestreados(cfg["video"], paso):
     caliente = (campo > cfg["umbral"]) & validos
     area = caliente.sum() / max(validos.sum(), 1)
     # centroide_y: latitud media (ponderada por cos(lat), el área real de cada píxel) de lo que está sobre el
-    # umbral; 0 = sur, 1 = norte, 0,5 si no hay nada. Supone que el recorte va de +90 a -90.
+    # umbral; 0 = sur, 1 = norte; si no hay nada, el valor anterior (0,5 al inicio). Supone que el recorte va de +90 a -90.
     if caliente.any():
         lat = 90 - (np.arange(caliente.shape[0]) + 0.5) * 180 / caliente.shape[0]
         w = caliente.sum(axis=1) * np.cos(np.deg2rad(lat))
         cy = float((w * lat).sum() / w.sum() + 90) / 180
     else:
-        cy = 0.5
+        cy = cy_previo
     if validos.any():
         media = media_campo(campo)
         # centroide de lo que está POR ENCIMA de la media, ponderado por el exceso AL
@@ -240,11 +259,14 @@ for k, frame in fotogramas_muestreados(cfg["video"], paso):
         "cambio": round(0.0 if previo is None else media - previo, 4),
         "validos": round(float(validos.mean()), 3),
     })
-    previo, cx_previo = media, cx
+    previo, cx_previo, cy_previo = media, cx, cy
 
 if not rasgos:
     sys.exit(f"Ningún fotograma del video tiene el degradado de la barra en {cfg['barra']}: revisa 'barra' "
              "(¿coordenadas de otra resolución?). rasgos.json no se modificó.")
+if FECHAS and k > len(FECHAS) - 1:
+    print(f"AVISO: '{cfg['fechas']}' tiene {len(FECHAS)} líneas y el video llega al fotograma {k}: "
+          f"la última fecha ({FECHAS[-1]}) se repite al final.")
 _med = float(np.median([r["validos"] for r in rasgos]))
 if _med < 0.5:
     print(f"AVISO: la mediana de 'validos' es {_med:.2f} (< 0,5): casi ningún píxel del mapa coincide con la barra. "

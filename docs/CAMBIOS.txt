@@ -709,3 +709,23 @@ Hallazgos confirmados:
  12. README/CONTRIBUTING/evaluar.py desactualizados (18 pruebas ~10 s -> 29 y ~37 s; tablas sin paneo ni centroide_y).
 Las correcciones 1-6 y 10 se probaron en una copia: evaluar.py 29 PASA, rocola.mid y rocola.wav de GISTEMP idénticos,
 cruce 1976. Nada de eso se aplicó al repositorio.
+
+RONDA 23 - correcciones de la auditoría 2 (docs/AUDITORIA_2.md, hallazgos 1-10 y 12)   (2026-11-14)
+Antes: commit fbb39e9 (rama misael/auditoria2). Pendientes de decisión, NO tocados: 11 (paneo de GISTEMP con < 1 % del mapa) y 13 (licencia, versiones).
+1. 06: cruce_dron compara con la nota de la melodía en la referencia (nota_ref + 12*octava), no con el dron. GISTEMP: 1881 -> 1976.
+2. 06: umbral_evento por defecto = 1/12 del rango de sonido (0,15 en GISTEMP; config_eic.json lo trae explícito). 0-1 y 270-310 K dan los mismos eventos.
+3. calibrar: umbral por defecto = vmin + 0,75*(vmax-vmin) (con -2..2 sigue siendo 1,0; con 270..310, 300).
+4. 06: el paneo solo se estira con los percentiles 5-95 si el centroide recorre >= 0,1; con menos, se reduce en proporción (0,5 ± 0,002 -> |pan| 0,03).
+5. 07: "media de rasgos crece" es NO APLICA con videos que no son el sintético (GISTEMP: 2 PASA + 3 NO APLICA).
+6. 06 (respaldo numpy): glide 40 -> 10 ms y golpe en la misma octava que la melodía. 07 con GISTEMP y --sintetico: 112 -> 8,2 cents (antes FALLA).
+7. 05: config inexistente, no JSON o con claves obligatorias ausentes -> mensaje (sin traza); 'barra' fuera del PNG de barra_imagen -> mensaje
+   con el tamaño del PNG (antes pisaba rasgos.json); aviso si time.txt tiene menos líneas que fotogramas. 07: mensaje si faltan archivos.
+8. 06: opción desconocida (--sintetco) -> sale con mensaje; AVISO si ROCOLA_SF2 no existe.
+9. calibrar: --barra ya no vale GISTEMP para otro video (sale con mensaje).
+10. 05: centroide_y repite el anterior si no hay zona caliente (antes saltaba a 0,5).
+12. README (33 pruebas ~50 s; tablas de sonido y config con paneo, vmin/vmax_sonido, densidad_umbrales, dron_octava, umbral_evento; centroide_y;
+    estructura con web/ y auditorías; limitación de 0,5 s por fotograma), CONTRIBUTING y cabecera de evaluar.py.
+Verificado con GISTEMP (05 + 06 en carpeta temporal): rocola.mid y rocola.wav IDENTICOS (cmp) a los de antes de la ronda; rasgos.json solo
+añade "umbral_evento": 0,15; cruce_dron 1976.
+evaluar.py: pruebas nuevas G4 (cruce), F5 (umbral_evento), G5 (paneo con centroide fijo), E5 (numpy + 07 con 4 notas) y F3 ampliada (sin 'umbral',
+barra fuera del PNG). Con 05/06/07 de antes de la ronda las 5 FALLAN; con los nuevos, 33 PASA, 0 FALLA en 50,0 s.

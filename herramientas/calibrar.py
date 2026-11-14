@@ -133,7 +133,7 @@ def dibujar(frame, rect_m, barra_png, rect_b, salida):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--video", default="datos/2023GISTEMP_Map_SOS.mp4")
-    ap.add_argument("--barra", default="datos/giss_navy_anomaly_Vertical-both.png")
+    ap.add_argument("--barra", default=None, help="PNG de la barra de colores del video (por defecto, solo para el de GISTEMP)")
     ap.add_argument("--fechas", default=None, help="time.txt de fechas (p. ej. datos/time.txt); sin él no se añade 'fechas'")
     ap.add_argument("--vmin", type=float)
     ap.add_argument("--vmax", type=float)
@@ -145,6 +145,10 @@ def main():
     ap.add_argument("--salida", default=None)
     a = ap.parse_args()
 
+    if a.barra is None:
+        if os.path.normpath(a.video) != os.path.normpath("datos/2023GISTEMP_Map_SOS.mp4"):
+            sys.exit(f"Indica --barra <PNG de la barra de colores de '{a.video}'>: la de GISTEMP no sirve para otro video.")
+        a.barra = "datos/giss_navy_anomaly_Vertical-both.png"
     rect_b = rect_degradado(a.barra)
     print(f"Degradado de la barra PNG (x0, y0, x1, y1) = {rect_b}")
     frame, n_frames, fps = leer_cuadro(a.video, a.cuadro)
@@ -168,7 +172,7 @@ def main():
     dist_max = float(np.clip(np.ceil(np.percentile(dist, 95)), 8, 20))
     cfg = {"video": a.video, "mapa": list(rect_m), "barra_imagen": a.barra, "barra": list(rect_b),
            "barra_vertical": True, "barra_arriba_es_max": True, "vmin": vmin, "vmax": vmax,
-           "umbral": a.umbral if a.umbral is not None else (1.0 if vmax >= 2 else round(0.5 * vmax, 3)),
+           "umbral": a.umbral if a.umbral is not None else round(vmin + 0.75 * (vmax - vmin), 3),
            "fps_muestreo": a.fps_muestreo,
            "escala": a.escala if a.escala is not None else round(min(1.0, 1024 / ancho), 3),
            "ponderar_latitud": bool(lat_ok), "dist_max": dist_max}
