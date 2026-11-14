@@ -45,6 +45,11 @@ Claves opcionales del config (valores por defecto):
                             ECCO2). Entonces 'dist_max' son unidades de matiz de OpenCV (0-179; 2 = 4°)
   "brillo_min", "saturacion_min": 60, 60   (solo "matiz") V y S mínimos (0-255) para que un píxel cuente;
                             descartan el fondo oscuro y la tierra gris
+  "hemisferios": false      true = añade a cada rasgo media_norte, media_sur (media de cada hemisferio, filas
+                            pesadas por cos(latitud)) y dif_hemisferios = media_norte - media_sur. Supone que
+                            el recorte del mapa cubre de +90 a -90. Sin la clave, rasgos.json no cambia
+  "rasgo_tono": null        rasgo que 06 convierte en nota en lugar de "media" (p. ej. "dif_hemisferios");
+                            se copia a rasgos.json (ver la cabecera de 06)
   "referencia": null        valor que 06 usa para el dron (se copia a rasgos.json)
   "vmin_sonido", "vmax_sonido": null   rango que 06 usa para mapear media -> nota (por defecto
                             vmin/vmax; se copian a rasgos.json). No afectan a la paleta de 05
@@ -259,6 +264,21 @@ def barra_con_degradado(frame):
     return np.ptp(tira.mean(axis=1 if cfg["barra_vertical"] else 0), axis=0).max() > 30
 
 
+def hemisferios(campo):
+    """Clave opcional "hemisferios": media de cada mitad del mapa (norte arriba), con cada fila pesada por
+    cos(latitud), y su diferencia. None si un hemisferio no tiene píxeles válidos."""
+    h = campo.shape[0]
+    lat = 90 - (np.arange(h) + 0.5) * 180 / h
+    peso = np.cos(np.deg2rad(lat))
+    v = ~np.isnan(campo)
+    suma, n = np.where(v, campo, 0).sum(axis=1) * peso, v.sum(axis=1) * peso
+    m_n = suma[lat > 0].sum() / n[lat > 0].sum() if n[lat > 0].sum() > 0 else None
+    m_s = suma[lat < 0].sum() / n[lat < 0].sum() if n[lat < 0].sum() > 0 else None
+    r4 = lambda x: None if x is None else round(float(x), 4)
+    return {"media_norte": r4(m_n), "media_sur": r4(m_s),
+            "dif_hemisferios": None if m_n is None or m_s is None else r4(m_n - m_s)}
+
+
 rasgos, arbol, previo, cx_previo, cy_previo = [], None, None, 0.5, 0.5
 for k, frame in fotogramas_muestreados(cfg["video"], paso):
     if arbol is None:
@@ -299,6 +319,7 @@ for k, frame in fotogramas_muestreados(cfg["video"], paso):
         "centroide_y": round(float(cy), 4),            # 0 = sur, 1 = norte
         "cambio": round(0.0 if previo is None else media - previo, 4),
         "validos": round(float(validos.mean()), 3),
+        **(hemisferios(campo) if cfg.get("hemisferios") else {}),
     })
     previo, cx_previo, cy_previo = media, cx, cy
 
@@ -318,7 +339,7 @@ if cfg.get("referencia") is not None:
     salida["referencia"] = cfg["referencia"]
 for k in ("vmin_sonido", "vmax_sonido", "densidad_umbrales", "dron_octava", "dron_nivel",
           "instrumento_melodia", "reverb", "ligar", "suavizado", "densidad", "octava", "dron_programa",
-          "humanizar", "regolpe_ligado", "regolpe_vel", "umbral_evento", "paneo"):
+          "humanizar", "regolpe_ligado", "regolpe_vel", "umbral_evento", "paneo", "rasgo_tono"):
     if cfg.get(k) is not None:
         salida[k] = cfg[k]
 with open(sal("rasgos.json"), "w") as fh:
