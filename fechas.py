@@ -13,17 +13,17 @@ import re
 
 MESES = ("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
 FORMATOS = ("anio", "mes")
-_ISO = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?Z?$")
+_ISO = re.compile(r"^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?)?(?:Z|[+-]\d{2}:?\d{2})?$")
 
 
 def leer_fechas(ruta):
-    """Lista de textos crudos, uno por línea útil: la 2.ª columna si hay dos o más, si no la 1.ª."""
+    """Lista de textos crudos, uno por línea útil: la 2.ª columna si es una fecha ISO ("ID  fecha"), si no la 1.ª."""
     crudos = []
     with open(ruta) as fh:
         for linea in fh:
             partes = linea.split()
             if partes and not linea.lstrip().startswith("#"):
-                crudos.append(partes[1] if len(partes) > 1 else partes[0])
+                crudos.append(partes[1] if len(partes) > 1 and _ISO.match(partes[1]) else partes[0])
     return crudos
 
 
@@ -36,5 +36,5 @@ def etiqueta(crudo, formato="anio"):
         return crudo                                  # formato desconocido: se muestra tal cual
     anio, mes = int(m.group(1)), int(m.group(2))
     if not 1 <= mes <= 12:
-        raise ValueError(f"mes fuera de rango en la fecha '{crudo}'")
+        return crudo                                  # fecha imposible: se muestra tal cual, sin detener 05
     return f"{MESES[mes - 1]} {anio}" if formato == "mes" else anio

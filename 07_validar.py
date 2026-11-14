@@ -3,7 +3,7 @@
 
 1. Tono de la nota base de cada fotograma (control.json) -> debe coincidir con el de rocola.wav;
    el trazo principal sube en escalera. Los arpegios no se miden.
-2. Balance L/R por ventana      -> debe ir de izquierda (+L) a derecha (+R).
+2. Balance L/R por ventana      -> debe ir hacia la derecha (+R) donde hay zona caliente (area >= 0,01; antes, al centro).
 3. Comprobaciones automáticas con PASA/FALLA.
 Genera validacion.png.
 """
@@ -34,6 +34,7 @@ n_f = len(ctl["midi"])
 #    30 a 200 ms, acortada si la nota dura menos). Se ignora la frecuencia del dron y sus armónicos,
 #    salvo los que coinciden con la nota esperada (si la nota base ES el dron, no se puede enmascarar).
 mono = x.mean(axis=1)
+TOL_DRON = 100    # cents que se enmascaran alrededor de cada armónico del dron: el pad GM 90 tiene chorus y su pico es más ancho que 50
 hz = lambda m: 440 * 2 ** ((np.asarray(m, dtype=float) - 69) / 12)
 con = np.array(ctl.get("ataque_en_fotograma", [True] * n_f))
 dron_hz = hz(ctl["dron"]) if "dron" in ctl else None
@@ -49,8 +50,8 @@ for i in np.flatnonzero(con):
     if dron_hz is not None:
         esp_i = hz(ctl["midi"][i])
         for h in (1, 2, 3, 4):
-            if abs(1200 * np.log2(dron_hz * h / esp_i)) > 50:                 # armónico que no es la nota
-                banda &= np.abs(1200 * np.log2(np.maximum(f, 1e-9) / (dron_hz * h))) > 50
+            if abs(1200 * np.log2(dron_hz * h / esp_i)) > TOL_DRON:           # armónico que no es la nota
+                banda &= np.abs(1200 * np.log2(np.maximum(f, 1e-9) / (dron_hz * h))) > TOL_DRON
     pico_hz[i] = f[banda][np.argmax(S[banda])]
 esperado = hz(ctl["midi"])
 nota_ok = np.where(con)[0]
@@ -76,6 +77,11 @@ for i in range(n_f):
 bal = np.array(bal)
 con = np.array(ctl.get("ataque_en_fotograma", [True] * n_f))
 bal_a, idx_a = bal[con], np.arange(n_f)[con]
+# el paneo solo se mide donde 06 lo aplica: con area < 0,01 (AREA_CENTRO de 06) el sonido va al centro por diseño;
+# por eso ya no se exige empezar a la izquierda: basta que el balance suba hacia la derecha (> 6 dB, Spearman > 0,9)
+rangos = lambda a_, b_: np.corrcoef(np.argsort(np.argsort(a_)), np.argsort(np.argsort(b_)))[0, 1]    # Spearman: la curva pan -> dB no es lineal
+con_zona = np.array([rr.get("area", 0.0) >= 0.01 for rr in r])
+bal_p, idx_p = bal[con & con_zona], np.arange(n_f)[con & con_zona]
 
 err_cents = 1200 * np.abs(np.log2(pico_hz[con] / esperado[con]))
 sintetico = os.path.basename(json.load(open(sal("rasgos.json"))).get("fuente", "")) == "04_video_sintetico.mp4"
@@ -85,7 +91,7 @@ checks = {
     # solo tienen sentido con el video sintético (media creciente y tormenta de izquierda a derecha)
     "el tono no baja (serie creciente)": bool(np.all(np.diff(esperado) >= 0)) if sintetico else None,
     # el dron central "diluye" el balance, así que se valida la TENDENCIA, no un valor fijo
-    "paneo va de izquierda a derecha": bool(bal_a[0] < 0 < bal_a[-1] and np.corrcoef(idx_a, bal_a)[0, 1] > 0.9) if sintetico else None,
+    "paneo va de izquierda a derecha": bool(bal_p[-1] > 0 and bal_p[-1] - bal_p[0] > 6 and rangos(idx_p, bal_p) > 0.9) if sintetico else None,
     "media de rasgos crece": bool(r[-1]["media"] > r[0]["media"]) if sintetico else None,
 }
 for k, v in checks.items():
