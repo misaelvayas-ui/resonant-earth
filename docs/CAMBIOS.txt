@@ -748,3 +748,11 @@ flat_ecco2_dates.txt (2001 fechas, 2007-03-25 a 2008-03-03, paso ~4 h 8 min). Fo
    LIMITACIÓN: la media sale ~2-4 °C por encima de lo esperable (solo cuentan las líneas brillantes, y las cálidas lo son más; brillo_min 30/60/100 -> 20,6/22,0/23,6).
 6. evaluar.py: pruebas H1 (calibrar, barra horizontal y vertical con mesetas), H2 (modo matiz, error 0,107 °C) y H3 (fechas "mar 2007"). 36 PASA, 0 FALLA.
 7. README y .gitignore (/salidas_sst/).
+
+RONDA 25 - GISTEMP en carpeta propia, versiones fijas y licencia (rama misael/sst)   (2026-11-14)
+Antes: commit d7390f0. Cierra el pendiente 13 de docs/AUDITORIA_2.md (licencia y versiones). No se modificó ningún script.
+1. salidas_gistemp/ (ROCOLA_SALIDAS) con config_eic.json y 05 -> 06 -> 07 -> 08: rasgos.json trae "umbral_evento": 0,15 y "referencia": 0,0; cruce_dron 1976;
+   07 = 2 PASA + 3 NO APLICA (como en la ronda 23; error de tono 2,6 cents); 08 diferencia 0,000 s. Los tamaños de rasgos.json, control.json, rocola.wav,
+   rocola.mid y demo_gistemp.mp4 coinciden byte a byte con los de salidas/ del 13 de nov. salidas/ no se tocó. /salidas_gistemp/ en .gitignore.
+2. requirements.txt: versiones fijas (== las del .venv): numpy 2.5.4, scipy 1.18.1, opencv-python-headless 5.0.0.93, matplotlib 3.11.2, sounddevice 0.5.6, mido 1.3.3.
+3. LICENSE (MIT, 2026). El titular queda como marcador: "Resonant Earth [COMPLETAR: titular]".
