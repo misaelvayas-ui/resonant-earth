@@ -11,8 +11,9 @@ sin numpy (bucles y listas, para pasarlas tal cual a JavaScript). Antes de escri
 aplicar_mapeo() reproduce control.json (notas exactas, pan con error < 1e-6) y que el .mid concuerda; si no, aborta.
 evaluar.py (prueba I1) repite esa comprobación.
 
-No modifica ningún script del pipeline: replica la lógica de 06_rasgos_a_audio.py (se cita archivo:línea en la
-especificación) y la compara con su resultado real.
+No modifica ningún script del pipeline: replica la lógica de 06_rasgos_a_audio.py (la especificación cita la
+función de 06 de la que sale cada regla) y la compara con su resultado real. Las constantes comunes (tempo,
+valores por defecto) se importan de parametros.py, igual que en 06.
 """
 import argparse
 import json
@@ -20,14 +21,11 @@ import math
 import os
 import sys
 
-SEG_POR_FOTOGRAMA = 0.5            # 06:58
-TPB, BPM = 480, 120                # 06:59
-TICKS_F = int(SEG_POR_FOTOGRAMA * TPB * BPM / 60)          # 06:60
-TONICA, OCTAVAS, GRADOS = 48, 3, (0, 2, 4, 7, 9)           # 06:104 + sintesis.py:73,77-80
-DEFECTOS = {"ligar": True, "suavizado": 3, "densidad": True, "octava": 1, "humanizar": True,
-            "instrumento_melodia": 13, "dron_programa": 89, "dron_octava": 0, "dron_nivel": 0.048,
-            "reverb": 50, "paneo": "x", "regolpe_ligado": 2, "regolpe_vel": 0.4, "umbral_evento": None}   # 06:64-66
-VEL_FUERTE = 100                   # 06:162
+from parametros import DEFECTOS, SEG_POR_FOTOGRAMA, TICKS_F, TONICA_MIDI, VEL_FUERTE
+from parametros import OCTAVAS as _OCTAVAS
+
+GRADOS = (0, 2, 4, 7, 9)           # sintesis.PENTATONICA_MAYOR (aquí sin numpy)
+TONICA, OCTAVAS = TONICA_MIDI, _OCTAVAS
 PISTAS = {"gistemp_1880_2023": "gistemp", "sst_ecco2_2007_2008": "sst"}
 
 
@@ -42,7 +40,7 @@ def limitar(x, lo, hi):
 
 
 def rellenar(v, defecto):
-    """None/NaN -> último valor válido (o 'defecto' al inicio). 06:80-89."""
+    """None/NaN -> último valor válido (o 'defecto' al inicio). Igual que rellenar() de 06."""
     salida, ultimo = [], defecto
     for x in v:
         if x is None or (isinstance(x, float) and math.isnan(x)):
@@ -54,7 +52,7 @@ def rellenar(v, defecto):
 
 
 def media_movil(x, n):
-    """Media móvil centrada de n fotogramas; en los bordes la ventana se acorta. 06:92-95."""
+    """Media móvil centrada de n fotogramas; en los bordes la ventana se acorta. Igual que media_movil() de 06."""
     h = (int(n) | 1) // 2
     out = []
     for i in range(len(x)):
@@ -73,12 +71,12 @@ def percentil(v, q):
 
 
 def escala_notas():
-    """sintesis.py:77-80: tónica + 12*o + grado para 3 octavas, más la tónica 3 octavas arriba (16 notas)."""
+    """sintesis.escala(): tónica + 12*o + grado para 3 octavas, más la tónica 3 octavas arriba (16 notas)."""
     return [TONICA + 12 * o + g for o in range(OCTAVAS) for g in GRADOS] + [TONICA + 12 * OCTAVAS]
 
 
 def indice_nota(x, v0, v1, n_notas):
-    """sintesis.py:83-87 (valor_a_nota, devolviendo el ÍNDICE en la escala)."""
+    """sintesis.valor_a_nota(), devolviendo el ÍNDICE en la escala."""
     t = limitar((x - v0) / (v1 - v0 + 1e-12), 0.0, 1.0)
     return redondear(t * (n_notas - 1))
 
@@ -91,21 +89,21 @@ def db_a_lineal(db):
 def construir_mapeo(doc, id_="pista"):
     """Todos los parámetros que el JS necesita, a partir del rasgos.json (doc) de la pista."""
     R = doc["rasgos"]
-    cfg = {**DEFECTOS, **{k: doc[k] for k in DEFECTOS if doc.get(k) is not None}}      # 06:77
+    cfg = {**DEFECTOS, **{k: doc[k] for k in DEFECTOS if doc.get(k) is not None}}      # 06: leer_ajustes()
     notas = escala_notas()
-    v0, v1 = doc.get("vmin_sonido", doc["vmin"]), doc.get("vmax_sonido", doc["vmax"])  # 06:105
+    v0, v1 = doc.get("vmin_sonido", doc["vmin"]), doc.get("vmax_sonido", doc["vmax"])  # 06: rango_sonido()
     relleno = (doc["vmin"] + doc["vmax"]) / 2
-    media = rellenar([r.get("media") for r in R], relleno)                              # 06:98
-    area = rellenar([r.get("area") for r in R], 0.0)                                    # 06:99
-    media_s = media_movil(media, cfg["suavizado"]) if int(cfg["suavizado"]) > 1 else media   # 06:101
+    media = rellenar([r.get("media") for r in R], relleno)                              # 06: mapear()
+    area = rellenar([r.get("area") for r in R], 0.0)                                    # 06: mapear()
+    media_s = media_movil(media, cfg["suavizado"]) if int(cfg["suavizado"]) > 1 else media   # 06: mapear()
     octava = int(cfg["octava"])
     ref = doc.get("referencia")
     idx_ref = indice_nota(ref, v0, v1, len(notas)) if ref is not None else indice_nota(media_s[0], v0, v1, len(notas))
-    nota_ref = notas[idx_ref]                                                           # 06:111
-    nota_dron = int(limitar(nota_ref + 12 * octava - 12 + 12 * int(cfg["dron_octava"]), 0, 127))   # 06:114
-    umbral_evento = cfg["umbral_evento"] if cfg["umbral_evento"] is not None else (v1 - v0) / 12     # 06:107-108
-    u1, u2 = doc.get("densidad_umbrales") or (v0 + 0.5 * (v1 - v0), v0 + 13 / 18 * (v1 - v0))      # 06:140
-    # paneo (06:120-129)
+    nota_ref = notas[idx_ref]                                                           # 06: nota_del_dron()
+    nota_dron = int(limitar(nota_ref + 12 * octava - 12 + 12 * int(cfg["dron_octava"]), 0, 127))   # 06: nota_del_dron()
+    umbral_evento = cfg["umbral_evento"] if cfg["umbral_evento"] is not None else (v1 - v0) / 12     # 06: leer_ajustes()
+    u1, u2 = doc.get("densidad_umbrales") or (v0 + 0.5 * (v1 - v0), v0 + 13 / 18 * (v1 - v0))      # 06: umbrales_densidad()
+    # paneo (06: calcular_paneo())
     eje = cfg["paneo"]
     if eje == "y" and not any("centroide_y" in r for r in R):
         eje = "x"

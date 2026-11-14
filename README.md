@@ -66,7 +66,7 @@ python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 | `07_validar.py` | comprueba tono y notas del WAV (con el video sintético, también tendencia de tono y paneo; con uno real esas quedan NO APLICA) → `salidas/validacion.png` + PASA/FALLA |
 | `08_video_con_audio.py [video] [wav] [mp4]` | une video y audio sincronizados → `salidas/demo_rocola.mp4` |
 
-`sintesis.py` es el motor de audio (osciladores, ADSR, escalas, paneo). Los ejercicios de síntesis básica (`01`–`03`) están en `archivo/`.
+`sintesis.py` es el motor de audio (osciladores, ADSR, escalas, paneo). `parametros.py` guarda las constantes que comparten varios scripts (tempo, valores por defecto de 06). Los ejercicios de síntesis básica (`01`–`03`) están en `archivo/`.
 
 ## Video real (NASA SVS 5207)
 
@@ -131,7 +131,7 @@ Después de **cada cambio** de código o de config: `python evaluar.py` (debe da
 ## Estructura
 
 ```
-sintesis.py  rutas.py  fechas.py  04…08_*.py  evaluar.py    código (raíz)
+sintesis.py  rutas.py  fechas.py  parametros.py  04…08_*.py  evaluar.py    código (raíz)
 config/        configuraciones de 05
 datos/         videos y barras descargados (ignorado por git)
 salidas/       todo lo generado (WAV, MP4, PNG, JSON); salidas_sst/ = el de ECCO2 (ROCOLA_SALIDAS=salidas_sst)
@@ -150,7 +150,7 @@ Variables de entorno: `ROCOLA_SALIDAS` y `ROCOLA_CONFIG` redirigen las carpetas;
 - Segundo video, SVS 3912 (ECCO2, `config/config_sst.json`): `python 05_video_a_rasgos.py config/config_sst.json` con `ROCOLA_SALIDAS=salidas_sst`. Solo ~26 % del mapa es válido (líneas brillantes) y la media sale unos °C más alta que la real (sesgo hacia lo cálido); sirve para la forma estacional, no para el valor absoluto.
 - El rango de °C de la barra se lee a ojo en `calibracion.png` (no hay OCR).
 - El mapa del video SVS 5207 es más pálido que su barra, por eso `dist_max` es 17 en ese config.
-- Cada fotograma muestreado dura 0,5 s de audio (`SEG_POR_FOTOGRAMA` en 06): con `fps_muestreo` distinto de 2, el video de 08 se estira o se comprime para igualar el audio (el ejemplo sintético, a 4, se ve a mitad de velocidad).
+- Cada fotograma muestreado dura 0,5 s de audio (`SEG_POR_FOTOGRAMA` en `parametros.py`): con `fps_muestreo` distinto de 2, el video de 08 se estira o se comprime para igualar el audio (el ejemplo sintético, a 4, se ve a mitad de velocidad).
 - `demo_rocola.mp4`: el video empieza 0,1 s después del audio. Es la configuración que no se entrecorta en VLC.
 
 El detalle de cada cambio y de cada medición está en [docs/CAMBIOS.txt](docs/CAMBIOS.txt).

@@ -26,8 +26,10 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(RAIZ, "web")
 ASSETS = os.path.join(WEB, "assets")
 CATALOGO = os.path.join(WEB, "catalogo.json")
-SEG_POR_FOTOGRAMA = 0.5   # igual que en 06_rasgos_a_audio.py
 MAX_MB = 30
+
+sys.path.insert(0, RAIZ)          # este script vive en web/: parametros.py está en la raíz
+from parametros import SEG_POR_FOTOGRAMA   # noqa: E402  (el mismo tempo que usa 06)
 
 REAL_VIDEO = os.path.join(RAIZ, "datos", "2023GISTEMP_Map_SOS.mp4")
 REAL_WAV = os.path.join(RAIZ, "salidas", "rocola.wav")

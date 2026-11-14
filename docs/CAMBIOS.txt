@@ -830,3 +830,34 @@ pistas, reproducir, pausar, saltar a un momento, ejemplos de sonido, tecla "?", 
 Falta: revisión visual a fondo con capturas (1440 y 390 px, dos temas), actualizar web/README.md, web/GUIA_ESTILO.md,
 docs/CONTEXTO_ESTETICA_WEB.md y las capturas. evaluar.py antes de esta ronda: 36 PASA, 0 FALLA, 1 OMITIDA (F4, sin
 drawtext en este ffmpeg); no se tocó ningún script del pipeline.
+
+RONDA 29 - Python más limpio: 04-07 en funciones con main() y constantes en parametros.py   (2026-11-14)
+Hecho con ayuda de IA (Claude, de Anthropic). Rama mejora/auditoria-clean-code. Antes: commit 4da87f6.
+Problema: 04, 05, 06 y 07 tenían casi todo el código suelto a nivel de módulo, con variables globales (cfg, MODO, ESC,
+PESOS_FILA, FECHAS, R, d...) que las funciones leían sin recibirlas. Las mismas constantes estaban copiadas en tres
+archivos (06, herramientas/exportar_mapeo.py, web/preparar_datos.py) y la lista de claves musicales, escrita a mano en
+05. docs/ESPEC_MODO_EN_VIVO.md y exportar_mapeo.py citaban 06 por número de línea, ya desfasado.
+1. parametros.py (nuevo, sin dependencias): SEG_POR_FOTOGRAMA, TPB, BPM, TICKS_F, TONICA_MIDI, OCTAVAS, VEL_FUERTE,
+   SEMILLA_HUMANIZAR, DEFECTOS y CLAVES_MUSICALES (en el mismo orden que antes: define el orden de rasgos.json).
+   Lo importan 05, 06, exportar_mapeo.py y web/preparar_datos.py. Copias de constantes: 3 -> 1.
+2. 04: a_bgr, imagen_barra, campo_en, dibujar_fotograma, escribir_video, escribir_config, main.
+3. 05: las funciones reciben cfg (ya no hay globales). leer_config y abrir_y_validar_video juntan las validaciones;
+   la máscara se parte en mascara_a_mano, fotogramas_de_referencia y mascara_de_estaticos; centroide_x y centroide_y
+   salen del bucle; extraer_rasgos, avisar_problemas, armar_salida, imprimir_resumen, main.
+4. 06: leer_argumentos, cargar_rasgos, leer_ajustes, mapear (devuelve un Mapeo con nota, volumen y paneo por
+   fotograma), componer (arpegiar, eventos_fuertes, ligar_notas, marcas_por_fotograma, humanizar), eventos_midi,
+   archivo_midi (una sola función para el .mid completo y para el de un canal; antes el código estaba dos veces),
+   renderizar (FluidSynth o respaldo numpy), armar_control, main. La curva de volumen y la del paneo por muestra
+   estaban escritas dos veces: ahora son ganancia_por_area y paneo_por_muestra.
+5. 07: cargar, medir_tono, banda_sin_dron, notas_exactas, medir_balance, comprobar, graficar, main. Arreglado:
+   json.load(open(...)) sin cerrar (3 veces), lambda hz que repetía sintesis.midi_a_hz, 'con' calculado dos veces,
+   'import mido' a mitad de archivo, esp_mid asignado dos veces, rasgos.json leído dos veces.
+6. docs/ESPEC_MODO_EN_VIVO.md: las 52 citas "06:NNN" y "sin:NNN" pasan a "archivo: función()" (p. ej.
+   `06: calcular_paneo()`, `par: DEFECTOS`); también las de config por línea. exportar_mapeo.py: ídem en sus comentarios.
+7. README.md: parametros.py en "Pipeline", "Estructura" y "Limitaciones".
+Prueba de que no cambió ni una nota: con el código anterior (4da87f6) y con el nuevo se generaron el ejemplo sintético
+(04 -> 05 -> 06 -> 07, 3 s) y las dos pistas reales (06 -> 07 sobre web/assets/*_rasgos.json). Comparación byte a byte
+con cmp: rasgos.json, control.json, rocola.mid y rocola.wav IGUALES en las tres carpetas (12 de 12), y también
+config_video.json y el texto que imprime cada script (8 de 8).
+evaluar.py (macOS, respaldo numpy): antes 36 PASA, 0 FALLA, 1 OMITIDA -> después 36 PASA, 0 FALLA, 1 OMITIDA (F4:
+este ffmpeg no trae drawtext), 102 s.

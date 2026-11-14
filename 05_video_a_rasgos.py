@@ -60,30 +60,70 @@ import cv2
 from scipy.spatial import cKDTree
 from rutas import sal, cfg_ruta
 from fechas import FORMATOS, etiqueta, leer_fechas
+from parametros import CLAVES_MUSICALES
 
-_ruta_cfg = sys.argv[1] if len(sys.argv) > 1 else cfg_ruta("config_video.json")
-try:
-    with open(_ruta_cfg) as fh:
-        cfg = json.load(fh)
-except FileNotFoundError:
-    sys.exit(f"No existe el config '{_ruta_cfg}'. Créalo con 04 (video sintético) o con "
-             "'python -m herramientas.calibrar', o pasa su ruta como argumento.")
-except json.JSONDecodeError as e:
-    sys.exit(f"El config '{_ruta_cfg}' no es un JSON válido: {e}")
-_faltan = [k for k in ("video", "mapa", "barra", "vmin", "vmax", "umbral", "fps_muestreo", "barra_vertical")
-           + (("barra_arriba_es_max",) if cfg.get("barra_vertical") else ()) if k not in cfg]
-if _faltan:
-    sys.exit(f"Faltan claves obligatorias en '{_ruta_cfg}': {', '.join(_faltan)} (ver la cabecera de 05 y el README).")
-DIST_MAX = cfg.get("dist_max", 8.0)
-ESC = cfg.get("escala", 1.0)
-MODO = cfg.get("modo_color", "lab")
-if MODO not in ("lab", "matiz"):
-    sys.exit(f"'modo_color' = {MODO!r} no es válido: usa \"lab\" o \"matiz\".")
-if cfg.get("fechas_formato", "anio") not in FORMATOS:
-    sys.exit(f"'fechas_formato' = {cfg['fechas_formato']!r} no es válido: usa " + " o ".join(f'"{f}"' for f in FORMATOS) + ".")
 MAX_REF = 31   # fotogramas de referencia para la máscara estática (se guardan hasta 2*MAX_REF)
+OBLIGATORIAS = ("video", "mapa", "barra", "vmin", "vmax", "umbral", "fps_muestreo", "barra_vertical")
 
 
+# ----------------------------------------------------------------------------- configuración
+def leer_config(ruta):
+    """Lee el config y sale con un mensaje claro si falta, está roto o le faltan claves."""
+    try:
+        with open(ruta) as fh:
+            cfg = json.load(fh)
+    except FileNotFoundError:
+        sys.exit(f"No existe el config '{ruta}'. Créalo con 04 (video sintético) o con "
+                 "'python -m herramientas.calibrar', o pasa su ruta como argumento.")
+    except json.JSONDecodeError as e:
+        sys.exit(f"El config '{ruta}' no es un JSON válido: {e}")
+    faltan = [k for k in OBLIGATORIAS + (("barra_arriba_es_max",) if cfg.get("barra_vertical") else ())
+              if k not in cfg]
+    if faltan:
+        sys.exit(f"Faltan claves obligatorias en '{ruta}': {', '.join(faltan)} (ver la cabecera de 05 y el README).")
+    modo = cfg.get("modo_color", "lab")
+    if modo not in ("lab", "matiz"):
+        sys.exit(f"'modo_color' = {modo!r} no es válido: usa \"lab\" o \"matiz\".")
+    if cfg.get("fechas_formato", "anio") not in FORMATOS:
+        sys.exit(f"'fechas_formato' = {cfg['fechas_formato']!r} no es válido: usa " + " o ".join(f'"{f}"' for f in FORMATOS) + ".")
+    return cfg
+
+
+def modo_color(cfg):
+    return cfg.get("modo_color", "lab")
+
+
+def abrir_y_validar_video(cfg):
+    """Comprueba que el video abre y que los rectángulos caben. Devuelve los fps del video."""
+    cap = cv2.VideoCapture(cfg["video"])
+    if not cap.isOpened():
+        sys.exit(f"No se pudo abrir el video '{cfg['video']}'. Revisa la ruta (se ejecuta desde la raíz del proyecto).")
+    fps_video = cap.get(cv2.CAP_PROP_FPS) or 30
+    ancho, alto = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    cap.release()
+    for nombre in ("mapa",) + (() if cfg.get("barra_imagen") else ("barra",)):
+        x0, y0, x1, y1 = cfg[nombre]
+        if not (0 <= x0 < x1 <= ancho and 0 <= y0 < y1 <= alto):
+            sys.exit(f"'{nombre}' = {cfg[nombre]} se sale del video ({ancho}x{alto}). Los rectángulos van "
+                     "en píxeles del video original [x0, y0, x1, y1]; mídelos en salidas/fotograma_ref.png.")
+    if cfg.get("barra_imagen"):
+        png = leer_barra_png(cfg)
+        x0, y0, x1, y1 = cfg["barra"]
+        if not (0 <= x0 < x1 <= png.shape[1] and 0 <= y0 < y1 <= png.shape[0]):
+            sys.exit(f"'barra' = {cfg['barra']} se sale del PNG de la barra ({png.shape[1]}x{png.shape[0]}). Con "
+                     "'barra_imagen' el rectángulo va en píxeles de ese PNG, no del video.")
+    return fps_video
+
+
+def leer_barra_png(cfg):
+    """Barra de colores que viene como imagen aparte (p. ej. SVS 5207)."""
+    png = cv2.imread(cfg["barra_imagen"])
+    if png is None:
+        sys.exit(f"No se pudo leer la barra '{cfg['barra_imagen']}'. Revisa la ruta.")
+    return png
+
+
+# ----------------------------------------------------------------------------- color -> valor
 def a_lab(bgr):
     """BGR (0-255) -> CIE Lab real (L 0-100). Con uint8, OpenCV escala L a 0-255 y la
     distancia dejaría de ser ΔE; por eso se convierte en float32 dentro de [0, 1]."""
@@ -117,25 +157,36 @@ class TablaMatiz:
         return mejor, idx
 
 
-def tabla_desde_barra(frame):
-    """Devuelve (KD-tree de colores Lab, valores asociados) leyendo la barra."""
+def tira_barra(frame, cfg):
+    """Recorte de la barra de colores, tal como viene en el fotograma."""
     x0, y0, x1, y1 = cfg["barra"]
+    return frame[y0:y1, x0:x1]
+
+
+def perfil_barra(tira, cfg):
+    """Color medio de la barra a lo largo de su eje, (N, 3) BGR: promediar a lo ancho quita ruido de compresión."""
+    return tira.mean(axis=1 if cfg["barra_vertical"] else 0)
+
+
+def tabla_desde_barra(frame, cfg):
+    """Devuelve (buscador de colores, valores asociados) leyendo la barra."""
     if cfg.get("barra_imagen"):            # p. ej. SVS 5207 trae la barra como PNG aparte
-        frame = cv2.imread(cfg["barra_imagen"])
-        if frame is None:
-            sys.exit(f"No se pudo leer la barra '{cfg['barra_imagen']}'. Revisa la ruta.")
-    tira = frame[y0:y1, x0:x1]
-    # promedia a lo ancho de la barra para quitar ruido de compresión
-    perfil = tira.mean(axis=1 if cfg["barra_vertical"] else 0)          # (N, 3) BGR
-    n = len(perfil)
-    vals = np.linspace(cfg["vmin"], cfg["vmax"], n)
+        frame = leer_barra_png(cfg)
+    perfil = perfil_barra(tira_barra(frame, cfg), cfg)
+    vals = np.linspace(cfg["vmin"], cfg["vmax"], len(perfil))
     if cfg["barra_vertical"] and cfg["barra_arriba_es_max"]:
         vals = vals[::-1]
-    if MODO == "matiz":
+    if modo_color(cfg) == "matiz":
         return TablaMatiz(perfil, cfg.get("saturacion_min", 60), cfg.get("brillo_min", 60)), vals
     return cKDTree(a_lab(perfil)), vals
 
 
+def barra_con_degradado(frame, cfg):
+    """True si la tira de la barra tiene contraste (un fotograma negro o de título no sirve)."""
+    return np.ptp(perfil_barra(tira_barra(frame, cfg).astype(float), cfg), axis=0).max() > 30
+
+
+# ----------------------------------------------------------------------------- fotogramas y recorte
 def fotogramas_muestreados(ruta, paso):
     cap = cv2.VideoCapture(ruta)
     k = 0
@@ -149,59 +200,77 @@ def fotogramas_muestreados(ruta, paso):
     cap.release()
 
 
-def tam_recorte():
+def tam_recorte(cfg):
     """(ancho, alto) del recorte del mapa tras aplicar 'escala'."""
     x0, y0, x1, y1 = cfg["mapa"]
-    return max(1, round((x1 - x0) * ESC)), max(1, round((y1 - y0) * ESC))
+    esc = cfg.get("escala", 1.0)
+    return max(1, round((x1 - x0) * esc)), max(1, round((y1 - y0) * esc))
 
 
-def recortar(frame):
+def recortar(frame, cfg):
     """Recorte del mapa (rectángulo en píxeles originales), reducido según 'escala'."""
     x0, y0, x1, y1 = cfg["mapa"]
     zona = frame[y0:y1, x0:x1]
-    if ESC != 1.0:
-        zona = cv2.resize(zona, tam_recorte(), interpolation=cv2.INTER_AREA)
+    if cfg.get("escala", 1.0) != 1.0:
+        zona = cv2.resize(zona, tam_recorte(cfg), interpolation=cv2.INTER_AREA)
     return zona
 
 
-def mascara_fija(paso):
+# ----------------------------------------------------------------------------- máscara de lo que no es dato
+def mascara_a_mano(cfg, ancho, alto):
+    """True donde el PNG 'mascara_imagen' es negro."""
+    m = cv2.imread(cfg["mascara_imagen"], cv2.IMREAD_GRAYSCALE)
+    if m is None:
+        sys.exit(f"No se pudo leer la máscara '{cfg['mascara_imagen']}'.")
+    if m.shape != (alto, ancho):
+        m = cv2.resize(m, (ancho, alto), interpolation=cv2.INTER_NEAREST)
+    return m == 0
+
+
+def fotogramas_de_referencia(cfg, paso):
+    """Hasta ~2*MAX_REF recortes repartidos a lo largo del video (acota la memoria)."""
+    ref, cada, i = [], 1, 0
+    for _, frame in fotogramas_muestreados(cfg["video"], paso):
+        if i % cada == 0:
+            ref.append(recortar(frame, cfg).copy())
+        i += 1
+        if len(ref) > 2 * MAX_REF:
+            ref, cada = ref[::2], cada * 2
+    return ref
+
+
+def mascara_de_estaticos(cfg, ref):
+    """True donde el píxel casi nunca se aparta de su mediana temporal (tierra, logos, textos)."""
+    pila = np.stack(ref).astype(np.int16)
+    # por bandas de filas: la mediana y la resta nunca se materializan para todo el recorte
+    # (a 1080p sin bandas, la resta en float64 pedía ~3 GB); el resultado es el mismo
+    cerca = np.empty(pila.shape[1:3])
+    for y in range(0, pila.shape[1], 32):
+        sub = pila[:, y:y + 32]
+        dif = np.abs(sub - np.median(sub, axis=0)).max(axis=3)
+        cerca[y:y + 32] = (dif <= cfg.get("umbral_estatico", 3.0)).mean(axis=0)
+    return cerca >= cfg.get("frac_estatico", 0.7)
+
+
+def mascara_fija(cfg, paso):
     """True = píxel del recorte que NO es dato (estático o marcado a mano)."""
-    ancho, alto = tam_recorte()
+    ancho, alto = tam_recorte(cfg)
     fija = np.zeros((alto, ancho), bool)
     if cfg.get("mascara_imagen"):
-        m = cv2.imread(cfg["mascara_imagen"], cv2.IMREAD_GRAYSCALE)
-        if m is None:
-            sys.exit(f"No se pudo leer la máscara '{cfg['mascara_imagen']}'.")
-        if m.shape != fija.shape:
-            m = cv2.resize(m, (ancho, alto), interpolation=cv2.INTER_NEAREST)
-        fija |= m == 0
+        fija |= mascara_a_mano(cfg, ancho, alto)
     if cfg.get("mascara_estatica", True):
-        # Referencia: hasta ~2*MAX_REF fotogramas repartidos a lo largo del video (acota la memoria)
-        ref, cada, i = [], 1, 0
-        for _, frame in fotogramas_muestreados(cfg["video"], paso):
-            if i % cada == 0:
-                ref.append(recortar(frame).copy())
-            i += 1
-            if len(ref) > 2 * MAX_REF:
-                ref, cada = ref[::2], cada * 2
+        ref = fotogramas_de_referencia(cfg, paso)
         if len(ref) >= 3:
-            pila = np.stack(ref).astype(np.int16)
-            # por bandas de filas: la mediana y la resta nunca se materializan para todo el recorte
-            # (a 1080p sin bandas, la resta en float64 pedía ~3 GB); el resultado es el mismo
-            cerca = np.empty(pila.shape[1:3])
-            for y in range(0, pila.shape[1], 32):
-                sub = pila[:, y:y + 32]
-                dif = np.abs(sub - np.median(sub, axis=0)).max(axis=3)
-                cerca[y:y + 32] = (dif <= cfg.get("umbral_estatico", 3.0)).mean(axis=0)
-            fija |= cerca >= cfg.get("frac_estatico", 0.7)
+            fija |= mascara_de_estaticos(cfg, ref)
     return fija
 
 
-def invertir(frame, arbol, vals, fija):
-    zona = recortar(frame)
-    d, idx = arbol.query(zona.reshape(-1, 3) if MODO == "matiz" else a_lab(zona))
+def invertir(frame, arbol, vals, fija, cfg):
+    """Fotograma -> campo de valores del recorte (NaN donde no hay dato)."""
+    zona = recortar(frame, cfg)
+    d, idx = arbol.query(zona.reshape(-1, 3) if modo_color(cfg) == "matiz" else a_lab(zona))
     campo = vals[idx].astype(float).reshape(zona.shape[:2])
-    malo = (d.reshape(zona.shape[:2]) > DIST_MAX) | fija    # no pertenece a la paleta
+    malo = (d.reshape(zona.shape[:2]) > cfg.get("dist_max", 8.0)) | fija    # no pertenece a la paleta
     b = cfg.get("borde_px", 1)
     if b > 0 and malo.any():                               # quita el halo antialias
         malo = cv2.dilate(malo.astype(np.uint8), np.ones((2 * b + 1, 2 * b + 1), np.uint8)) > 0
@@ -209,123 +278,129 @@ def invertir(frame, arbol, vals, fija):
     return campo
 
 
-t_inicio = time.time()
-_cap = cv2.VideoCapture(cfg["video"])
-if not _cap.isOpened():
-    sys.exit(f"No se pudo abrir el video '{cfg['video']}'. Revisa la ruta (se ejecuta desde la raíz del proyecto).")
-fps_video = _cap.get(cv2.CAP_PROP_FPS) or 30
-ANCHO_V, ALTO_V = int(_cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-_cap.release()
-for _nombre in ("mapa",) + (() if cfg.get("barra_imagen") else ("barra",)):
-    _x0, _y0, _x1, _y1 = cfg[_nombre]
-    if not (0 <= _x0 < _x1 <= ANCHO_V and 0 <= _y0 < _y1 <= ALTO_V):
-        sys.exit(f"'{_nombre}' = {cfg[_nombre]} se sale del video ({ANCHO_V}x{ALTO_V}). Los rectángulos van "
-                 "en píxeles del video original [x0, y0, x1, y1]; mídelos en salidas/fotograma_ref.png.")
-if cfg.get("barra_imagen"):
-    _png = cv2.imread(cfg["barra_imagen"])
-    if _png is None:
-        sys.exit(f"No se pudo leer la barra '{cfg['barra_imagen']}'. Revisa la ruta.")
-    _x0, _y0, _x1, _y1 = cfg["barra"]
-    if not (0 <= _x0 < _x1 <= _png.shape[1] and 0 <= _y0 < _y1 <= _png.shape[0]):
-        sys.exit(f"'barra' = {cfg['barra']} se sale del PNG de la barra ({_png.shape[1]}x{_png.shape[0]}). Con "
-                 "'barra_imagen' el rectángulo va en píxeles de ese PNG, no del video.")
-paso = max(1, round(fps_video / cfg["fps_muestreo"]))
-fija = mascara_fija(paso)
-if fija.any():
-    print(f"Máscara fija: {fija.mean():.1%} del recorte descartado (estático o marcado a mano)")
-
-if cfg.get("ponderar_latitud"):
-    _h = fija.shape[0]
-    PESOS_FILA = np.cos(np.deg2rad(90 - (np.arange(_h) + 0.5) * 180 / _h))   # latitud del centro de cada fila
-else:
-    PESOS_FILA = None
-FECHAS = None
-if cfg.get("fechas"):
-    FECHAS = leer_fechas(cfg["fechas"])
+# ----------------------------------------------------------------------------- rasgos de un fotograma
+def pesos_por_fila(cfg, alto):
+    """Con 'ponderar_latitud': cos(latitud del centro de cada fila). Sin ella: None."""
+    if not cfg.get("ponderar_latitud"):
+        return None
+    return np.cos(np.deg2rad(90 - (np.arange(alto) + 0.5) * 180 / alto))
 
 
-def media_campo(campo):
+def media_campo(campo, pesos_fila):
     """Media de los píxeles válidos; con ponderar_latitud, cada fila pesa cos(latitud)."""
-    if PESOS_FILA is None:
+    if pesos_fila is None:
         return float(np.nanmean(campo))
     v = ~np.isnan(campo)
-    return float((np.where(v, campo, 0).sum(axis=1) * PESOS_FILA).sum() / (v.sum(axis=1) * PESOS_FILA).sum())
+    return float((np.where(v, campo, 0).sum(axis=1) * pesos_fila).sum() / (v.sum(axis=1) * pesos_fila).sum())
 
 
-def barra_con_degradado(frame):
-    """True si la tira de la barra tiene contraste (un fotograma negro o de título no sirve)."""
-    x0, y0, x1, y1 = cfg["barra"]
-    tira = frame[y0:y1, x0:x1].astype(float)
-    return np.ptp(tira.mean(axis=1 if cfg["barra_vertical"] else 0), axis=0).max() > 30
+def centroide_y(caliente, previo):
+    """Latitud media (ponderada por cos(lat), el área real de cada píxel) de lo que está sobre el umbral;
+    0 = sur, 1 = norte; si no hay nada, el valor anterior. Supone que el recorte va de +90 a -90."""
+    if not caliente.any():
+        return previo
+    lat = 90 - (np.arange(caliente.shape[0]) + 0.5) * 180 / caliente.shape[0]
+    w = caliente.sum(axis=1) * np.cos(np.deg2rad(lat))
+    return float((w * lat).sum() / w.sum() + 90) / 180
 
 
-rasgos, arbol, previo, cx_previo, cy_previo = [], None, None, 0.5, 0.5
-for k, frame in fotogramas_muestreados(cfg["video"], paso):
-    if arbol is None:
-        if not cfg.get("barra_imagen") and not barra_con_degradado(frame):
-            continue          # video que abre en negro/título: se espera al primer fotograma con barra
-        cv2.imwrite(sal("fotograma_ref.png"), frame)    # para medir rectángulos a mano
-        arbol, vals = tabla_desde_barra(frame)
-    campo = invertir(frame, arbol, vals, fija)
-    validos = ~np.isnan(campo)
-    caliente = (campo > cfg["umbral"]) & validos
-    area = caliente.sum() / max(validos.sum(), 1)
-    # centroide_y: latitud media (ponderada por cos(lat), el área real de cada píxel) de lo que está sobre el
-    # umbral; 0 = sur, 1 = norte; si no hay nada, el valor anterior (0,5 al inicio). Supone que el recorte va de +90 a -90.
-    if caliente.any():
-        lat = 90 - (np.arange(caliente.shape[0]) + 0.5) * 180 / caliente.shape[0]
-        w = caliente.sum(axis=1) * np.cos(np.deg2rad(lat))
-        cy = float((w * lat).sum() / w.sum() + 90) / 180
-    else:
-        cy = cy_previo
-    if validos.any():
-        media = media_campo(campo)
-        # centroide de lo que está POR ENCIMA de la media, ponderado por el exceso AL
-        # CUADRADO: así domina la zona caliente y no las ondulaciones suaves del fondo.
-        exceso = np.nan_to_num(np.clip(campo - media, 0, None)) ** 2
-        peso_col = exceso.sum(axis=0)
-        cx = float((peso_col * np.arange(len(peso_col))).sum() / peso_col.sum() / len(peso_col)) \
-            if peso_col.sum() > 0 else cx_previo
-    else:                                          # fotograma sin datos: se repite el anterior
-        media = previo if previo is not None else (cfg["vmin"] + cfg["vmax"]) / 2
-        cx = cx_previo
-        print(f"Aviso: t={k / fps_video:.2f} s sin píxeles válidos; se repite el valor anterior")
-    rasgos.append({
-        "t": round(k / fps_video, 3),
-        **({"fecha": etiqueta(FECHAS[min(k, len(FECHAS) - 1)], cfg.get("fechas_formato", "anio"))} if FECHAS else {}),
-        "media": round(media, 4),
-        "area": round(float(area), 4),
-        "centroide_x": round(float(cx), 4),            # 0 = izquierda, 1 = derecha
-        "centroide_y": round(float(cy), 4),            # 0 = sur, 1 = norte
-        "cambio": round(0.0 if previo is None else media - previo, 4),
-        "validos": round(float(validos.mean()), 3),
-    })
-    previo, cx_previo, cy_previo = media, cx, cy
+def centroide_x(campo, media, previo):
+    """Centroide de lo que está POR ENCIMA de la media, ponderado por el exceso AL CUADRADO: así
+    domina la zona caliente y no las ondulaciones suaves del fondo. 0 = izquierda, 1 = derecha."""
+    exceso = np.nan_to_num(np.clip(campo - media, 0, None)) ** 2
+    peso_col = exceso.sum(axis=0)
+    if peso_col.sum() > 0:
+        return float((peso_col * np.arange(len(peso_col))).sum() / peso_col.sum() / len(peso_col))
+    return previo
 
-if not rasgos:
-    sys.exit(f"Ningún fotograma del video tiene el degradado de la barra en {cfg['barra']}: revisa 'barra' "
-             "(¿coordenadas de otra resolución?). rasgos.json no se modificó.")
-if FECHAS and k > len(FECHAS) - 1:
-    print(f"AVISO: '{cfg['fechas']}' tiene {len(FECHAS)} líneas y el video llega al fotograma {k}: "
-          f"la última fecha ({FECHAS[-1]}) se repite al final.")
-_med = float(np.median([r["validos"] for r in rasgos]))
-if _med < 0.5:
-    print(f"AVISO: la mediana de 'validos' es {_med:.2f} (< 0,5): casi ningún píxel del mapa coincide con la barra. "
-          "Revisa 'mapa', 'barra', 'vmin/vmax' y 'dist_max' (mira salidas/fotograma_ref.png).")
-salida = {"fuente": cfg["video"], "vmin": cfg["vmin"], "vmax": cfg["vmax"],
-          "fps_rasgos": fps_video / paso, "rasgos": rasgos}
-if cfg.get("referencia") is not None:
-    salida["referencia"] = cfg["referencia"]
-for k in ("vmin_sonido", "vmax_sonido", "densidad_umbrales", "dron_octava", "dron_nivel",
-          "instrumento_melodia", "reverb", "ligar", "suavizado", "densidad", "octava", "dron_programa",
-          "humanizar", "regolpe_ligado", "regolpe_vel", "umbral_evento", "paneo"):
-    if cfg.get(k) is not None:
-        salida[k] = cfg[k]
-with open(sal("rasgos.json"), "w") as fh:
-    json.dump(salida, fh, indent=1)
-print(f"{len(rasgos)} fotogramas analizados -> {sal('rasgos.json')}  ({time.time() - t_inicio:.1f} s)")
-for r in rasgos[:: max(1, len(rasgos) // 6)]:
-    print(r)
-_m = [r["media"] for r in rasgos]
-print(f"media entre {min(_m):.3f} y {max(_m):.3f}: pon vmin_sonido/vmax_sonido en el config cerca de estos "
-      f"valores (y densidad_umbrales) para que la melodía use toda la escala")
+
+def extraer_rasgos(cfg, paso, fps_video, fija, fechas):
+    """Recorre el video y devuelve (lista de rasgos, índice del último fotograma leído)."""
+    pesos_fila = pesos_por_fila(cfg, fija.shape[0])
+    rasgos, arbol, vals, previo, cx_previo, cy_previo, k = [], None, None, None, 0.5, 0.5, 0
+    for k, frame in fotogramas_muestreados(cfg["video"], paso):
+        if arbol is None:
+            if not cfg.get("barra_imagen") and not barra_con_degradado(frame, cfg):
+                continue          # video que abre en negro/título: se espera al primer fotograma con barra
+            cv2.imwrite(sal("fotograma_ref.png"), frame)    # para medir rectángulos a mano
+            arbol, vals = tabla_desde_barra(frame, cfg)
+        campo = invertir(frame, arbol, vals, fija, cfg)
+        validos = ~np.isnan(campo)
+        caliente = (campo > cfg["umbral"]) & validos
+        area = caliente.sum() / max(validos.sum(), 1)
+        cy = centroide_y(caliente, cy_previo)
+        if validos.any():
+            media = media_campo(campo, pesos_fila)
+            cx = centroide_x(campo, media, cx_previo)
+        else:                                          # fotograma sin datos: se repite el anterior
+            media = previo if previo is not None else (cfg["vmin"] + cfg["vmax"]) / 2
+            cx = cx_previo
+            print(f"Aviso: t={k / fps_video:.2f} s sin píxeles válidos; se repite el valor anterior")
+        rasgos.append({
+            "t": round(k / fps_video, 3),
+            **({"fecha": etiqueta(fechas[min(k, len(fechas) - 1)], cfg.get("fechas_formato", "anio"))} if fechas else {}),
+            "media": round(media, 4),
+            "area": round(float(area), 4),
+            "centroide_x": round(float(cx), 4),            # 0 = izquierda, 1 = derecha
+            "centroide_y": round(float(cy), 4),            # 0 = sur, 1 = norte
+            "cambio": round(0.0 if previo is None else media - previo, 4),
+            "validos": round(float(validos.mean()), 3),
+        })
+        previo, cx_previo, cy_previo = media, cx, cy
+    return rasgos, k
+
+
+# ----------------------------------------------------------------------------- salida
+def avisar_problemas(cfg, rasgos, fechas, ultimo_k):
+    """Avisos que no detienen el proceso: fechas que no alcanzan y mapa que casi no coincide con la barra."""
+    if fechas and ultimo_k > len(fechas) - 1:
+        print(f"AVISO: '{cfg['fechas']}' tiene {len(fechas)} líneas y el video llega al fotograma {ultimo_k}: "
+              f"la última fecha ({fechas[-1]}) se repite al final.")
+    mediana = float(np.median([r["validos"] for r in rasgos]))
+    if mediana < 0.5:
+        print(f"AVISO: la mediana de 'validos' es {mediana:.2f} (< 0,5): casi ningún píxel del mapa coincide con la barra. "
+              "Revisa 'mapa', 'barra', 'vmin/vmax' y 'dist_max' (mira salidas/fotograma_ref.png).")
+
+
+def armar_salida(cfg, rasgos, fps_rasgos):
+    """El contenido de rasgos.json: los rasgos más los ajustes de sonido que 06 necesita."""
+    salida = {"fuente": cfg["video"], "vmin": cfg["vmin"], "vmax": cfg["vmax"],
+              "fps_rasgos": fps_rasgos, "rasgos": rasgos}
+    if cfg.get("referencia") is not None:
+        salida["referencia"] = cfg["referencia"]
+    for clave in CLAVES_MUSICALES:
+        if cfg.get(clave) is not None:
+            salida[clave] = cfg[clave]
+    return salida
+
+
+def imprimir_resumen(rasgos, segundos):
+    print(f"{len(rasgos)} fotogramas analizados -> {sal('rasgos.json')}  ({segundos:.1f} s)")
+    for r in rasgos[:: max(1, len(rasgos) // 6)]:
+        print(r)
+    medias = [r["media"] for r in rasgos]
+    print(f"media entre {min(medias):.3f} y {max(medias):.3f}: pon vmin_sonido/vmax_sonido en el config cerca de estos "
+          f"valores (y densidad_umbrales) para que la melodía use toda la escala")
+
+
+def main():
+    cfg = leer_config(sys.argv[1] if len(sys.argv) > 1 else cfg_ruta("config_video.json"))
+    t_inicio = time.time()
+    fps_video = abrir_y_validar_video(cfg)
+    paso = max(1, round(fps_video / cfg["fps_muestreo"]))
+    fija = mascara_fija(cfg, paso)
+    if fija.any():
+        print(f"Máscara fija: {fija.mean():.1%} del recorte descartado (estático o marcado a mano)")
+    fechas = leer_fechas(cfg["fechas"]) if cfg.get("fechas") else None
+    rasgos, ultimo_k = extraer_rasgos(cfg, paso, fps_video, fija, fechas)
+    if not rasgos:
+        sys.exit(f"Ningún fotograma del video tiene el degradado de la barra en {cfg['barra']}: revisa 'barra' "
+                 "(¿coordenadas de otra resolución?). rasgos.json no se modificó.")
+    avisar_problemas(cfg, rasgos, fechas, ultimo_k)
+    with open(sal("rasgos.json"), "w") as fh:
+        json.dump(armar_salida(cfg, rasgos, fps_video / paso), fh, indent=1)
+    imprimir_resumen(rasgos, time.time() - t_inicio)
+
+
+if __name__ == "__main__":
+    main()
