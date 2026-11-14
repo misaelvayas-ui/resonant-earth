@@ -2,7 +2,7 @@
  "id": "gistemp_1880_2023",
  "seg_por_fotograma": 0.5,
  "tolerancia_pan": 0.02,
- "nota": "nota/notas/dron/pan salen de control.json (lo que sonó); ganancia = 10^((-6 + 6*area/area_max)/20) (velocidad MIDI nominal = round(127*ganancia)); t = inicio del fotograma en el audio (s)",
+ "nota": "nota/notas/dron/pan salen de control.json (lo que sonó); ganancia = 10^((-6 + 6*areaN)/20), areaN = (area - area_min)/(area_max - area_min) (velocidad MIDI nominal = round(127*ganancia)); t = inicio del fotograma en el audio (s)",
  "fotogramas": [
   {
    "i": 0,
@@ -40,7 +40,7 @@
     64
    ],
    "dron": 60,
-   "pan": -0.725169,
+   "pan": 0.0,
    "ganancia": 0.505757,
    "velocidad": 64,
    "evento_fuerte": false,
@@ -68,7 +68,7 @@
     64
    ],
    "dron": 60,
-   "pan": -0.50063,
+   "pan": 0.0,
    "ganancia": 0.504534,
    "velocidad": 64,
    "evento_fuerte": false,
@@ -96,7 +96,7 @@
     64
    ],
    "dron": 60,
-   "pan": -0.877505,
+   "pan": 0.0,
    "ganancia": 0.502523,
    "velocidad": 64,
    "evento_fuerte": true,
@@ -110,7 +110,7 @@
     67
    ],
    "dron": 60,
-   "pan": -0.80732,
+   "pan": 0.0,
    "ganancia": 0.506431,
    "velocidad": 64,
    "evento_fuerte": false,
@@ -124,7 +124,7 @@
     64
    ],
    "dron": 60,
-   "pan": -0.828161,
+   "pan": 0.0,
    "ganancia": 0.505573,
    "velocidad": 64,
    "evento_fuerte": false,
@@ -138,7 +138,7 @@
     64
    ],
    "dron": 60,
-   "pan": -0.371285,
+   "pan": 0.0,
    "ganancia": 0.502402,
    "velocidad": 64,
    "evento_fuerte": true,
@@ -152,7 +152,7 @@
     62
    ],
    "dron": 60,
-   "pan": -0.380025,
+   "pan": 0.0,
    "ganancia": 0.506002,
    "velocidad": 64,
    "evento_fuerte": true,
@@ -166,7 +166,7 @@
     62
    ],
    "dron": 60,
-   "pan": 0.1867,
+   "pan": 0.0,
    "ganancia": 0.501916,
    "velocidad": 64,
    "evento_fuerte": true,
@@ -180,7 +180,7 @@
     60
    ],
    "dron": 60,
-   "pan": -0.065671,
+   "pan": 0.0,
    "ganancia": 0.502828,
    "velocidad": 64,
    "evento_fuerte": false,
@@ -194,7 +194,7 @@
     62
    ],
    "dron": 60,
-   "pan": -0.528059,
+   "pan": 0.0,
    "ganancia": 0.501187,
    "velocidad": 64,
    "evento_fuerte": false,
@@ -208,7 +208,7 @@
     62
    ],
    "dron": 60,
-   "pan": -1.0,
+   "pan": 0.0,
    "ganancia": 0.501612,
    "velocidad": 64,
    "evento_fuerte": false,
@@ -222,7 +222,7 @@
     64
    ],
    "dron": 60,
-   "pan": -0.643421,
+   "pan": 0.0,
    "ganancia": 0.505268,
    "velocidad": 64,
    "evento_fuerte": false,
@@ -460,7 +460,7 @@
     72
    ],
    "dron": 60,
-   "pan": 0.506835,
+   "pan": 0.0,
    "ganancia": 0.503741,
    "velocidad": 64,
    "evento_fuerte": false,
@@ -474,7 +474,7 @@
     69
    ],
    "dron": 60,
-   "pan": -0.233201,
+   "pan": 0.0,
    "ganancia": 0.505696,
    "velocidad": 64,
    "evento_fuerte": false,
@@ -488,7 +488,7 @@
     69
    ],
    "dron": 60,
-   "pan": -0.762816,
+   "pan": 0.0,
    "ganancia": 0.506186,
    "velocidad": 64,
    "evento_fuerte": false,
@@ -502,7 +502,7 @@
     69
    ],
    "dron": 60,
-   "pan": -1.0,
+   "pan": 0.0,
    "ganancia": 0.503985,
    "velocidad": 64,
    "evento_fuerte": false,
@@ -811,9 +811,9 @@
    "nota": 91,
    "notas": [
     91,
-    93,
-    96,
-    96
+    88,
+    86,
+    84
    ],
    "dron": 60,
    "pan": -0.154276,
@@ -828,9 +828,9 @@
    "nota": 91,
    "notas": [
     91,
-    93,
-    96,
-    96
+    88,
+    86,
+    84
    ],
    "dron": 60,
    "pan": -0.163822,
@@ -845,9 +845,9 @@
    "nota": 93,
    "notas": [
     93,
-    96,
-    96,
-    96
+    91,
+    88,
+    86
    ],
    "dron": 60,
    "pan": -0.206175,
@@ -862,9 +862,9 @@
    "nota": 93,
    "notas": [
     93,
-    96,
-    96,
-    96
+    91,
+    88,
+    86
    ],
    "dron": 60,
    "pan": -0.217268,

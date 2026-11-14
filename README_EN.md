@@ -20,11 +20,11 @@ NASA data used: **SVS 5207 — Global temperature anomalies 1880–2023 (GISTEMP
 | Data from the map | Sound |
 |---|---|
 | average value (`media`) | **pitch** of the main voice (pentatonic scale, 3 octaves) |
-| hot area (`area`) | **loudness** of the voice (−6 to 0 dB) |
-| position of the heat (`centroide_x` or `centroide_y`, depending on `paneo`) | **panning** left ↔ right (with `"paneo": "y"`: south ↔ north; GISTEMP uses it) |
+| hot area (`area`) | **loudness** of the voice (−6 to 0 dB, between the smallest and the largest area of the track) |
+| position of the heat (`centroide_x` or `centroide_y`, depending on `paneo`) | **panning** left ↔ right (with `"paneo": "y"`: south ↔ north; GISTEMP and SST use it); with `area` < 0.01 the sound goes to the centre |
 | note change | a **pluck** |
-| reference value (e.g. 0 °C) | a steady **drone** (pad) one octave below the note the melody plays for that value: you can hear whether the present is above or below it |
-| high anomaly | **more notes per frame** (1, 2 or 4, as a rising arpeggio) |
+| reference value (e.g. 0 °C) | a continuous **drone** (sustained pad, GM 90) for the whole track, one octave below the note the melody plays for that value: you can hear whether the present is above or below it |
+| high anomaly | **more notes per frame** (1, 2 or 4, as a rising arpeggio; at the top of the scale, falling from the base note) |
 
 With the real video, the extracted average follows the official GISTEMP curve with a correlation of **0.99** (58 sampled years).
 
@@ -83,7 +83,7 @@ All commands are run **from the project root**; otherwise the script tells you.
 ## Quick start
 
 ```bash
-python evaluar.py                                  # 37 PASS/FAIL tests in 1-2 minutes (does not touch salidas/)
+python evaluar.py                                  # 45 PASS/FAIL tests in 1-2 minutes (does not touch salidas/)
 python 04_video_sintetico.py && python 05_video_a_rasgos.py && python 06_rasgos_a_audio.py && python 07_validar.py
 python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 ```
@@ -131,7 +131,7 @@ sintesis.py  rutas.py  fechas.py  parametros.py  04…08_*.py  evaluar.py    cod
 config/        configurations for 05
 datos/         downloaded videos and color bars (ignored by git)
 salidas/       everything generated (WAV, MP4, PNG, JSON)
-herramientas/  calibrar.py (calibration) and exportar_mapeo.py (data → sound mapping for a live mode)
+herramientas/  calibrar.py (calibration), exportar_mapeo.py (data → sound mapping for a live mode) and exportar_web.py (builds the web videos from the same audio as the demo)
 web/           the accessible web jukebox, in Spanish and English
 docs/          CAMBIOS.txt (change log), audits and specifications (in Spanish)
 archivo/       early exercises

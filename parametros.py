@@ -15,6 +15,10 @@ TICKS_F = int(SEG_POR_FOTOGRAMA * TPB * BPM / 60)     # ticks MIDI de un fotogra
 # --- escala de la melodía ---------------------------------------------------
 TONICA_MIDI, OCTAVAS = 48, 3     # pentatónica mayor de Do3 a Do6 (16 notas)
 
+# --- volumen y paneo --------------------------------------------------------
+AREA_CENTRO = 0.01               # con area < 1 % del mapa el paneo va al centro (pan = 0)
+DRON_FLUID = 0.35                # con FluidSynth el dron se lleva a este múltiplo del nivel del respaldo numpy (~7 dB bajo la marimba)
+
 # --- articulación -----------------------------------------------------------
 VEL_FUERTE = 100                 # velocidad MIDI mínima del ataque en un cambio brusco
 SEMILLA_HUMANIZAR = 12345        # semilla fija: el mismo resultado en cada ejecución
@@ -22,8 +26,8 @@ SEMILLA_HUMANIZAR = 12345        # semilla fija: el mismo resultado en cada ejec
 # --- ajustes musicales opcionales de 06 y su valor por defecto ---------------
 # (van en el config de 05, que los copia a rasgos.json; ver la cabecera de 06)
 DEFECTOS = {"ligar": True, "suavizado": 3, "densidad": True, "octava": 1, "humanizar": True,
-            "instrumento_melodia": 13, "dron_programa": 89, "dron_octava": 0, "dron_nivel": 0.048,
-            "reverb": 50, "paneo": "x", "regolpe_ligado": 2, "regolpe_vel": 0.4, "umbral_evento": None}
+            "instrumento_melodia": 13, "dron_programa": 90, "dron_octava": 0, "dron_nivel": 0.048,
+            "reverb": 50, "paneo": "x", "regolpe_ligado": 1, "regolpe_vel": 0.7, "umbral_evento": None}
 
 # --- claves que 05 copia del config a rasgos.json ----------------------------
 # EL ORDEN IMPORTA: es el orden en que quedan escritas en rasgos.json. No lo cambies.

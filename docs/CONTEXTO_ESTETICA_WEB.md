@@ -2,7 +2,7 @@
 
 > **Para el asistente de IA que lee esto:** tu tarea es ayudarme a escribir **prompts** que le daré a Claude Code (el asistente que programa en mi computadora) para probar variantes estéticas de la página web: colores, tamaños, formas, tipografía, espaciados y efectos. Este documento te da todo el contexto. Cuando te pida ideas, devuélveme prompts concretos, listos para pegar, que respeten las reglas de la sección 8.
 >
-> **Actualizado el 14 de noviembre de 2026 (rondas 28 a 31):** la web ya tiene tres pistas (dos reales de la NASA y el ejemplo), español e inglés, tema claro, ayuda, voz, momentos clave y ejemplos de sonido. Las secciones 2 y 3 describen ese estado. Las secciones 4 y 5 son historia del diseño (versiones 5 y 6) y se dejan como estaban. La guía vigente y corta es `web/GUIA_ESTILO.md`.
+> **Actualizado el 14 de noviembre de 2026 (rondas 31 a 34):** la web ya tiene tres pistas (dos reales de la NASA y el ejemplo), español e inglés, tema claro, ayuda, voz, momentos clave y ejemplos de sonido. Las secciones 2 y 3 describen ese estado. Las secciones 4 y 5 son historia del diseño (versiones 5 y 6) y se dejan como estaban. La guía vigente y corta es `web/GUIA_ESTILO.md`.
 >
 > Estado descrito en las secciones históricas: **13 de noviembre de 2026**. La sección 4 describe la versión 5 ("espacial"); la variante 6, **"universo-movil"**, se probó encima de ella en la rama `estilo-universo-movil` (ver el recuadro de la sección 4). El código real en `web/` manda sobre este documento si algo no coincide.
 
@@ -51,7 +51,7 @@ La **web** (`web/`) es la cara visible: una "rocola" donde eliges una visualizac
 | `catalogo.json` | lista de visualizaciones: **tres** (GISTEMP 1880–2023, ECCO2 2007–2008 y el ejemplo "Mancha de calor viajera"), con textos en español e inglés |
 | `assets/logo.jpg`, `logo-240.jpg`, `icono-64.png`, `icono-180.png` | logo generado con IA: **un cuadrado con fondo azul oscuro**, la Tierra con auriculares y ondas de sonido, anillos dorados y verde azulado |
 | `assets/fonts/` | Unbounded 500 y 600; Plus Jakarta Sans 400 y 600; Space Mono 400 y 700 (+ licencias) |
-| `capturas/escritorio.png`, `capturas/movil.png`, `capturas/escritorio_claro_en.png` | capturas del diseño actual (ronda 30) |
+| `capturas/escritorio.png`, `capturas/movil.png`, `capturas/escritorio_claro_en.png` | capturas del diseño actual (ronda 33) |
 | `README.md` | describe diseño y accesibilidad; **hay que actualizarlo** si cambian colores o fuentes |
 
 ---
@@ -315,6 +315,6 @@ en el gráfico, capturas nuevas, evaluar.py, y explícame en español simple qu�
 ## 10. Pendientes conocidos
 
 - Nada tiene commit todavía. La variante 6 (universo-movil) está en la rama `estilo-universo-movil`. En `git stash list` están la 5 ("v5 espacial (respaldo antes de universo-movil)") y la 4 ("v4 familia Rumbo (respaldo antes del estilo espacial)").
-- (Resuelto) `python evaluar.py` da 36 PASA, 0 FALLA y 1 OMITIDA en macOS (ronda 29). En la consola de Windows hay que correrlo con `PYTHONIOENCODING=utf-8`.
-- (Resuelto en la ronda 28) El catálogo ya tiene tres pistas.
+- (Resuelto) `python evaluar.py` da 36 PASA, 0 FALLA y 1 OMITIDA en macOS (ronda 32). En la consola de Windows hay que correrlo con `PYTHONIOENCODING=utf-8`.
+- (Resuelto en la ronda 31) El catálogo ya tiene tres pistas.
 - No existe la carpeta `web/referencias/`. Si quiero que se usen capturas de referencia, hay que crearla y guardarlas ahí.

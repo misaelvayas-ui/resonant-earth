@@ -792,7 +792,77 @@ Verificado (Windows 11, Chrome headless, axe-core 4.10.2): 0 violaciones en escr
 teclado (Tab, Enter, Espacio, flechas) sin cambios; sin errores en la consola. La marca se lee en las dos capturas.
 evaluar.py no se volvió a correr: no se tocó ningún script del pipeline.
 
-RONDA 28 - web/: pistas reales, inglés, tema claro, ayuda, voz, momentos clave y ejemplos de sonido   (2026-11-14)
+RONDA 28 - auditoría 3 (docs/AUDITORIA_3.md): parche 1-4 y 12a, arpegio, volumen min-max, paneo al centro y protección en preparar_datos (rama misael/auditoria3)   (2026-11-14)
+Antes: commit 0505d9d (master, con los PR #3, #4 y #5). La ronda 26 es la de Juan (tono por hemisferios, PR #6, no tocado). Decisiones de Misael: 1-4, 5, 6 y 13 sí; 7 no se calibra.
+1. Hallazgo 1 (calibrar): con modo matiz escribe dist_max 4 (unidades de matiz), borde_px 0 y mascara_estatica false; sin --modo-color se mantiene el modo del config
+   que ya exista; al volver a Lab no se heredan las claves de matiz. Antes: validos 0,067 y media 25,2 °C con el config generado; ahora 0,26 y 21,97 como config_sst.json.
+2. Hallazgo 2 (05): "validos_min" (0,5; 0,1 en matiz) en vez de la alarma falsa con SST; aviso si más del 2 % de la barra no se puede leer por matiz.
+3. Hallazgo 3 (05): AVISO si más del 20 % de las medias cae fuera de vmin_sonido..vmax_sonido (escala 0,25 con config_sst: 39 de 61).
+4. Hallazgo 4 (fechas.py): segundos, mes/día de 1 cifra y zona; mes imposible = texto crudo sin traza; 2.ª columna solo si es ISO. 12a: _mapeo.json sin la ruta local de "fuente".
+5. Hallazgo 5 (06): arpegio descendente desde la nota base si arriba no caben las k notas. GISTEMP: 4 fotogramas cambian (2021, 2023 x3), ataques 69 -> 75; SST: 5 fotogramas
+   (mar 2007 x2, abr 2007 x2, jun 2007), ataques 110 -> 117. La nota base no cambia en ninguno. 07 sigue en PASA (2,7 y 2,8 cents).
+6. Hallazgo 6 (06): el volumen normaliza el área entre su mínimo y su máximo (sin variación: 0 dB si hay zona caliente, -6 dB si no). SST: de -0,8..0 a -6..0 dB (velocidad
+   mínima 116 -> 64). GISTEMP: idéntico (su área mínima es 0). También en el respaldo numpy.
+7. Hallazgo 13 (06): con area < 0,01 (AREA_CENTRO) el paneo va al centro (pan = 0; el suavizado de 0,15 s del WAV no cambia). GISTEMP: 16 de 60 fotogramas pasan a pan 0
+   (antes de -1,0 a +0,19); rango de pan sigue en -1,00..+1,00; los fotogramas con |pan| > 0,7 bajan de 21 a 14 y desaparece el único salto > 1. SST no cambia (área mínima 0,43).
+   Efecto en el sintético: su área es 0 en 18 de 40 fotogramas, así que el barrido empieza en el centro. 07 mide el paneo solo donde area >= 0,01 y exige que el balance suba
+   hacia la derecha (> 6 dB, Spearman > 0,9) en vez de empezar a la izquierda; G3 usa area 0,1.
+8. Hallazgo 7: no se calibra. La descripción de SST (docs/catalogo_propuesto.json) dice que es un índice relativo y que el ciclo sale amplificado ~1,7 veces. web/catalogo.json no tiene
+   entrada de SST (solo el ejemplo sintético): no se tocó. En la de GISTEMP, "60 años" -> "60 momentos" (hay 58 años distintos).
+9. web/preparar_datos.py: comprobar_fuente() aborta (sin tocar web/assets/) si salidas/rasgos.json no es del video de GISTEMP o no existe. Nada más de web/ cambió, salvo los
+   archivos regenerados de web/assets/.
+10. Regeneración (orden de la auditoría): salidas_gistemp y salidas_sst (05 -> 06 -> 07 -> 08; rasgos.json idéntico), exportar_mapeo (_mapeo.json con area_min, rango_minimo y
+   area_centro; _esperado.json con las notas, el pan y la ganancia nuevos), MP4 de web/assets (1024x512, CRF 28: GISTEMP 4,2 MB, SST 10,1 MB; _rasgos.json idénticos),
+   docs/ESPEC_MODO_EN_VIVO.md (reglas nuevas y citas de línea de 06 actualizadas) y README.
+11. evaluar.py: 43 PASA, 0 FALLA. Nuevas: H4 (calibrar matiz), H5 (avisos de 05), J1 (pan al centro), J2 (volumen min-max), J3 (arpegio), J4 (protección de preparar_datos);
+   ampliada H3 (formatos de fecha raros); E2 e I1 actualizadas a las reglas nuevas. Las nuevas FALLAN con el código anterior (comprobado en una copia).
+Pendiente: hallazgos 8 (PR #6), 9 (resto), 10, 11 y 14 de AUDITORIA_3.md.
+
+RONDA 29 - dron continuo, re-golpe más fuerte y MP4 web desde el mismo audio que el demo (rama misael/auditoria3)   (2026-11-14)
+Antes: commit c07a9d8 (ronda 28). Problema medido en el WAV de SST: silencio casi total (-50 a -70 dB) en 14,0-15,0 s, 17,5-19,0 s y 22,5 s; GISTEMP, 17 ventanas de 0,5 s < -40 dB.
+Causa (dos fallos que se suman): a) en los fotogramas 28, 30, 35, 37 y 45 de SST no hay ningún golpe: la nota va ligada (06:189, la nota se alarga) y la marimba decae en < 1 s;
+el re-golpe de cada 2 fotogramas salía con velocidad 28-42. b) el dron (GM 89, Pad 1 new age de FluidR3) DECAE: -57 dB al inicio y -96 dB a los 6 s (con velocidad 127: -34 -> -89 dB), así que
+no rellenaba esos huecos. El note-off del dron no es la causa (dura hasta el final, 06:226-227).
+1. 06: dron_programa 90 (Pad 2 warm, nivel constante) y renormalización del RMS del dron a DRON_FLUID (0,35) x dron_nivel / raiz(2), ~7 dB bajo la marimba, como el respaldo numpy.
+   La velocidad MIDI del dron (27) solo queda en el .mid.
+2. 06: regolpe_vel por defecto 0,4 -> 0,7. Notas, arpegios, pan y ataques IDÉNTICOS (cmp de control.json en las dos pistas); solo cambian las velocidades de 5 (GISTEMP) y 3 (SST) re-golpes
+   (24-27 -> 42-46 y 28-42 -> 49-72). Con 0,6: 16 y 7 ventanas de marimba flojas; 0,7: 14 y 7; 1,0: 12 y 5. Re-golpear cada fotograma (regolpe_ligado 1) las bajaría a 4 y 3 pero añade
+   ataques (75 -> 89, 117 -> 125): NO se aplicó, queda como opción.
+3. 07: TOL_DRON 100 cents (antes 50) alrededor de los armónicos del dron: el pad warm tiene chorus y su pico es más ancho (sin esto, 07 fallaba con 1948 cents en el sintético).
+4. herramientas/exportar_web.py (nuevo): construye los MP4 y rasgos de web/assets desde carpeta de salidas (rocola.wav, rasgos.json, video original sin texto) y COMPRUEBA que el audio del MP4 y el de
+   cada demo_*.mp4 son el de rocola.wav (RMS y balance L/R por ventana de 0,5 s). Escribe <id>_procedencia.json (sha256 de rocola.wav, rasgos.json y MP4).
+5. Web vs demo (pendiente del mensaje anterior): el MP4 web de GISTEMP que vio Misael (740b868 = origin/master, 11:45) salió del WAV que se regeneró en una carpeta temporal a las 11:14 con el
+   06 de la ronda 26, ANTES de las reglas 5, 6 y 13 (pan -12, -17 dB en los primeros años; saltaba de -0,96 a +1). El de c07a9d8 (12:34) sí salía del rocola.wav de salidas_gistemp (12:32) y era
+   idéntico al demo (RMS 0,02 dB, balance 0,01 dB de mediana), pero no estaba en master. Ahora: web y demos se comprueban contra el mismo rocola.wav (ver 4).
+6. _mapeo.json: dron.programa_gm (90), dron.factor_fluidsynth (0,35), dron.rms, dron.continuo; articulacion.regolpe_vel 0,7. _esperado.json NO cambia (notas, pan y ganancia idénticos).
+   docs/ESPEC_MODO_EN_VIVO.md: regla del dron continuo a ~-7 dB de la melodía, GM 90, re-golpe 0,7 y las citas de línea de 06 actualizadas. README.
+Resultados (ventanas de 0,5 s del WAV; marimba = canal 0 solo, "más de 15 dB bajo su nivel medio"):
+   GISTEMP  antes: 17 ventanas < -40 dB, 11 caídas > 12 dB (máx. 37,7), mínima -69,9 dB, marimba floja 17 de 60  ->  después: 0, 0 (máx. 5,4 dB), -25,8 dB, 14 de 60
+   SST      antes:  7 ventanas < -40 dB,  5 caídas > 12 dB (máx. 34,2), mínima -69,5 dB, marimba floja  8 de 61  ->  después: 0, 0 (máx. 3,8 dB), -25,2 dB,  7 de 61
+   07: 2 PASA + 3 NO APLICA en las dos (error de tono 13,0 cents en GISTEMP, 2,9 en SST). evaluar.py: 45 PASA (nuevas K1 y K2; E2 con el re-golpe a 0,7).
+
+RONDA 30 - re-golpe en cada fotograma (regolpe_ligado 1) (rama misael/auditoria3)   (2026-11-14)
+Antes: commit bcb905b (ronda 29). Los números de ronda de esta rama se renumeraron al fusionar con master: la ronda 27 de master es la de Juan (marca "Generado con IA"), así que
+la auditoría 3 pasó de 27 a 28 y el dron continuo de 28 a 29.
+Decisión de Misael: aplicar la opción que quedó sin aplicar en la ronda 29.
+1. 06 y herramientas/exportar_mapeo.py: regolpe_ligado por defecto 2 -> 1 (con regolpe_vel 0,7): una nota ligada se vuelve a tocar suave en CADA fotograma. Es el valor por defecto,
+   no una clave de config: vale también para las pistas sin la clave (GISTEMP, SST, sintético). La línea 06:72 es la misma, así que las citas de la especificación no se mueven.
+2. control.json en las dos pistas: notas, pan, ataque_en_fotograma, evento_fuerte, dron y cruce_dron IDÉNTICOS. Solo cambian las listas de ataques (ataques, notas_ataque, inicio_ticks,
+   tipo_ataque, regolpe_en_fotograma): se añaden re-golpes (GISTEMP 75 -> 89 ataques, 5 -> 19 re-golpes; SST 117 -> 125, 3 -> 11) y no se pierde ningún ataque (comprobado por
+   tupla tick-nota-tipo). _esperado.json NO cambia (notas, pan y ganancia); _mapeo.json solo cambia articulacion.regolpe_ligado 2 -> 1.
+3. Regenerado en el orden de siempre: 06 -> 07 (2 PASA + 3 NO APLICA; error de tono 2,8 y 2,9 cents) -> 08 (demo_gistemp.mp4, demo_sst.mp4) -> exportar_mapeo -> exportar_web (MP4 web; el audio
+   de cada MP4 y de cada demo coincide con su rocola.wav: RMS <= 0,68 dB, balance <= 0,82 dB).
+4. evaluar.py: E2 calcula ahora el re-golpe en cada fotograma. 45 PASA, 0 FALLA.
+5. README y docs/ESPEC_MODO_EN_VIVO.md: re-golpe en cada fotograma; README: dron pad 90.
+Resultados (ventanas de 0,5 s; marimba = canal 0 solo, "más de 15 dB bajo su nivel medio"):
+   GISTEMP  marimba floja 14 de 60 (regolpe_vel 0,7, cada 2) -> 4 de 60;  WAV completo: 0 ventanas < -40 dB, 0 caídas > 12 dB, mínima -25,9 dB
+   SST      marimba floja  7 de 61 -> 3 de 61;                              WAV completo: 0 ventanas < -40 dB, 0 caídas > 12 dB, mínima -25,3 dB
+
+(Nota de la fusión con master, ronda 35: estas cuatro rondas se anotaron en la rama mejora/auditoria-clean-code como 28,
+29, 30 y 31. Al fusionar, master ya traía sus rondas 28, 29 y 30 (auditoría 3), así que pasan a ser 31, 32, 33 y 34. Los
+mensajes de sus commits conservan el número viejo: 4da87f6 = 31, 365c14f = 32, d5862ec = 33, f7edcb1 = 34.)
+
+RONDA 31 - web/: pistas reales, inglés, tema claro, ayuda, voz, momentos clave y ejemplos de sonido   (2026-11-14)
 Hecho con ayuda de IA (Claude, de Anthropic). Rama mejora/auditoria-clean-code. Antes: commit 2ee2291.
 Solo se tocó web/ y este archivo. Sin frameworks ni compilación: HTML, CSS y JS puros.
 Problema: la página solo mostraba el ejemplo sintético (las dos pistas reales de la NASA estaban en web/assets/ pero no en
@@ -831,7 +901,7 @@ Falta: revisión visual a fondo con capturas (1440 y 390 px, dos temas), actuali
 docs/CONTEXTO_ESTETICA_WEB.md y las capturas. evaluar.py antes de esta ronda: 36 PASA, 0 FALLA, 1 OMITIDA (F4, sin
 drawtext en este ffmpeg); no se tocó ningún script del pipeline.
 
-RONDA 29 - Python más limpio: 04-07 en funciones con main() y constantes en parametros.py   (2026-11-14)
+RONDA 32 - Python más limpio: 04-07 en funciones con main() y constantes en parametros.py   (2026-11-14)
 Hecho con ayuda de IA (Claude, de Anthropic). Rama mejora/auditoria-clean-code. Antes: commit 4da87f6.
 Problema: 04, 05, 06 y 07 tenían casi todo el código suelto a nivel de módulo, con variables globales (cfg, MODO, ESC,
 PESOS_FILA, FECHAS, R, d...) que las funciones leían sin recibirlas. Las mismas constantes estaban copiadas en tres
@@ -862,7 +932,7 @@ config_video.json y el texto que imprime cada script (8 de 8).
 evaluar.py (macOS, respaldo numpy): antes 36 PASA, 0 FALLA, 1 OMITIDA -> después 36 PASA, 0 FALLA, 1 OMITIDA (F4:
 este ffmpeg no trae drawtext), 102 s.
 
-RONDA 30 - web/: revisión visual a fondo (distribución, tamaños, momentos clave, zonas táctiles)   (2026-11-14)
+RONDA 33 - web/: revisión visual a fondo (distribución, tamaños, momentos clave, zonas táctiles)   (2026-11-14)
 Hecho con ayuda de IA (Claude, de Anthropic). Rama mejora/auditoria-clean-code. Antes: commit 365c14f.
 Solo se tocó web/, docs/CONTEXTO_ESTETICA_WEB.md y este archivo. Sin frameworks ni compilación.
 Cómo se revisó: mirando capturas a 1440, 1100, 768, 390 y 320 px, en tema oscuro y claro, en español e inglés, con las
@@ -906,9 +976,9 @@ reproducir y pausar, arrastrar el progreso, clic en el gráfico, los 5 momentos,
 voz (habla en el idioma elegido, la música baja de 0,40 a 0,14 y se calla al pausar), Espacio, flechas y "?",
 recordar idioma, tema y casillas al recargar, abrir con #id y con ?lang=, y el aviso cuando el catálogo no carga.
 No probado: alto contraste forzado de Windows ni un lector de pantalla real (solo nombres accesibles por código).
-evaluar.py no se volvió a correr: no se tocó ningún script del pipeline desde la ronda 29.
+evaluar.py no se volvió a correr: no se tocó ningún script del pipeline desde la ronda 32.
 
-RONDA 31 - Documentación: uso de IA, referencias y README en inglés   (2026-11-14)
+RONDA 34 - Documentación: uso de IA, referencias y README en inglés   (2026-11-14)
 Hecho con ayuda de IA (Claude, de Anthropic). Rama mejora/auditoria-clean-code. Antes: commit d5862ec.
 Problema: las reglas del evento piden declarar el uso de IA, una lista de referencias e inglés en todo material
 enlazado desde la entrega. El README solo tenía una línea sobre la web, no mencionaba la segunda pista de la NASA en
@@ -917,5 +987,20 @@ la presentación y solo estaba en español.
    sección "La página web", sección "Uso de IA" (código, documentación, logo con marca visible, qué NO es IA: el sonido
    y las descripciones salen de reglas fijas; datos) y "Referencias". Enlace a la versión en inglés arriba.
 2. README_EN.md (nuevo): la misma información en inglés, con una nota: el código y el registro de cambios están en español.
-3. docs/CAMBIOS.txt, ronda 30: corregidos dos números con la medida real (cabecera 228 px, video a 702 px).
+3. docs/CAMBIOS.txt, ronda 33: corregidos dos números con la medida real (cabecera 228 px, video a 702 px).
 No se tocó código. evaluar.py no se volvió a correr.
+
+RONDA 35 - fusión de master (auditoría 3, PR 8) en mejora/auditoria-clean-code   (2026-11-14)
+Hecho con ayuda de IA (Claude, de Anthropic). Antes: commit f7edcb1; master en 329aa65.
+Problema: master cambió el sonido (rondas 28-30) en los mismos archivos que la ronda 32 había reordenado: el PR 9 chocaba.
+1. 05, 06 y 07: se conserva la estructura en funciones y se llevan a ella los cambios de master: avisos nuevos de 05
+   (avisar_barra_gris, validos_min, rango de sonido), volumen min-max (ganancia_por_area), paneo al centro con
+   area < 0,01, arpegio descendente, dron GM 90 con RMS fijo (nivelar_dron), re-golpe 1 / 0,7, TOL_DRON y Spearman en 07.
+   AREA_CENTRO y DRON_FLUID van a parametros.py; exportar_mapeo.py y exportar_web.py los importan de ahí.
+2. docs/ESPEC_MODO_EN_VIVO.md: versión de master, con sus citas "06:NNN" pasadas a "archivo: función()".
+3. CAMBIOS.txt: las rondas de esta rama pasan de 28-31 a 31-34. README: 45 pruebas, exportar_web, AUDITORIA_3.
+Comprobado: con master (más el escritor de video de macOS) y con esta fusión, rasgos.json, control.json, rocola.mid y
+rocola.wav son IGUALES byte a byte (cmp) en el ejemplo sintético y en las dos pistas reales (13 de 13 archivos, 8 de 8
+textos). Solo con el respaldo numpy: nivelar_dron (FluidSynth) no se pudo ejecutar en este Mac.
+Web: las tres pistas cargan y suenan con los MP4 nuevos de master; sin errores en consola.
+PENDIENTE: evaluar.py estaba corriendo al guardar esta ronda; su resultado NO está confirmado todavía.

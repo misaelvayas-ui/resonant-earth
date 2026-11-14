@@ -10,7 +10,9 @@ Uso (desde la raíz):  python -m herramientas.calibrar [opciones]
   --orientacion auto|vertical|horizontal   de la barra PNG (auto: la que tenga el degradado más grande)
   --mapa X0,Y0,X1,Y1   rectángulo del mapa medido a mano (omite la detección automática por paleta, que
                         falla en videos cuyo color pierde brillo, como ECCO2; con --modo-color matiz es obligatorio)
-  --modo-color lab|matiz   se copia a 'modo_color' del config (ver 05); con matiz no se calcula dist_max
+  --modo-color lab|matiz   se copia a 'modo_color' del config (ver 05). Sin la opción se mantiene el modo del config
+                        que ya exista. Con matiz escribe dist_max 4 (unidades de matiz), borde_px 0 y mascara_estatica false
+                        (medidos con ECCO2; si el config ya era matiz se respetan los suyos)
 Genera ese config (conserva las claves musicales que ya tuviera) y salidas/calibracion.png (revísalo: rectángulos y cuadrícula).
 
 Qué detecta:
@@ -190,6 +192,14 @@ def main():
         if os.path.normpath(a.video) != os.path.normpath("datos/2023GISTEMP_Map_SOS.mp4"):
             sys.exit(f"Indica --barra <PNG de la barra de colores de '{a.video}'>: la de GISTEMP no sirve para otro video.")
         a.barra = "datos/giss_navy_anomaly_Vertical-both.png"
+    # un config por video (no se pisan entre sí). El modo de color efectivo es el de --modo-color o, si no se
+    # pasa, el del config que ya exista: así no se mezclan claves de un modo con las del otro
+    ruta = a.salida or cfg_ruta("config_" + os.path.splitext(os.path.basename(a.video))[0] + ".json")
+    previo = {}
+    if os.path.exists(ruta):
+        with open(ruta) as fh:
+            previo = json.load(fh)
+    modo = a.modo_color or previo.get("modo_color", "lab")
     rect_b, vertical = rect_degradado_orientado(a.barra, a.orientacion)
     print(f"Degradado de la barra PNG (x0, y0, x1, y1) = {rect_b} ({'vertical' if vertical else 'horizontal'})")
     frame, n_frames, fps = leer_cuadro(a.video, a.cuadro)
@@ -206,8 +216,8 @@ def main():
         if not (0 <= x0 < x1 <= ancho and 0 <= y0 < y1 <= alto):
             sys.exit(f"--mapa {rect_m} se sale del video ({ancho}x{alto}).")
         dist = arbol.query(lab(cv2.resize(frame[y0:y1, x0:x1], None, fx=0.25, fy=0.25, interpolation=cv2.INTER_AREA)))[0]
-    elif a.modo_color == "matiz":
-        sys.exit("Con --modo-color matiz indica el mapa a mano (--mapa X0,Y0,X1,Y1): la detección usa la paleta en Lab.")
+    elif modo == "matiz":
+        sys.exit("Con modo_color matiz indica el mapa a mano (--mapa X0,Y0,X1,Y1): la detección usa la paleta en Lab.")
     else:
         rect_m, dist = rect_mapa(frame, arbol)
     print(f"Mapa en el video (x0, y0, x1, y1) = {rect_m}  (video {ancho}x{alto}, {n_frames} fotogramas, {fps:g} fps)")
@@ -231,12 +241,20 @@ def main():
            "ponderar_latitud": bool(lat_ok)}
     if vertical:
         cfg["barra_arriba_es_max"] = True            # horizontal: la izquierda es vmin (05 no lo necesita)
-    if a.modo_color == "matiz":
-        cfg["modo_color"] = "matiz"                  # dist_max serían unidades de matiz: se pone a mano en el config
+    if modo == "matiz":
+        # dist_max va en unidades de matiz (no sirve el de Lab); las líneas finas no sobreviven a borde_px = 1
+        # (validos 26 % -> 7 % con ECCO2) y la máscara estática no aporta. Si el config ya era matiz, se respeta.
+        era = previo.get("modo_color") == "matiz"
+        cfg.update(modo_color="matiz", dist_max=previo.get("dist_max", 4.0) if era else 4.0,
+                   borde_px=previo.get("borde_px", 0) if era else 0,
+                   mascara_estatica=previo.get("mascara_estatica", False) if era else False)
     else:
         cfg["dist_max"] = dist_max
         if a.modo_color == "lab":
             cfg["modo_color"] = "lab"
+        if previo.get("modo_color") == "matiz":      # se vuelve a Lab: no heredar los ajustes de matiz
+            previo = {k: v for k, v in previo.items() if k not in ("modo_color", "borde_px", "mascara_estatica",
+                                                                    "brillo_min", "saturacion_min")}
     if a.fechas:
         if not os.path.exists(a.fechas):
             sys.exit(f"No existe el archivo de fechas '{a.fechas}'.")
@@ -245,11 +263,8 @@ def main():
         cfg["referencia"] = a.referencia
     elif vmin < 0 < vmax:
         cfg["referencia"] = 0.0
-    # un config por video (no se pisan entre sí); si ya existe se conservan las claves que calibrar no calcula
-    ruta = a.salida or cfg_ruta("config_" + os.path.splitext(os.path.basename(a.video))[0] + ".json")
-    if os.path.exists(ruta):
-        with open(ruta) as fh:
-            previo = json.load(fh)
+    # si el config ya existía se conservan las claves que calibrar no calcula
+    if previo:
         conservar = {k: v for k, v in previo.items() if k not in cfg and k != "fechas"}
         if "fechas" in previo and "fechas" not in cfg and a.fechas is None and previo.get("video") == a.video:
             conservar["fechas"] = previo["fechas"]
@@ -259,7 +274,7 @@ def main():
     with open(ruta, "w") as fh:
         json.dump(cfg, fh, indent=2)
     print(f"Rango: {vmin:g} .. {vmax:g} °C | ponderar_latitud={lat_ok} | "
-          f"{'dist_max=' + format(dist_max, 'g') if 'dist_max' in cfg else 'dist_max: a mano (modo matiz)'} | escala={cfg['escala']}")
+          f"dist_max={cfg['dist_max']:g}{' (unidades de matiz)' if modo == 'matiz' else ''} | escala={cfg['escala']}")
     print(f"Config: {ruta}")
 
 

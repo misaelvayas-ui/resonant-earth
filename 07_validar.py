@@ -3,7 +3,7 @@
 
 1. Tono de la nota base de cada fotograma (control.json) -> debe coincidir con el de rocola.wav;
    el trazo principal sube en escalera. Los arpegios no se miden.
-2. Balance L/R por ventana      -> debe ir de izquierda (+L) a derecha (+R).
+2. Balance L/R por ventana      -> debe ir hacia la derecha (+R) donde hay zona caliente (area >= 0,01; antes, al centro).
 3. Comprobaciones automáticas con PASA/FALLA.
 Genera validacion.png.
 """
@@ -19,10 +19,12 @@ import numpy as np
 from scipy.io import wavfile
 from scipy.signal import spectrogram
 
+from parametros import AREA_CENTRO
 from rutas import sal
 from sintesis import midi_a_hz
 
 NECESARIOS = ("rasgos.json", "control.json", "rocola.wav", "rocola.mid")
+TOL_DRON = 100    # cents que se enmascaran alrededor de cada armónico del dron: el pad GM 90 tiene chorus y su pico es más ancho que 50
 
 
 def leer_json(nombre):
@@ -46,8 +48,8 @@ def banda_sin_dron(f, dron_hz, esperado_hz):
     if dron_hz is None:
         return banda
     for h in (1, 2, 3, 4):
-        if abs(1200 * np.log2(dron_hz * h / esperado_hz)) > 50:                 # armónico que no es la nota
-            banda &= np.abs(1200 * np.log2(np.maximum(f, 1e-9) / (dron_hz * h))) > 50
+        if abs(1200 * np.log2(dron_hz * h / esperado_hz)) > TOL_DRON:           # armónico que no es la nota
+            banda &= np.abs(1200 * np.log2(np.maximum(f, 1e-9) / (dron_hz * h))) > TOL_DRON
     return banda
 
 
@@ -90,7 +92,12 @@ def medir_balance(x, fs, spf, n_f):
     return np.array(bal)
 
 
-def comprobar(err_cents, exactas, esperado, idx_a, bal_a, rasgos, sintetico):
+def spearman(a, b):
+    """Correlación de rangos: la curva pan -> dB no es lineal."""
+    return np.corrcoef(np.argsort(np.argsort(a)), np.argsort(np.argsort(b)))[0, 1]
+
+
+def comprobar(err_cents, exactas, esperado, idx_p, bal_p, rasgos, sintetico):
     """Comprobaciones con True/False, o None si no aplican a este video."""
     return {
         "tono de la nota base (fotogramas con ataque) = esperado (±50 cents)": bool(np.all(err_cents < 50)),
@@ -98,7 +105,7 @@ def comprobar(err_cents, exactas, esperado, idx_a, bal_a, rasgos, sintetico):
         # solo tienen sentido con el video sintético (media creciente y tormenta de izquierda a derecha)
         "el tono no baja (serie creciente)": bool(np.all(np.diff(esperado) >= 0)) if sintetico else None,
         # el dron central "diluye" el balance, así que se valida la TENDENCIA, no un valor fijo
-        "paneo va de izquierda a derecha": bool(bal_a[0] < 0 < bal_a[-1] and np.corrcoef(idx_a, bal_a)[0, 1] > 0.9) if sintetico else None,
+        "paneo va de izquierda a derecha": bool(bal_p[-1] > 0 and bal_p[-1] - bal_p[0] > 6 and spearman(idx_p, bal_p) > 0.9) if sintetico else None,
         "media de rasgos crece": bool(rasgos[-1]["media"] > rasgos[0]["media"]) if sintetico else None,
     }
 
@@ -141,9 +148,13 @@ def main():
 
     bal = medir_balance(x, fs, spf, n_f)
     bal_a, idx_a = bal[con], np.arange(n_f)[con]
+    # el paneo solo se mide donde 06 lo aplica: con area < 0,01 (AREA_CENTRO) el sonido va al centro por diseño; por
+    # eso ya no se exige empezar a la izquierda: basta que el balance suba hacia la derecha (> 6 dB, Spearman > 0,9)
+    con_zona = np.array([r.get("area", 0.0) >= AREA_CENTRO for r in doc["rasgos"]])
+    bal_p, idx_p = bal[con & con_zona], np.arange(n_f)[con & con_zona]
 
     sintetico = os.path.basename(doc.get("fuente", "")) == "04_video_sintetico.mp4"
-    checks = comprobar(err_cents, notas_exactas(ctl), esperado, idx_a, bal_a, doc["rasgos"], sintetico)
+    checks = comprobar(err_cents, notas_exactas(ctl), esperado, idx_p, bal_p, doc["rasgos"], sintetico)
     for k, v in checks.items():
         print(f"[{'NO APLICA' if v is None else 'PASA' if v else 'FALLA'}] {k}" + ("" if v is not None else " (solo para el video sintético)"))
     print(f"Error máximo de tono: {err_cents.max():.1f} cents | balance L/R (fotogramas con golpe): {bal_a[0]:.1f} dB -> {bal_a[-1]:.1f} dB, r = {np.corrcoef(idx_a, bal_a)[0, 1]:.2f}")

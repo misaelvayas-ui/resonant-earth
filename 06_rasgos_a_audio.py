@@ -3,15 +3,18 @@
 
 Mapeo (el "contrato" sonoro, explícalo así en el pitch):
   media        -> NOTA de la melodía (pentatónica de 3 octavas; antes se suaviza con una media móvil)
-  area         -> VOLUMEN: velocidad MIDI 64...127 (= -6 dB ... 0 dB)
+  area         -> VOLUMEN: velocidad MIDI 64...127 (= -6 dB ... 0 dB); el área se normaliza entre SU mínimo y SU máximo
+                  (SST: 0,43-0,49 recorre los 6 dB); sin variación: 0 dB si hay zona caliente, -6 dB si no
   centroide_x  -> PANEO izquierda/derecha = dónde está lo "caliente" en el mapa (CC10 en el .mid; en el
-                  WAV se aplica tras el render, porque las muestras estéreo de la SoundFont ignoran CC10)
+                  WAV se aplica tras el render, porque las muestras estéreo de la SoundFont ignoran CC10); con area < 0,01
+                  (AREA_CENTRO) el paneo va al centro: sin zona caliente apreciable el centroide no significa nada
   densidad     -> notas por fotograma según la anomalía: < u1 -> 1; u1-u2 -> 2; > u2 -> 4 (0,3 y 0,7 en GISTEMP)
-                  (arpegio ascendente por la escala desde la nota del fotograma)
+                  (arpegio ascendente por la escala desde la nota del fotograma; si arriba no caben todas las notas,
+                  desciende desde la nota base: así no se repite la más alta y el ligado no se come golpes)
   referencia   -> DRON sostenido una octava bajo la nota que la melodía toca con el valor 'referencia'
                   (p. ej. 0 = sin anomalía) o, si no existe, bajo la del primer fotograma: se oye si el presente está por encima o por debajo
 
-Salida: canal 1 = marimba (GM 13), canal 2 = dron en pad (GM 89), reverb CC91. Se escribe
+Salida: canal 1 = marimba (GM 13), canal 2 = dron en pad SOSTENIDO (GM 90; el 89 decae a silencio en ~6 s en FluidR3), reverb CC91. Se escribe
 salidas/rocola.mid y se renderiza con FluidSynth a 44,1 kHz estéreo -> salidas/rocola.wav, más
 salidas/control.json (lo leen 07 y evaluar.py).
 
@@ -23,15 +26,16 @@ Claves opcionales (van en el config de 05 y se copian a rasgos.json); entre par�
   "ligar" (true)           misma nota que la anterior -> se extiende en vez de re-atacar
   "suavizado" (3)          media móvil centrada de N fotogramas sobre la media (0 o 1 = sin suavizar)
   "densidad" (true)        notas por fotograma según la anomalía; false = una nota por fotograma
-  "regolpe_ligado" (2)     en una nota ligada, la vuelve a tocar cada N fotogramas (0 = nunca)
-  "regolpe_vel" (0.4)      velocidad del re-golpe como fracción de la de la nota
+  "regolpe_ligado" (1)     en una nota ligada, la vuelve a tocar cada N fotogramas (0 = nunca)
+  "regolpe_vel" (0.7)      velocidad del re-golpe como fracción de la de la nota (0,4 dejaba la marimba casi muda en las notas ligadas)
   "umbral_evento" (1/12 del rango de sonido; 0,15 en GISTEMP)   si la media CRUDA cambia más que esto entre fotogramas, ataque fuerte (vel >= 100)
                            aunque la nota no cambie
   "octava" (1)             desplaza melodía y dron (+1 = una octava arriba)
   "humanizar" (true)       velocidad ±10 %, tiempo ±10 ms, semilla fija (12345)
-  "instrumento_melodia" (13), "dron_programa" (89)   programas GM, numerados desde 1
+  "instrumento_melodia" (13), "dron_programa" (90)   programas GM, numerados desde 1
   "dron_octava" (0)        octavas extra del dron; 0 = melodía(referencia) - 12 semitonos
-  "dron_nivel" (0.048)     volumen del dron (velocidad MIDI = 45 * dron_nivel / 0,08; amplitud en el respaldo)
+  "dron_nivel" (0.048)     volumen del dron: amplitud del seno en el respaldo; con FluidSynth el RMS del dron se lleva a
+                           DRON_FLUID (0,35) de ese seno, ~7 dB bajo la marimba (el .mid lleva velocidad 45 * dron_nivel / 0,08)
   "reverb" (50)            CC91, 0..127
   "paneo" ("x")            eje del paneo: "x" = izquierda-derecha del mapa, "y" = sur (izq.) - norte (der.);
                            el centroide se suaviza y se normaliza (percentiles 5-95, si recorren >= 0,1 del mapa) antes de panear
@@ -56,8 +60,8 @@ import mido
 import numpy as np
 from scipy.io import wavfile
 
-from parametros import (BPM, DEFECTOS, OCTAVAS, SEG_POR_FOTOGRAMA, SEMILLA_HUMANIZAR, TICKS_F,
-                        TONICA_MIDI, TPB, VEL_FUERTE)
+from parametros import (AREA_CENTRO, BPM, DEFECTOS, DRON_FLUID, OCTAVAS, SEG_POR_FOTOGRAMA, SEMILLA_HUMANIZAR,
+                        TICKS_F, TONICA_MIDI, TPB, VEL_FUERTE)
 from rutas import sal
 from sintesis import (FS, escala, valor_a_nota, midi_a_hz, oscilador, adsr, paneo, db_a_lineal,
                       suavizar_rapido, limitar, guardar_wav, reproducir)
@@ -120,8 +124,14 @@ def media_movil(x, n):
 
 
 def ganancia_por_area(area):
-    """Volumen: de -6 dB (sin área caliente) a 0 dB (el fotograma con más área de la serie)."""
-    return db_a_lineal(-6 + 6 * np.clip(area / max(area.max(), 1e-6), 0, 1))
+    """Volumen: de -6 dB a 0 dB. El área se normaliza ENTRE su mínimo y su máximo (así el recorrido se aprovecha
+    aunque el área casi no varíe, como en SST); sin variación (rango < 1e-6): 0 dB si hay zona caliente, -6 dB si no."""
+    rango = area.max() - area.min()
+    if rango >= 1e-6:
+        area_n = np.clip((area - area.min()) / rango, 0, 1)
+    else:
+        area_n = np.full(len(area), 1.0 if area.max() >= 1e-6 else 0.0)
+    return db_a_lineal(-6 + 6 * area_n)
 
 
 def nota_del_dron(d, cfg, notas, midi):
@@ -136,11 +146,11 @@ def nota_del_dron(d, cfg, notas, midi):
     return nota_ref, dron
 
 
-def calcular_paneo(R, cx, eje):
+def calcular_paneo(R, cx, eje, area):
     """Devuelve (eje usado, posición 0..1 por fotograma).
     Eje 'x' (izquierda-derecha del mapa) o 'y' (sur = izquierda, norte = derecha). El centroide se
     suaviza y se normaliza con los percentiles 5-95 de la serie: así el paneo usa todo su recorrido
-    aunque el centroide real se mueva poco (en GISTEMP casi no se mueve)."""
+    aunque el centroide real se mueva poco (en GISTEMP casi no se mueve). Con area < AREA_CENTRO, al centro."""
     if eje == "y" and not any("centroide_y" in r for r in R):
         print("AVISO: rasgos.json no trae centroide_y (vuelve a ejecutar 05); uso paneo 'x'.")
         eje = "x"
@@ -151,7 +161,8 @@ def calcular_paneo(R, cx, eje):
         c_pan = np.clip((c_suave - p5) / (p95 - p5), 0, 1)
     else:                                          # recorrido < 0,1 (10 % del mapa): no se estira
         c_pan = np.clip(0.5 + (c_suave - (p5 + p95) / 2) / 0.1, 0, 1)
-    return eje, c_pan
+    # sin zona caliente apreciable (area < AREA_CENTRO) el centroide no significa nada: el paneo vuelve al centro
+    return eje, np.where(area < AREA_CENTRO, 0.5, c_pan)
 
 
 def umbrales_densidad(d):
@@ -195,7 +206,7 @@ def mapear(d, cfg):
     midi = valor_a_nota(media_s, *rango_sonido(d), notas)
     nota_ref, nota_dron = nota_del_dron(d, cfg, notas, midi)
     vel = np.round(127 * ganancia_por_area(area)).astype(int)
-    eje, c_pan = calcular_paneo(R, cx, cfg["paneo"])
+    eje, c_pan = calcular_paneo(R, cx, cfg["paneo"], area)
     return Mapeo(n_f=len(R), media=media, media_s=media_s, area=area, notas=notas, midi=midi,
                  octava=int(cfg["octava"]), nota_ref=nota_ref, nota_dron=nota_dron, vel=vel,
                  eje=eje, c_pan=c_pan, umbrales=umbrales_densidad(d))
@@ -210,13 +221,15 @@ def notas_por_fotograma(m, umbrales):
 
 def arpegiar(mp, cfg):
     """Devuelve (arpegio de cada fotograma, lista de notas [inicio, fin, nota, velocidad, fotograma, j]
-    en ticks). Arpegio ascendente por la escala desde la nota del fotograma."""
+    en ticks). Arpegio ascendente por la escala desde la nota del fotograma; sin sitio hacia arriba, baja desde
+    la nota base (así no se repite la más alta y el ligado no se come golpes)."""
     idx_escala = {int(n): i for i, n in enumerate(mp.notas)}
     por_fotograma, mel = [], []
     for i in range(mp.n_f):
         k = notas_por_fotograma(mp.media_s[i], mp.umbrales) if cfg["densidad"] else 1
         base = idx_escala[int(mp.midi[i])]
-        arp = [int(mp.notas[min(base + j, len(mp.notas) - 1)]) for j in range(k)]
+        paso = 1 if base + k <= len(mp.notas) else -1
+        arp = [int(mp.notas[base + paso * j]) for j in range(k)]
         por_fotograma.append(arp)
         lim = [round(j * TICKS_F / k) for j in range(k + 1)]
         for j in range(k):
@@ -379,7 +392,17 @@ def buscar_fluidsynth():
     return fs_bin, sf2
 
 
-def renderizar_fluidsynth(mp, ev):
+def nivelar_dron(dron_x, dron_nivel):
+    """El dron es un pad SOSTENIDO (GM 90) y su nivel no depende de la velocidad MIDI ni de la SoundFont: el RMS de
+    su mezcla mono se lleva al de un seno de amplitud dron_nivel (como el respaldo numpy), por DRON_FLUID. Así suena
+    continuo toda la pista aunque la marimba se apague en las notas ligadas."""
+    rms = float(np.sqrt(np.mean(dron_x.mean(axis=1) ** 2)))
+    if rms > 1e-9:
+        return dron_x * (DRON_FLUID * dron_nivel / np.sqrt(2) / rms)
+    return dron_x
+
+
+def renderizar_fluidsynth(mp, ev, dron_nivel):
     """Devuelve el estéreo float (N, 2) o None si falta fluidsynth/SoundFont o falla el render."""
     encontrado = buscar_fluidsynth()
     if encontrado is None:
@@ -392,7 +415,7 @@ def renderizar_fluidsynth(mp, ev):
         return None
     # la melodía se pasa a mono y se panea por muestra: así el paneo es exacto aunque la imagen
     # estéreo propia de cada muestra de la SoundFont cambie de una nota a otra
-    x = paneo(melodia.mean(axis=1), paneo_por_muestra(mp.c_pan)) * np.sqrt(2) + dron_x
+    x = paneo(melodia.mean(axis=1), paneo_por_muestra(mp.c_pan)) * np.sqrt(2) + nivelar_dron(dron_x, dron_nivel)
     x[-int(0.05 * FS):] *= np.linspace(1, 0, int(0.05 * FS))[:, None]      # fundido de 50 ms
     return limitar(x)                                                       # mismo limitador que el respaldo (techo 0,85)
 
@@ -421,7 +444,7 @@ def sintetizar_numpy(mp, mel, dron_nivel):
 
 def renderizar(mp, mel, ev, cfg, forzar_sintetico):
     """Devuelve (modo, estéreo): instrumentos reales si se puede; si no, el respaldo numpy."""
-    estereo = None if forzar_sintetico else renderizar_fluidsynth(mp, ev)
+    estereo = None if forzar_sintetico else renderizar_fluidsynth(mp, ev, cfg["dron_nivel"])
     if estereo is not None:
         return "fluidsynth", estereo
     return "sintetico", sintetizar_numpy(mp, mel, cfg["dron_nivel"])
