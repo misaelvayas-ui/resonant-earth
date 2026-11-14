@@ -170,7 +170,7 @@ def a7():
 def a8():
     t = np.linspace(0, 1, FS)
     pico = np.abs(limitar(3 * np.sin(2 * np.pi * 5 * t))).max()
-    ok = pico <= 0.9 + 1e-9
+    ok = pico <= 0.85 + 1e-9
     with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
         for forma in ((1000,), (1000, 2)):
             x = np.random.default_rng(1).uniform(-1, 1, forma)
@@ -229,7 +229,7 @@ def b3():
 def b4():
     s = pipeline()["07"]
     n_pasa, n_falla = s.count("[PASA]"), s.count("[FALLA]")
-    return n_pasa == 4 and n_falla == 0, f"{n_pasa} PASA, {n_falla} FALLA"
+    return n_pasa == 5 and n_falla == 0, f"{n_pasa} PASA, {n_falla} FALLA"
 
 
 # ============================================================ C) robustez de 05
@@ -386,6 +386,278 @@ def d1():
     return desfase <= 0.15, f"08 PASA; primer pts video {pts[0]:.3f} s, audio {pts[1]:.3f} s (desfase {desfase:.3f} s)"
 
 
+# ============================================================ E) instrumentos reales y respaldo (06)
+def leer_mid(ruta):
+    """(ataques canal 1 [(tick, nota, vel)], inicios del canal 2 [(nota, vel)], último tick, ticks/negra)."""
+    import mido
+    mid = mido.MidiFile(ruta)
+    t, ons, dron, fin = 0, [], [], 0
+    for m in mido.merge_tracks(mid.tracks):
+        t += m.time
+        if m.type == "note_on" and m.velocity > 0:
+            (ons if m.channel == 0 else dron).append((t, m.note, m.velocity) if m.channel == 0 else (m.note, m.velocity))
+        fin = t
+    return ons, dron, fin, mid.ticks_per_beat
+
+
+def e1():
+    sal_ = os.path.join(pipeline()["dir"], "salidas")
+    ctl = json.load(open(os.path.join(sal_, "control.json")))
+    ons, dron, fin, tpb = leer_mid(os.path.join(sal_, "rocola.mid"))
+    tpf = ctl["seg_por_fotograma"] * 2 * tpb                       # 120 bpm
+    tol = 0.010 * 2 * tpb + 1                                      # ±10 ms de humanización
+    notas_ok = [n for _, n, _ in ons] == ctl["notas_ataque"] and ctl["ataques"] == len(ons)
+    tiempos_ok = len(ons) == len(ctl["inicio_ticks"]) and all(abs(o[0] - t) <= tol + 0.5 for o, t in zip(ons, ctl["inicio_ticks"]))
+    base_ok = [n[0] for n in ctl["notas"]] == ctl["midi"]
+    dron_ok = len(dron) == 1 and dron[0][0] == ctl["dron"]
+    fs_, w = wavfile.read(os.path.join(sal_, "rocola.wav"))
+    dur_ok = abs(w.shape[0] / fs_ - len(ctl["midi"]) * ctl["seg_por_fotograma"]) < 0.01 and abs(fin - len(ctl["midi"]) * tpf) <= 1
+    return (notas_ok and tiempos_ok and base_ok and dron_ok and dur_ok,
+            f"modo {ctl['modo']}; {len(ons)} ataques (sin ligar {ctl['ataques_sin_ligar']}) = control.json: {notas_ok}; "
+            f"tiempos ±10 ms: {tiempos_ok}; dron {ctl['dron']}: {dron_ok}; wav {w.shape[0] / fs_:.3f} s: {dur_ok}")
+
+
+def esperados_e2(media):
+    """Cálculo independiente de los ataques de 06 con sus valores por defecto: [(tick nominal, nota, tipo)]."""
+    n = len(media)
+    ms = [float(np.mean(media[max(0, i - 1): i + 2])) for i in range(n)]            # suavizado 3, centrado
+    sc = escala(48, 3)
+    tpf = 480.0
+    fuerte = [i > 0 and abs(media[i] - media[i - 1]) > 0.15 for i in range(n)]
+    out, ult, notas_f = [], -1, []
+    for f, m in enumerate(ms):
+        k = 1 if m < 0.3 else (2 if m <= 0.7 else 4)
+        b = list(sc).index(int(valor_a_nota(m, -0.6, 1.2, sc)))
+        arp = [int(sc[min(b + j, len(sc) - 1)]) + 12 for j in range(k)]
+        notas_f.append(arp)
+        for j, nota in enumerate(arp):
+            tick, forzado = f * tpf + j * tpf / k, fuerte[f] and j == 0
+            if out and nota == out[-1][1] and not forzado:
+                if j == 0 and f - ult >= 2:
+                    out.append((tick, nota, "regolpe"))
+                    ult = f
+                continue
+            out.append((tick, nota, "fuerte" if forzado else "ataque"))
+            ult = f
+    return out, notas_f
+
+
+def e2():
+    """06 con sus valores por defecto frente a un cálculo independiente (suavizado 3, densidad, arpegio,
+    ligar + re-golpe cada 2 fotogramas, ataque fuerte por evento, octava +1, humanizar, dron pad)."""
+    media = [0.00, 0.10, 0.50, 1.20, 1.20, 1.20, 1.15, 1.20]          # cubre 1, 2 y 4 notas, notas ligadas y un salto
+    with tempfile.TemporaryDirectory() as d:
+        R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]
+        for r, m in zip(R["rasgos"], media):
+            r["media"], r["area"] = m, 0.0                            # área 0 -> velocidad base 64
+        R.update(vmin_sonido=-0.6, vmax_sonido=1.2, referencia=0.0)
+        os.makedirs(os.path.join(d, "salidas"))
+        ruta = os.path.join(d, "salidas", "rasgos_e2.json")
+        json.dump(R, open(ruta, "w"))
+        r = correr("06_rasgos_a_audio.py", [ruta, "--sintetico"], d)
+        if r.returncode != 0:
+            return False, f"06 código {r.returncode}: {r.stderr.strip()[-120:]}"
+        ons, dron, fin, tpb = leer_mid(os.path.join(d, "salidas", "rocola.mid"))
+        ctl = json.load(open(os.path.join(d, "salidas", "control.json")))
+    esp, notas_f = esperados_e2(media)
+    tpf = 0.5 * 2 * tpb
+    tol = 0.010 * 2 * tpb + 1
+    notas_ok = [n for _, n, _ in ons] == [n for _, n, _ in esp]
+    tiempos_ok = len(ons) == len(esp) and all(abs(o[0] - e[0]) <= tol + 0.5 for o, e in zip(ons, esp))
+    tipos = {t for _, _, t in esp}
+    # velocidad base 64 (área 0): ataque 64, re-golpe 40 % = 26, fuerte >= 100; humanizar ±10 %
+    rango = {"ataque": (57, 71), "regolpe": (23, 29), "fuerte": (90, 127)}
+    vel_ok = len(ons) == len(esp) and all(rango[e[2]][0] <= o[2] <= rango[e[2]][1] for o, e in zip(ons, esp))
+    arp_ok = all(e == sorted(e) for e in notas_f) and {len(e) for e in notas_f} >= {1, 4}
+    ref = int(escala(48, 3)[list(escala(48, 3)).index(int(valor_a_nota(0.0, -0.6, 1.2, escala(48, 3))))]) + 12
+    dron_ok = dron == [(ref - 12, 27)]            # ref = melodía(0 °C) con octava +1; dron = ref - 12
+    ctl_ok = (ctl["midi"] == [e[0] for e in notas_f] and ctl["notas"] == notas_f
+              and ctl["ataques"] == len(ons) and ctl["tipo_ataque"] == [t for _, _, t in esp] and ctl["dron"] == ref - 12)
+    dur_ok = abs(fin - len(media) * tpf) <= 1
+    ok = notas_ok and tiempos_ok and vel_ok and arp_ok and dron_ok and ctl_ok and dur_ok and tipos == {"ataque", "regolpe", "fuerte"}
+    return ok, (f"ataques {len(ons)} ({sorted(tipos)}); notas: {notas_ok}; ±10 ms: {tiempos_ok}; velocidades: {vel_ok}; "
+                f"arpegio: {arp_ok}; dron {dron[0][0] if dron else None}: {dron_ok}; control.json: {ctl_ok}; duración: {dur_ok}")
+
+
+def e4():
+    """Retardo entre la media cruda y las notas de salida: correlación cruzada por fotograma, |retardo| <= 1."""
+    n = 40
+    t = np.arange(n)
+    media = 0.5 + 0.5 * np.sin(2 * np.pi * t / 17) + 0.3 * np.sin(2 * np.pi * t / 6) + 0.2 * np.sin(2 * np.pi * t / 3.4)
+    with tempfile.TemporaryDirectory() as d:
+        R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]
+        R["rasgos"] = [{**R["rasgos"][i % len(R["rasgos"])], "t": i * 0.25, "media": float(media[i])} for i in range(n)]
+        R.update(vmin_sonido=-0.3, vmax_sonido=1.3)
+        os.makedirs(os.path.join(d, "salidas"))
+        ruta = os.path.join(d, "salidas", "rasgos_e4.json")
+        json.dump(R, open(ruta, "w"))
+        r = correr("06_rasgos_a_audio.py", [ruta, "--sintetico"], d)
+        if r.returncode != 0:
+            return False, f"06 código {r.returncode}: {r.stderr.strip()[-120:]}"
+        ons, _, _, tpb = leer_mid(os.path.join(d, "salidas", "rocola.mid"))
+        base = np.array(json.load(open(os.path.join(d, "salidas", "control.json")))["midi"], float)
+    tpf = 0.5 * 2 * tpb
+    sonando = np.array([[nt for tk, nt, _ in ons if tk <= i * tpf + 0.2 * tpf][-1] for i in range(n)], float)
+
+    def retardo(serie):
+        a, b = (media - media.mean()) / media.std(), (serie - serie.mean()) / serie.std()
+        c = {L: float(np.mean((a[:n - L] * b[L:]) if L >= 0 else (a[-L:] * b[:n + L]))) for L in range(-4, 5)}
+        return max(c, key=c.get), c
+    l1, c1_ = retardo(base)
+    l2, c2_ = retardo(sonando)
+    return abs(l1) <= 1 and abs(l2) <= 1 and c1_[l1] > 0.8, \
+        f"retardo control.json {l1:+d} fotogramas (r {c1_[l1]:.2f}); notas de rocola.mid {l2:+d} (r {c2_[l2]:.2f})"
+
+
+def e3():
+    """Respaldo numpy: --sintetico y también el caso sin fluidsynth (PATH vacío) con su aviso."""
+    base = pipeline()["dir"]
+    out, partes = [], []
+    mid_ref = open(os.path.join(base, "salidas", "rocola.mid"), "rb").read()
+    for etiqueta, extra, env_extra in (("--sintetico", ["--sintetico"], {}), ("sin fluidsynth", [], {"PATH": "/nonexistent"})):
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "salidas"))
+            shutil.copy(os.path.join(base, "salidas", "rasgos.json"), os.path.join(d, "salidas", "rasgos.json"))
+            e = entorno(d)
+            e.update(env_extra)
+            r = subprocess.run([sys.executable, "06_rasgos_a_audio.py", *extra], capture_output=True,
+                               text=True, env=e, timeout=120)
+            r7 = subprocess.run([sys.executable, "07_validar.py"], capture_output=True, text=True, env=e, timeout=120)
+            sal_ = os.path.join(d, "salidas")
+            ctl = json.load(open(os.path.join(sal_, "control.json")))
+            fs_, w = wavfile.read(os.path.join(sal_, "rocola.wav"))
+            aviso = "sudo apt install fluidsynth fluid-soundfont-gm" in r.stdout
+            ok = (r.returncode == 0 and r7.returncode == 0 and ctl["modo"] == "sintetico" and w.ndim == 2
+                  and abs(w.shape[0] / fs_ - 4.0) < 0.01 and np.abs(w).max() / 32767 <= 0.85 + 1e-3
+                  and open(os.path.join(sal_, "rocola.mid"), "rb").read() == mid_ref
+                  and (aviso or etiqueta == "--sintetico"))
+            out.append(ok)
+            partes.append(f"{etiqueta}: 06={r.returncode} 07={r7.returncode}, {w.shape[0] / fs_:.3f} s, "
+                          f"mismo .mid, aviso apt {'sí' if aviso else 'no'}")
+    return all(out), "; ".join(partes)
+
+
+# ============================================================ F) casos de la auditoría (videos nuevos)
+def f1():
+    """Densidad con otro rango de datos (270-310): los umbrales siguen al rango de sonido y no saturan en 4 notas."""
+    with tempfile.TemporaryDirectory() as d:
+        R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]
+        for r, m in zip(R["rasgos"], np.linspace(270, 310, len(R["rasgos"]))):
+            r["media"] = float(m)
+        R.update(vmin=270.0, vmax=310.0)
+        os.makedirs(os.path.join(d, "salidas"))
+        ruta = os.path.join(d, "salidas", "k.json")
+        json.dump(R, open(ruta, "w"))
+        r = correr("06_rasgos_a_audio.py", [ruta, "--sintetico"], d)
+        if r.returncode != 0:
+            return False, "06 falló: " + r.stderr.strip()[-120:]
+        n = [len(x) for x in json.load(open(os.path.join(d, "salidas", "control.json")))["notas"]]
+    return len(set(n)) >= 2 and 1 in n, f"notas por fotograma con datos 270-310: {sorted(set(n))} (más de un valor y alguno = 1)"
+
+
+def f2():
+    """Video que abre en negro: la barra se toma de un fotograma con degradado (no de uno negro)."""
+    with tempfile.TemporaryDirectory() as d:
+        cfg, _, _, _ = video_lat(d, "negro_src")
+        c = json.load(open(cfg))
+        cap = cv2.VideoCapture(c["video"])
+        ruta = os.path.join(d, "negro.mp4")
+        out = cv2.VideoWriter(ruta, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+        for k in range(N_FRAMES):
+            ok, f = cap.read()
+            out.write(np.zeros_like(f) if k < 6 else f)
+        out.release()
+        cap.release()
+        c["video"] = ruta
+        json.dump(c, open(cfg, "w"))
+        R = correr05(d, cfg)[0]
+    med = float(np.median([x["validos"] for x in R]))
+    return med > 0.9 and R[-1]["media"] > R[0]["media"], f"mediana de validos {med:.2f} (> 0,9); media {R[0]['media']:.3f} → {R[-1]['media']:.3f}"
+
+
+def f3():
+    """Errores claros: video inexistente y rectángulo fuera del fotograma (rasgos.json queda intacto)."""
+    with tempfile.TemporaryDirectory() as d:
+        cfg, _, _, _ = video_lat(d, "err")
+        base = json.load(open(cfg))
+        os.makedirs(os.path.join(d, "salidas"), exist_ok=True)
+        previo = os.path.join(d, "salidas", "rasgos.json")
+        open(previo, "w").write('{"marca": 1}')
+        res = []
+        for nombre, cambio, frase in (("sin video", {"video": os.path.join(d, "no_existe.mp4")}, "No se pudo abrir"),
+                                      ("mapa fuera", {"mapa": [10, 20, 900, 700]}, "se sale del video")):
+            json.dump({**base, **cambio}, open(cfg, "w"))
+            r = correr("05_video_a_rasgos.py", [cfg], d)
+            res.append((nombre, r.returncode != 0 and frase in (r.stderr + r.stdout), open(previo).read() == '{"marca": 1}'))
+    return all(a and b for _, a, b in res), "; ".join(f"{n}: mensaje {'sí' if a else 'NO'}, rasgos.json {'intacto' if b else 'PISADO'}" for n, a, b in res)
+
+
+def f4():
+    """08 con 600 rasgos (un drawtext por rasgo): la línea de comandos ya no revienta."""
+    if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
+        return None, "ffmpeg/ffprobe no instalados"
+    base = os.path.join(pipeline()["dir"], "salidas")
+    with tempfile.TemporaryDirectory() as d:
+        sal_ = os.path.join(d, "salidas")
+        os.makedirs(sal_)
+        for f in ("04_video_sintetico.mp4", "rocola.wav"):
+            shutil.copy(os.path.join(base, f), sal_)
+        R = leer_json(os.path.join(base, "rasgos.json"))[0]
+        r0 = R["rasgos"][0]
+        R["rasgos"] = [{**r0, "t": round(i * 4.0 / 600, 4), "fecha": 1900 + i} for i in range(600)]
+        json.dump(R, open(os.path.join(sal_, "rasgos.json"), "w"))
+        r = correr("08_video_con_audio.py", [os.path.join(sal_, "04_video_sintetico.mp4"),
+                                             os.path.join(sal_, "rocola.wav"), os.path.join(sal_, "demo.mp4")], d)
+    return r.returncode == 0 and "[PASA]" in r.stdout, f"08 con 600 rasgos: código {r.returncode}; {r.stdout.strip().splitlines()[-1:] or r.stderr.strip()[-100:]}"
+
+
+def g1():
+    """Dron = nota que la melodía toca con 0 °C - 12 (medido en el .mid: una serie constante en 0 °C)."""
+    with tempfile.TemporaryDirectory() as d:
+        R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]
+        for r in R["rasgos"]:
+            r["media"] = 0.0
+        R.update(vmin=-2.0, vmax=2.0, vmin_sonido=-0.6, vmax_sonido=1.2, referencia=0.0)
+        os.makedirs(os.path.join(d, "salidas"))
+        ruta = os.path.join(d, "salidas", "k.json")
+        json.dump(R, open(ruta, "w"))
+        r = correr("06_rasgos_a_audio.py", [ruta, "--sintetico"], d)
+        if r.returncode != 0:
+            return False, "06 falló: " + r.stderr.strip()[-120:]
+        ons, dron, _, _ = leer_mid(os.path.join(d, "salidas", "rocola.mid"))
+    mel = {n for _, n, _ in ons}
+    ok = len(mel) == 1 and len(dron) == 1 and dron[0][0] == min(mel) - 12
+    return ok, f"melodía en 0 °C = MIDI {sorted(mel)}; dron = MIDI {[x[0] for x in dron]} (esperado melodía - 12)"
+
+
+def g2():
+    """centroide_y en rasgos.json: presente en todos, entre 0 y 1 y ~0,5 con la tormenta sintética a media latitud."""
+    R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]["rasgos"]
+    cy = [r.get("centroide_y") for r in R]
+    ok = all(c is not None and 0 <= c <= 1 for c in cy) and abs(float(np.mean(cy)) - 0.5) < 0.03
+    return ok, f"{sum(c is not None for c in cy)}/{len(R)} con centroide_y; rango {min(cy):.3f}-{max(cy):.3f}; media {np.mean(cy):.3f} (≈ 0,5)"
+
+
+def g3():
+    """paneo 'y': el centroide_y (normalizado por percentiles) gobierna control.json y recorre casi todo el rango."""
+    with tempfile.TemporaryDirectory() as d:
+        R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]
+        n = len(R["rasgos"])
+        for i, r in enumerate(R["rasgos"]):
+            r["centroide_x"], r["centroide_y"] = 0.5, 0.2 + 0.6 * i / (n - 1)
+        R["paneo"] = "y"
+        os.makedirs(os.path.join(d, "salidas"))
+        ruta = os.path.join(d, "salidas", "k.json")
+        json.dump(R, open(ruta, "w"))
+        r = correr("06_rasgos_a_audio.py", [ruta, "--sintetico"], d)
+        if r.returncode != 0:
+            return False, "06 falló: " + r.stderr.strip()[-120:]
+        ctl = json.load(open(os.path.join(d, "salidas", "control.json")))
+    p = np.array(ctl["pan"])
+    return ctl["paneo"] == "y" and np.all(np.diff(p) >= -1e-9) and p[0] < -0.9 and p[-1] > 0.9, \
+        f"paneo {ctl['paneo']}: pan {p[0]:.2f} → {p[-1]:.2f}, creciente: {bool(np.all(np.diff(p) >= -1e-9))}"
+
+
 EVALUACIONES = [
     ("A1", "fase inicial = 0", "|x[0]| < 1e-12", a1),
     ("A2", "tono(440) → 440 Hz", "440 ± 1 Hz", a2),
@@ -394,17 +666,28 @@ EVALUACIONES = [
     ("A5", "MIDI ↔ Hz", "440, 880, 60 (±1e-9)", a5),
     ("A6", "cuantización en la escala", "todas ∈ escala, extremos", a6),
     ("A7", "paneo potencia constante", "error < 1e-9", a7),
-    ("A8", "limitador y guardar_wav", "pico ≤ 0,9; int16 ida y vuelta", a8),
+    ("A8", "limitador y guardar_wav", "pico ≤ 0,85; int16 ida y vuelta", a8),
     ("B1", "pipeline 04→07 (video 2 s)", "4 códigos de salida = 0", b1),
     ("B2", "rasgos.json", "8 fotogramas, media y cx crecientes, validos ≥ 0,99, sin NaN", b2),
     ("B3", "rocola.wav", "estéreo, 44100 Hz, 4,0 ± 0,01 s, pico < 1", b3),
-    ("B4", "validación 07", "4 × [PASA], 0 × [FALLA]", b4),
+    ("B4", "validación 07", "5 × [PASA], 0 × [FALLA]", b4),
     ("C1", "05 con tierra gris + costa", f"error media < {UMBRAL_MEDIA_C1}; validos ± {UMBRAL_VALIDOS_C1}", c1),
     ("C2", "05 y 06 con fotograma sin datos", "sin NaN, validos = 0, media anterior", c2),
     ("C3", "máscara robusta: negro + título", f"máscara ≥ {MASCARA_MIN_C3} %; error media < {UMBRAL_MEDIA_C1}", c3),
     ("C4", "05 ponderar_latitud", f"error < {UMBRAL_LAT}; separación > {SEPARACION_LAT}", c4),
     ("C5", "05 escala + fechas", f"|Δmedia| < {UMBRAL_ESCALA}; defecto = escala 1.0", c5),
     ("D1", "sincronía de 08", "PASA; desfase de inicio ≤ 0,15 s", d1),
+    ("E1", "06: rocola.mid vs control.json", "ataques y tiempos (±10 ms) idénticos; 1 dron; wav = misma duración", e1),
+    ("E2", "06: valores por defecto", "notas, arpegio, ligar, ±10 ms, dron y duración = cálculo independiente", e2),
+    ("F1", "06: densidad con datos 270-310", "más de un nº de notas por fotograma, alguno = 1", f1),
+    ("F2", "05: video que abre en negro", "validos > 0,9 y media creciente", f2),
+    ("F3", "05: errores claros", "mensaje y rasgos.json intacto (sin video / mapa fuera)", f3),
+    ("F4", "08: 600 rasgos con texto", "08 PASA (sin 'Argument list too long')", f4),
+    ("G1", "06: dron = melodía(0 °C) - 12", "dron = nota de la melodía con 0 °C - 12 (medido en el .mid)", g1),
+    ("G2", "05: centroide_y", "presente, entre 0 y 1, ≈ 0,5 en el video sintético", g2),
+    ("G3", "06: paneo 'y' normalizado", "pan sigue a centroide_y y recorre < -0,9 … > 0,9", g3),
+    ("E4", "06: retardo media → notas", "|retardo| ≤ 1 fotograma (correlación cruzada), r > 0,8", e4),
+    ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]
 
 

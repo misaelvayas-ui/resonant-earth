@@ -427,3 +427,253 @@ NOTAS
 - salidas/fotograma_ref.png pesa 6,6 MB con este video: se deja de versionar (.gitignore).
 - La base de la curva SVS/GISTEMP es 1951-1980; la tabla oficial descargada hoy incluye años
   posteriores a 2023, que no se usan.
+
+RONDA 9a - guía de colaboración   (2026-11-13)
+Se añade CONTRIBUTING.md (fork, ramas, evaluar.py, registro en CAMBIOS.txt, Pull Request).
+Sin cambios de código. Repositorio de GitHub recreado tras borrarlo por error.
+
+RONDA 9b - rango de sonido propio, dron de referencia y año en el video   (2026-11-13)
+1. Dron en MIDI 52: el rocola.wav anterior se generó con un rasgos.json sin "referencia", así que
+   06 usaba la nota del primer fotograma (64) - 12 = 52. El código de 06 sí aplicaba "referencia";
+   el config ya tenía "referencia": 0. Se regeneró todo con 05 -> 06 y ahora el dron sigue la referencia.
+2. 05/06: claves opcionales "vmin_sonido"/"vmax_sonido" (por defecto vmin/vmax); 05 las copia a
+   rasgos.json y 06 las usa para media -> nota y para la nota del dron. La paleta de 05 sigue en ±2 °C.
+   config_eic.json: -0,6 y 1,2.
+3. 08: si rasgos.json tiene "fecha", se dibuja el año (fontsize = 6 % de la altura, arriba a la
+   izquierda, fondo negro 60 %) en lugar de "media = X". Opciones de codificación sin tocar.
+Medido: dron 130,8 Hz = MIDI 48 (referencia 0 con rango -0,6..1,2 -> nota 60, -12; antes 52).
+Rango MIDI usado 48-81 (antes del cambio el rango era el de ±2 °C). Año visible (p. ej. 1978 en t=20 s).
+evaluar.py: 18 PASA, 0 FALLA en 8,5 s. 08: video y audio 30,067 s, diferencia 0,000 s.
+Archivos: 05_video_a_rasgos.py, 06_rasgos_a_audio.py, 08_video_con_audio.py, config/config_eic.json.
+
+RONDA 10 - simplificación para el hackathon   (2026-11-13)
+Antes: commit + tag "practica-completa". grep: ni evaluar.py ni 04-08 ni README importan o ejecutan
+01-03, verificar_01 ni graficar_01 (solo los mencionan README y CAMBIOS/PLAN); evaluar.py usa
+04, 05, 06, 07, 08, sintesis.py y rutas.py, que no se tocaron.
+Movido a archivo/ (sin borrar): 01_tono_prueba.py, 02_clics_y_fase.py, 03_datos_a_melodia.py,
+herramientas/verificar_01.py, herramientas/graficar_01.py, docs/PLAN.md, y las salidas
+01_tono_prueba.wav, 02a_mal.wav, 02b_bien.wav, 03_datos_a_melodia.wav, grafica_01_v2.png.
+Para ejecutar los scripts archivados, vuelve a copiarlos a la raíz (importan sintesis.py y rutas.py).
+README: estructura nueva y sección "Uso en el hackathon" (calibrar -> 05 -> 06 -> 08 + evaluar.py).
+
+RONDA 11 - ajustes de percepción (dron, techo del limitador, margen del año)   (2026-11-13)
+1. 06: el dron suena EN la nota de "referencia" (antes -12). Claves opcionales "dron_octava"
+   (0 por defecto; -1 = comportamiento anterior) y "dron_nivel" (0,08); 05 las copia a rasgos.json.
+   Timbre: seno puro (la voz es "suave"). config_eic.json: dron_octava 0, dron_nivel 0,08.
+2. sintesis.limitar: techo 0,9 -> 0,85 (margen para el AAC). evaluar.py A8 ajustado a ≤ 0,85.
+3. 08: el año lleva margen ~2 % de la altura (ffprobe): caja con relleno y distancia al borde.
+   Opciones de codificación sin tocar.
+Medido (video GISTEMP): dron = nota 60 (261,6 Hz). Voz MIDI 48-81. Voz < dron en 29 de 32
+fotogramas anteriores a 1960 y >= dron en 22 de 28 desde 1960; la voz queda por encima del dron
+de forma estable desde 1978 (1976: 57; 1978: 60). Antes hay roces (1941: 62, 1958: 60, 1973: 60).
+Pico de rocola.wav 0,8500. evaluar.py: 18 PASA, 0 FALLA en 8,7 s.
+
+RONDA 12 - segunda salida con instrumentos reales (06b, MIDI + fluidsynth)   (2026-11-13)
+Comprobado: fluidsynth y fluid-soundfont-gm (FluidR3_GM.sf2) instalados; mido añadido al .venv y a requirements.txt.
+- 06b_rasgos_a_midi.py (nuevo; 06 no se tocó): mismo mapeo que 06 (escala, "referencia",
+  vmin_sonido/vmax_sonido, dron_octava/dron_nivel, volumen por área, paneo). Escribe salidas/rocola.mid:
+  canal 1 melodía (marimba GM 13; velocidad 64-127 según el volumen en dB de 06; CC10 = paneo por nota),
+  canal 2 dron en la nota de referencia (cuerdas GM 49, sostenido, velocidad 45 con dron_nivel 0,08),
+  reverb CC91 = 50. Render con fluidsynth a 44,1 kHz estéreo -> salidas/rocola_real.wav, recortado a la
+  duración de rocola.wav (30,000 s), fundido de 50 ms, techo 0,85.
+- Claves nuevas (opcionales, copiadas por 05 a rasgos.json): instrumento_melodia, instrumento_dron, reverb.
+- 08 no se cambió: ya acepta otra ruta de audio (probado con rocola_real.wav).
+- evaluar.py: prueba E1 (notas y tiempos de rocola.mid = control.json, un solo dron, duración de
+  rocola_real.wav = la de rocola.wav; si faltara fluidsynth solo comprueba el .mid).
+- salidas/comparacion_ab.wav: 10 s de rocola.wav y luego los mismos 10 s de rocola_real.wav, con la
+  sintética bajada a igual RMS (x0,34) porque la marimba, percusiva, tiene RMS 3 veces menor a igual pico.
+evaluar.py: 19 PASA, 0 FALLA.
+
+RONDA 13 - musicalidad de 06b (todas las mejoras opcionales, apagadas por defecto)   (2026-11-13)
+06b_rasgos_a_midi.py: claves "ligar", "suavizado" (N), "densidad", "octava", "dron_programa" y
+"humanizar" (más el "dron_nivel" existente). Por defecto no hacen nada: rocola.mid de v1 sale
+byte a byte idéntico al de la ronda 12 (cmp). Se leen de rasgos.json (05 las copia) o de un JSON aparte:
+  python 06b_rasgos_a_midi.py --musica config/musica_v2.json --sufijo _v2
+  -> salidas/rocola_v2.mid, rocola_real_v2.wav y control_midi_v2.json (v1 no se pisa).
+config/musica_v2.json: ligar, suavizado 5, densidad, octava +1, dron_programa 89 (pad), dron_nivel 0,048
+(40 % menos que 0,08), humanizar.
+- ligar: notas consecutivas iguales se funden en una sola.
+- suavizado: media móvil centrada (ventana acortada en los bordes) sobre la media; de ella salen la nota,
+  la densidad y el cruce del dron.
+- densidad: < 0,3 -> 1 nota; 0,3-0,7 -> 2; > 0,7 -> 4, arpegio ascendente por la escala desde la nota del
+  fotograma; los subtiempos reparten el mismo fotograma (duración total y sincronía iguales).
+- humanizar: velocidad ±10 %, inicio y fin ±10 ms, default_rng(12345); la melodía es monofónica y una
+  nota nunca pisa a la siguiente.
+control.json (de 06) no cambia; 06b escribe su propia curva salidas/control_midi[_v2].json (notas por
+fotograma, ataques, dron, cruce del dron, rango de notas).
+evaluar.py: E1 sigue igual (v1); E2 nueva: con media sintética que cubre 1/2/4 notas, compara el .mid con
+un cálculo independiente (notas, arpegio, ligar, tiempos ±10 ms, dron, duración). Se comprobó que
+falla si se cambia la octava esperada.
+Medido (video GISTEMP): ataques v1 = 60; v2 = 46. Cruce del dron: v1 1978; v2 1976 (serie suavizada).
+Rango de notas: v1 48-81; v2 62-96. Dron: v1 nota 60 (cuerdas), v2 nota 72 (pad 89).
+salidas/comparacion_ab.wav: mismos 15 s, v1 y luego v2 (v2 con ganancia x2,35 para igualar el RMS).
+evaluar.py: 20 PASA, 0 FALLA.
+
+RONDA 14 - consolidación: 06 absorbe a 06b (MIDI + FluidSynth) con la configuración v2 por defecto   (2026-11-13)
+Antes: commit + tag "antes-consolidar-06" (06b y las salidas v2 siguen ahí).
+- 06_rasgos_a_audio.py: escribe salidas/rocola.mid, rocola.wav (instrumentos reales con FluidSynth) y
+  control.json. Por defecto: ligar, suavizado 5, densidad (1/2/4 notas), octava +1, humanizar (semilla 12345),
+  marimba (GM 13), dron pad (GM 89) con dron_nivel 0,048, reverb 50. Cada ajuste se apaga/cambia con su clave
+  del config (ligar false, suavizado 0, densidad false, octava 0, humanizar false).
+  Respaldo: sin fluidsynth/SoundFont, o con --sintetico, la síntesis numpy de siempre dirigida por las MISMAS
+  notas (mismo .mid, misma duración); el aviso muestra "sudo apt install fluidsynth fluid-soundfont-gm".
+  Paneo: CC10 va en el .mid, pero las muestras estéreo de FluidR3 lo ignoran (balance medido -0,0 -> 4,5 dB
+  con pan -0,79 -> 0,62). Por eso 06 renderiza melodía y dron por separado, pasa la melodía a mono y la panea
+  por muestra (ahora -10 -> +4 dB en los golpes, r = 0,99). Costo: dos llamadas a fluidsynth (~1 s en total).
+- control.json: "midi" = NOTA BASE por fotograma (con octava), "notas" = arpegio por fotograma,
+  "ataque_en_fotograma" (False = nota ligada), pan, dron, cruce_dron, ataques, ataques_sin_ligar, nota_min/max, modo.
+- 07: el tono se mide solo en la primera nota de cada fotograma (ventana 30 ms -> fin de esa nota, banda
+  100-2500 Hz, FFT con relleno) contra la nota base; el balance L/R se mide en el ataque (20-100 ms) y solo en
+  fotogramas con golpe nuevo (con la nota ligada solo suena el dron central).
+- evaluar.py: E1 (rocola.mid vs control.json: ataques, tiempos ±10 ms, dron, duración), E2 (valores por
+  defecto contra un cálculo independiente: suavizado 5, 1/2/4 notas, arpegio, ligar, octava, dron), E3 (respaldo:
+  --sintetico y PATH sin fluidsynth; 07 PASA, mismo .mid, 4,0 s, pico <= 0,85, aviso con apt). A8/B3 sin cambios.
+- Eliminados (grep: nada los referencia fuera de CAMBIOS.txt): 06b_rasgos_a_midi.py, config/musica_v2.json,
+  salidas/rocola_real*.wav, comparacion_ab.wav, rocola_v2.mid, control_midi*.json. 05: ya no copia instrumento_dron
+  (ahora dron_programa); config_eic.json sin dron_nivel/instrumento_dron para que valgan los defectos.
+- README y requirements (mido): instalación con "sudo apt install fluidsynth fluid-soundfont-gm".
+Comparación con la v2 (video GISTEMP): rocola.mid idéntico byte a byte a rocola_v2.mid (160 eventos), 46 ataques
+(89 sin ligar), notas 62-96, dron 72, cruce del dron 1976, duración 30,000 s, pico 0,8500 en ambos.
+El WAV difiere de rocola_real_v2.wav solo en el paneo (ahora exacto); correlación de envolvente 0,99.
+evaluar.py: 21 PASA, 0 FALLA. 08: video y audio 30,067 s, diferencia 0,000 s.
+
+RONDA 15 - 07: la prueba de tono medía fotogramas ligados   (2026-11-13)
+Síntoma: 07 FALLA "tono de la nota base", error máx. 684,9 cents.
+Diagnóstico con datos (salidas/ del momento: 40 fotogramas, dron 329,6 Hz): fallaron 8 de 40, TODOS ligados
+(de 15 ligados); ninguno de los 25 con ataque falló. La frecuencia detectada en esos 8 caía a 3-29 cents del
+dron (325-329 Hz) o de su 2.º armónico (654 Hz): la marimba ligada ya se había apagado y la prueba medía el dron.
+Causa confirmada; el audio y el .mid tienen las notas correctas (se corrigió la PRUEBA, no el audio).
+07: el tono se mide solo en fotogramas con ataque ("ataque_en_fotograma"), en la primera nota (30-200 ms,
+acortada si la nota dura menos) y sin la frecuencia del dron ni sus 2.º-4.º armónicos (salvo los que coinciden
+con la nota esperada). Nueva comprobación exacta: las notas del canal 1 de rocola.mid = notas esperadas de
+control.json (arpegios y ligaduras). 07 ahora tiene 5 comprobaciones; evaluar.py B4 espera 5 PASA.
+Resultado: tono medido en 25 fotogramas, error máx. 2,8 cents; notas exactas PASA; 07 5 PASA.
+Nota: salidas/rasgos.json, control.json, rocola.mid y validacion.png quedaron con los datos de la corrida
+sintética de 40 fotogramas; rocola.wav/demo_gistemp.mp4 del video real no se regeneraron en esta ronda.
+
+RONDA 16 - hallazgos [ARREGLAR HOY] de docs/AUDITORIA.md   (2026-11-13)
+Antes: commit + tag "antes-auditoria". Se aplicó uno por uno con evaluar.py después de cada uno.
+1. GitHub atrás: aplicado el push (origin/master al día); queda PENDIENTE invitar a los compañeros
+   (hace falta su usuario de GitHub).
+2. calibrar: --fechas ya no tiene valor por defecto (el time.txt de GISTEMP no se pega a otros videos);
+   el config se llama config_<video>.json (o --salida) y, si existe, conserva las claves que calibrar no calcula
+   (vmin_sonido, vmax_sonido, dron_*, reverb, instrumento_melodia, densidad_umbrales...). README: GISTEMP usa
+   --fechas datos/time.txt --salida config/config_eic.json. Comprobado: git diff config/ vacío tras recalibrar.
+3. 06: umbrales de densidad relativos al rango de sonido (por defecto 50 % y 72 % del rango: 0,3 y 0,7 con
+   -0,6..1,2) o "densidad_umbrales" [u1, u2] (copiada por 05; config_eic.json = [0.3, 0.7]). 05 imprime el
+   mín./máx. de la media y sugiere vmin_sonido/vmax_sonido. GISTEMP: rocola.mid idéntico (cmp).
+4. 05: la tabla de la barra se toma del primer fotograma con degradado (ptp > 30); si ninguno lo tiene, sale con
+   mensaje y sin tocar rasgos.json; aviso si la mediana de "validos" < 0,5.
+5. 05: comprueba que el video abre y que mapa/barra caben en el fotograma (mensaje con el tamaño real);
+   06 sale con mensaje si rasgos.json no trae fotogramas.
+6. 08: -filter_complex_script con grafo.txt, fuente y textos con nombre relativo y ffmpeg con cwd en la
+   carpeta temporal (rutas absolutas de entrada/salida). 600 rasgos: antes OSError, ahora PASA.
+7. 05: la máscara estática se calcula por bandas de 32 filas (sin materializar mediana y resta de todo el
+   recorte; resultado idéntico: C1 0,0049 y rasgos GISTEMP cmp igual); calibrar --escala automática deja el mapa
+   en ~1024 px de ancho (1920 -> 0,533; 4096 -> 0,25). Memoria máxima con GISTEMP: 0,99 GB.
+8. README: instalación para Ubuntu, macOS y Windows (Windows NO probado); avisos de 06 y 08 con alternativas
+   (brew, winget, ROCOLA_SF2).
+9. salidas/ deja de versionarse (git rm --cached; /salidas/ en .gitignore).
+Falsos: ninguno. Nada marcado [PUEDE ESPERAR] se tocó (barra horizontal en calibrar, texto del README).
+evaluar.py: pruebas nuevas F1 (densidad con datos 270-310), F2 (video que abre en negro), F3 (video
+inexistente / mapa fuera, rasgos.json intacto), F4 (08 con 600 rasgos). Con los 05/06/08 de antes de la ronda,
+las 4 FALLAN; con los nuevos PASAN. evaluar.py: 25 PASA, 0 FALLA.
+
+RONDA 17 - "se siente desincronizado": retardo, suavizado, re-golpe y eventos   (2026-11-13)
+1. Medición (video GISTEMP, 60 fotogramas): correlación cruzada de la media cruda de rasgos.json con la nota
+   base de control.json y con la nota que suena en rocola.mid: retardo 0 fotogramas (0,0 s), r = 0,978.
+   Ataques del audio frente a la rejilla del MIDI: mediana -1 ms (p10 -47, p90 +8; ±10 ms por humanizar).
+   Único desfase real: el video de 08 empieza 0,067 s después del audio (retardo de B-frames; ronda 7).
+   -> No había retardo. Lo que se sentía era escasez de respuesta: 89 ataques posibles, 46 tocados (ligar +
+   suavizado 5): los cambios del mapa quedaban sin golpe durante varios fotogramas.
+2. Suavizado: ya era CENTRADO (ventana [i-h, i+h]) con bordes de ventana acortada (sin retardo ni sesgo
+   en los extremos); no se tocó la lógica. Valor por defecto 5 -> 3.
+3. 06: "regolpe_ligado" (2): una nota ligada se vuelve a tocar cada 2 fotogramas con velocidad
+   "regolpe_vel" (0,4) x la de la nota; "umbral_evento" (0,15): si la media CRUDA cambia más que eso entre
+   fotogramas hay un ataque fuerte (velocidad >= 100) aunque la nota no cambie (y también si cambia).
+   Claves copiadas por 05 a rasgos.json; README actualizado. control.json nuevo: regolpe_en_fotograma,
+   evento_fuerte, notas_ataque, inicio_ticks, tipo_ataque; "ataque_en_fotograma" = golpe nuevo (excluye re-golpes
+   suaves, que no sirven para medir tono ni paneo). 07 compara el .mid con notas_ataque. Respaldo numpy:
+   la amplitud del golpe sigue la velocidad.
+4. Después: retardo 0 fotogramas (r = 0,978), igual. Ataques 46 -> 69 (45 normales, 19 fuertes, 5 re-golpes;
+   89 sin ligar). Notas 60-96, dron 72, cruce del dron 1976.
+5. Regenerados salidas/rocola.wav, rocola.mid y demo_gistemp.mp4 (30,067 s, video-audio 0,000 s, PASA).
+evaluar.py: E1 y E2 reescritas para los ataques nuevos (E2: cálculo independiente con tipos ataque/regolpe/fuerte
+y sus velocidades con humanizar), nueva E4 (retardo media -> notas <= 1 fotograma, sobre control.json y rocola.mid).
+Se comprobó que E4 falla (+2 fotogramas, r 0,72) con un suavizado causal de 7. evaluar.py: 26 PASA, 0 FALLA.
+
+RONDA 18 - auditoría de cumplimiento del motor de sonido (sin cambios de código)   (2026-11-13)
+Datos medidos sobre salidas/ del video GISTEMP (config_eic.json, ronda 17) y una corrida sintética temporal.
+ID  | Estado     | Evidencia
+A1  | CUMPLE     | evaluar.py 26 PASA, 0 FALLA, 0 OMITIDA en 18,0 s
+A2  | CUMPLE     | rasgos: t, fecha, media, area, centroide_x, cambio, validos; faltan centroide_y (opcional por "y/o") y
+    |            | eventos (opcional); no sobra ninguno
+A3  | CUMPLE     | 05:178 + 05:187 (cos lat); r = 0,992 con GISTEMP oficial (60 años); pendiente 1980-2023 0,207 vs 0,204
+    |            | °C/década (1880-1980: 0,042 vs 0,035); 2023: +1,06 vs +1,17 °C
+A4  | CUMPLE     | area = fracción > umbral 1,0 (05:211-212), 0,000-0,571; validos mín 0,826, prom 0,884, 0 fotogramas < 0,8
+A5  | PARCIAL    | nota pentatónica (06:101), volumen = velocidad por área (06:107), paneo por centroide_x (06:108, 06:256);
+    |            | sin filtro por área; dron = nota de 0 °C +12 (06:105, octava +1), no -12; limitador solo en el respaldo
+    |            | numpy (06:283); la ruta FluidSynth normaliza el pico a 0,85 (06:258)
+A6  | PARCIAL    | dron medido 524,0 Hz = MIDI 72,02; esperado por implementación 72 (0 °C -> 60, +12); por la guía (-12) 48
+A7  | CUMPLE     | nota base 60-93 (15 de 16 notas de la escala), con arpegios 60-96; registro 60-96 -> 92 % (base) / 100 %
+A8  | CUMPLE     | 08:105-108; fotograma t=20,25 s del demo: caja oscura arriba a la izquierda con 13,5 % de píxeles blancos
+    |            | (original 0 %); año 1981
+A9  | PARCIAL    | sin centroide_y ni paneo norte-sur; balance L/R real en los ataques -4,2 a +1,4 dB (pan -0,49 a +0,32)
+A10 | CUMPLE     | error de tono máx. 2,7 cents (GISTEMP) y 2,0 cents (sintético); en GISTEMP 07 marca FALLA "el tono no
+    |            | baja" y "paneo izq->der", pensadas solo para el video sintético
+B1  | no existe  | sin Web Audio / HTML / JS en el repo
+B2  | no existe  | sin FastAPI
+B3  | no existe  | sin WebSocket
+B4  | existe     | salidas/demo_gistemp.mp4 (30,067 s, ronda 17; no versionado)
+Mapeo real: paleta vmin/vmax -2/+2 °C; sonido vmin_sonido/vmax_sonido -0,6/+1,2 °C; umbral de área 1,0 °C; escala
+pentatónica de Do 48-84 + octava +1 = 60-96; nota base usada 60-93; dron 72 (Do5, 523 Hz); densidad 0,3/0,7 °C;
+umbral_evento 0,15 °C. La guía del equipo dice MIDI 55-86 (ilustrativo).
+
+RONDA 19 - correcciones de la auditoría (ronda 18)   (2026-11-13)
+Antes: commit de la ronda 18.
+1. Dron: nota_dron = melodía(referencia) - 12 = nota_ref + 12*octava - 12 (+ 12*dron_octava, 0 por defecto); se quita el
+   +12 fijo. Medido: melodía en 0 °C = MIDI 72, dron = MIDI 60 (en rocola.wav, espectro persistente: pico de 200-320 Hz en 260,0 Hz = MIDI 59,9,
+   bin de 2 Hz; también aparece su 2.º armónico en 524 Hz). Antes 72. El .mid (canal 2) tiene la nota 60 (prueba G1).
+2. 05: nuevo campo centroide_y (latitud media de los píxeles sobre el umbral, ponderada por cos(lat); 0 = sur, 1 = norte,
+   0,5 si no hay ninguno; supone recorte de +90 a -90). 06: clave "paneo" "x" (defecto) | "y" (config_eic.json = "y");
+   el centroide se suaviza (media móvil de 3), se normaliza con los percentiles 5-95 y control.json trae "paneo".
+   GISTEMP con "y": centroide_y 0,086-0,915; pan -1,0 a +1,0; balance L/R medido en los ataques: -18,8 a +27,9 dB.
+3. Ruta FluidSynth de 06: sintesis.limitar() en lugar de normalizar el pico (pico 0,8499).
+4. 07: "el tono no baja" y "paneo izq->der" salen NO APLICA si la fuente no es 04_video_sintetico.mp4; no cuentan
+   como FALLA (con GISTEMP: tono máx. 2,6 cents; 3 PASA + 2 NO APLICA).
+5. evaluar.py: G1 (dron = melodía(0 °C) - 12 medido en el .mid), G2 (centroide_y presente, 0-1 y ≈ 0,5 en el video
+   sintético), G3 (paneo "y" sigue a centroide_y: -1,0 -> +1,0); E1/E2 ajustadas al dron nuevo.
+05 copia "paneo" a rasgos.json. Regenerados rocola.wav, rocola.mid y demo_gistemp.mp4 (08 sin tocar).
+evaluar.py: 29 PASA, 0 FALLA.
+
+RONDA 20 - web/: rocola web accesible con el estilo "universo en movimiento"   (2026-11-14)
+Hecho con ayuda de IA (Claude, de Anthropic) en el código; revisado y probado por Juan.
+Problema: el repositorio no tenía interfaz para escuchar las visualizaciones (B1 de la ronda 18: "sin Web Audio /
+HTML / JS en el repo").
+Cambio: se agrega la carpeta web/ (HTML, CSS y JS puros, sin frameworks ni compilación) y
+docs/CONTEXTO_ESTETICA_WEB.md. NO se tocó ningún script del pipeline (04-08), ni config/, ni evaluar.py.
+  web/index.html, estilos.css, app.js  lista de pistas, video con el audio ya mezclado, controles, gráfico SVG
+                                       sincronizado (clic = saltar), registro "Qué pasa ahora" y tabla Dato/Sonido
+  web/describir.js                     describe en palabras cada rasgo (región viva para lectores de pantalla)
+  web/catalogo.json + assets/          ejemplo sintético (mp4 0,7 MB + rasgos), logo (generado con IA), íconos y
+                                       fuentes Unbounded, Plus Jakarta Sans y Space Mono (SIL OFL, sin internet)
+  web/preparar_datos.py                genera assets/ con el pipeline (04 -> 05 -> 06 -> 08) en una carpeta temporal
+                                       (ROCOLA_SALIDAS / ROCOLA_CONFIG): no pisa salidas/ ni config/
+  web/GUIA_ESTILO.md, capturas/        guía de estilo de una página y capturas de escritorio y móvil
+  web/.gitignore                       versiona solo web/assets/*.mp4 (la raíz ignora *.mp4)
+Cómo probar:  cd web  &&  python -m http.server 8000   ->  http://localhost:8000
+Verificado (Windows 11, Chrome headless, axe-core 4.10.2):
+  axe WCAG 2.2 AA + buenas prácticas: 0 violaciones en escritorio (1440 px) y móvil (390 px).
+  Contraste en el peor caso (panel sobre estrella blanca): texto >= 5,6:1; sin scroll horizontal en 390-1440 px.
+  Teclado: Tab llega a la lista, Enter elige, Espacio reproduce/pausa, flechas -> 13,0 s y <- <- -> 3,0 s desde 8 s;
+  anillo de foco blanco de 2 px en todos los controles; prefers-reduced-motion detiene las estrellas.
+  Gráfico: punto en 20 % / 80 % al 20 % / 80 % del video; clic en el centro -> 0,51 de la duración.
+  Archivo más grande de web/: assets/logo.jpg, 2,3 MB (ninguno pasa de 20 MB).
+Compatibilidad con el pipeline de la ronda 19: 04, 05 y 06 nuevos corren desde preparar_datos.py y su rasgos.json
+sirve a la web sin cambios (campos usados: media, area, centroide_x, fecha, vmin, vmax, referencia; centroide_y y
+las claves de sonido se ignoran). La web con esos assets también da 0 violaciones y pasa el teclado.
+PENDIENTE (no es de la web): 08 usa -filter_complex_script, que ffmpeg 9 ya no reconoce ("Unrecognized option
+'filter_complex_script'"); en esta máquina preparar_datos.py se detiene en 08 y por eso web/assets/ conserva el
+ejemplo generado antes de la ronda 19. Con ffmpeg >= 7 la opción equivalente es -/filter_complex <archivo>.
+evaluar.py en esta máquina (Windows, ffmpeg 9.0.2): 25 PASA, 4 FALLA (C2, C3, D1, F4), idéntico prueba por prueba
+al de origin/master sin web/ (D1 y F4 caen por la opción de ffmpeg; C2 y C3 ya fallaban aquí antes de esta ronda).

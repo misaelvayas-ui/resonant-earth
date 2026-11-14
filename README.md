@@ -12,17 +12,39 @@ Prototipo para NASA Space Apps (reto 9), probado con el video **NASA SVS 5207 �
 | zona caliente (`area`) | **volumen** de la voz (−6 a 0 dB) |
 | posición de lo caliente (`centroide_x`) | **paneo** izquierda ↔ derecha |
 | cambio de nota | **golpe** (pluck) |
-| valor de referencia (p. ej. 0 °C) | **dron** grave fijo: se oye si el presente está por encima o por debajo |
+| valor de referencia (p. ej. 0 °C) | **dron** (pad) fijo en esa nota: se oye si el presente está por encima o por debajo |
+| anomalía alta | **más notas por fotograma** (1, 2 o 4, en arpegio ascendente) |
 
 Con el video real, la media extraída sigue la curva oficial de GISTEMP con una correlación de **0,99** (58 años muestreados).
 
 ## Instalación
 
+**Ubuntu / Debian**
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-sudo apt install ffmpeg        # solo para 08 (video + audio)
+sudo apt install ffmpeg                          # 08 (video + audio)
+sudo apt install fluidsynth fluid-soundfont-gm   # 06: instrumentos reales (sin esto, 06 usa un respaldo numpy)
 ```
+
+**macOS**
+```bash
+python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+brew install ffmpeg fluid-synth
+export ROCOLA_SF2=/ruta/a/FluidR3_GM.sf2         # descarga una SoundFont General MIDI (.sf2)
+```
+
+**Windows (PowerShell)** — no probado en este proyecto; los nombres de paquete pueden variar
+```powershell
+py -m venv .venv; .venv\Scripts\Activate.ps1; pip install -r requirements.txt
+winget install Gyan.FFmpeg                       # 08 (reinicia la terminal para que lo vea el PATH)
+winget install FluidSynth.FluidSynth             # opcional
+$env:ROCOLA_SF2 = "C:\ruta\FluidR3_GM.sf2"      # SoundFont GM (.sf2) para FluidSynth
+```
+
+Sin fluidsynth o sin SoundFont, **06 sigue funcionando** con un respaldo numpy (mismas notas, otro timbre) y
+lo avisa. Sin ffmpeg solo falla 08 (el video con audio). `ROCOLA_SF2` apunta a otra SoundFont en cualquier
+sistema; `ROCOLA_SIN_AUDIO=1` evita que 06 reproduzca el resultado por los altavoces.
 
 Todos los comandos se ejecutan **desde la raíz del proyecto**; si no, el script lo avisa.
 
@@ -40,11 +62,11 @@ python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 |---|---|
 | `04_video_sintetico.py [seg]` | genera un video de prueba con verdad conocida → `salidas/04_video_sintetico.mp4`, `config/config_video.json` |
 | `05_video_a_rasgos.py [config]` | video → `salidas/rasgos.json` (un registro por fotograma muestreado) |
-| `06_rasgos_a_audio.py [rasgos]` | rasgos → `salidas/rocola.wav` (estéreo) + `salidas/control.json` |
+| `06_rasgos_a_audio.py [rasgos] [--sintetico]` | rasgos → `salidas/rocola.mid` → `salidas/rocola.wav` (estéreo, marimba + dron pad con FluidSynth) + `salidas/control.json`. `--sintetico` (o falta de fluidsynth) usa el respaldo numpy con las mismas notas |
 | `07_validar.py` | comprueba tono y paneo del WAV → `salidas/validacion.png` + PASA/FALLA |
 | `08_video_con_audio.py [video] [wav] [mp4]` | une video y audio sincronizados → `salidas/demo_rocola.mp4` |
 
-`sintesis.py` es el motor de audio (osciladores, ADSR, escalas, paneo). Los scripts `01`–`03` son ejercicios de síntesis básica.
+`sintesis.py` es el motor de audio (osciladores, ADSR, escalas, paneo). Los ejercicios de síntesis básica (`01`–`03`) están en `archivo/`.
 
 ## Video real (NASA SVS 5207)
 
@@ -52,7 +74,7 @@ python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 2. Calibra: detecta el mapa y el degradado de la barra y guarda `salidas/calibracion.png` para revisarlos.
    ```bash
    python -m herramientas.calibrar                     # muestra la imagen y pide el rango
-   python -m herramientas.calibrar --vmin -2 --vmax 2  # rango leído en la barra → config/config_eic.json
+   python -m herramientas.calibrar --vmin -2 --vmax 2 --fechas datos/time.txt --salida config/config_eic.json   # rango leído en la barra
    ```
 3. Procesa (≈25 s para 60 fotogramas):
    ```bash
@@ -73,6 +95,7 @@ Obligatorias: `video`, `mapa` y `barra` (rectángulos `[x0, y0, x1, y1]` en píx
 | `ponderar_latitud` | false | media ponderada por cos(latitud) en mapas equirectangulares completos |
 | `fechas` | — | `time.txt` → añade `fecha` a cada rasgo |
 | `referencia` | primer fotograma | valor en el que suena el dron (0 = sin anomalía) |
+| `ligar`, `suavizado`, `densidad`, `regolpe_ligado`, `regolpe_vel`, `umbral_evento`, `octava`, `humanizar`, `dron_nivel`, `dron_programa`, `instrumento_melodia`, `reverb` | ver cabecera de 06 | musicalidad de 06 (por defecto: ligar, suavizado 3, densidad, octava +1, humanizar, re-golpe de notas ligadas cada 2 fotogramas, ataque fuerte si la media cruda cambia > 0,15, dron pad 89, marimba 13); `ligar: false, suavizado: 0, densidad: false, octava: 0, humanizar: false` = sonido simple |
 | `dist_max` | 8.0 | distancia de color (Lab) máxima para aceptar un píxel |
 | `mascara_estatica`, `umbral_estatico`, `frac_estatico` | true, 3.0, 0.7 | descartar tierra, costas y logos que no cambian |
 | `mascara_imagen` | — | máscara a mano (PNG, negro = descartar) |
@@ -85,15 +108,30 @@ Obligatorias: `video`, `mapa` y `barra` (rectángulos `[x0, y0, x1, y1]` en píx
 
 `validos` es la fracción de píxeles reconocidos en la paleta; si baja de 0,8, revisa el recorte. Otros módulos pueden **añadir** campos (p. ej. `"evento": "huracan"`) sin romper el motor de sonido.
 
+## Uso en el hackathon
+
+Con el video ya descargado en `datos/` (ver "Video real"), en este orden:
+
+```bash
+python -m herramientas.calibrar --vmin -2 --vmax 2 --fechas datos/time.txt --salida config/config_eic.json   # 1. calibrar
+python 05_video_a_rasgos.py config/config_eic.json   # 2. video → salidas/rasgos.json
+python 06_rasgos_a_audio.py                          # 3. rasgos → salidas/rocola.wav
+python 08_video_con_audio.py datos/2023GISTEMP_Map_SOS.mp4 salidas/rocola.wav salidas/demo_gistemp.mp4   # 4. video + audio
+```
+
+Después de **cada cambio** de código o de config: `python evaluar.py` (debe dar todo PASA).
+
 ## Estructura
 
 ```
-sintesis.py  rutas.py  01…08_*.py  evaluar.py    código (raíz)
+sintesis.py  rutas.py  04…08_*.py  evaluar.py    código (raíz)
 config/        configuraciones de 05
 datos/         videos y barras descargados (ignorado por git)
 salidas/       todo lo generado (WAV, MP4, PNG, JSON)
-herramientas/  calibrar.py, verificar_01.py, graficar_01.py   →  python -m herramientas.<nombre>
-docs/          CAMBIOS.txt (historial de cambios y verificaciones), PLAN.md
+herramientas/  calibrar.py   →  python -m herramientas.calibrar
+docs/          CAMBIOS.txt (historial de cambios y verificaciones)
+archivo/       ejercicios 01–03, verificar_01/graficar_01, PLAN.md y sus salidas (nada se borró;
+               también está en el tag git "practica-completa")
 ```
 
 Variables de entorno: `ROCOLA_SALIDAS` y `ROCOLA_CONFIG` redirigen las carpetas; con `ROCOLA_SIN_AUDIO=1` no se reproduce sonido.

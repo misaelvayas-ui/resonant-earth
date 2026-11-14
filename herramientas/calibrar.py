@@ -1,13 +1,13 @@
-"""calibrar.py — prepara config/config_eic.json para un video real (p. ej. NASA SVS 5207).
+"""calibrar.py — prepara config/config_<video>.json (o --salida) para un video real (p. ej. NASA SVS 5207).
 
 Uso (desde la raíz):  python -m herramientas.calibrar [opciones]
   --video   datos/2023GISTEMP_Map_SOS.mp4
   --barra   datos/giss_navy_anomaly_Vertical-both.png
   --vmin/--vmax   rango de la barra en °C (si no se dan, se usan los de LECTURA_BARRA; ver abajo)
   --cuadro  posición del fotograma de referencia, 0-1 (0.6)
-  --fps-muestreo 2   --escala AUTO (0.25 si el video mide > 2000 px de ancho)
+  --fps-muestreo 2   --escala AUTO (deja el mapa en ~1024 px de ancho: 0.25 para 4096, 0.533 para 1920)
   --umbral  valor sobre el que se mide 'area'     --referencia  valor del dron (06)
-Genera config/config_eic.json y salidas/calibracion.png (revísalo: rectángulos y cuadrícula).
+Genera ese config (conserva las claves musicales que ya tuviera) y salidas/calibracion.png (revísalo: rectángulos y cuadrícula).
 
 Qué detecta:
   - Barra PNG: el degradado es el bloque donde cada fila es de un solo color (marcas y texto
@@ -19,6 +19,7 @@ Qué detecta:
 """
 import argparse
 import json
+import os
 import sys
 
 try:
@@ -133,7 +134,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--video", default="datos/2023GISTEMP_Map_SOS.mp4")
     ap.add_argument("--barra", default="datos/giss_navy_anomaly_Vertical-both.png")
-    ap.add_argument("--fechas", default="datos/time.txt")
+    ap.add_argument("--fechas", default=None, help="time.txt de fechas (p. ej. datos/time.txt); sin él no se añade 'fechas'")
     ap.add_argument("--vmin", type=float)
     ap.add_argument("--vmax", type=float)
     ap.add_argument("--cuadro", type=float, default=0.6)
@@ -169,18 +170,27 @@ def main():
            "barra_vertical": True, "barra_arriba_es_max": True, "vmin": vmin, "vmax": vmax,
            "umbral": a.umbral if a.umbral is not None else (1.0 if vmax >= 2 else round(0.5 * vmax, 3)),
            "fps_muestreo": a.fps_muestreo,
-           "escala": a.escala if a.escala is not None else (0.25 if ancho > 2000 else 1.0),
+           "escala": a.escala if a.escala is not None else round(min(1.0, 1024 / ancho), 3),
            "ponderar_latitud": bool(lat_ok), "dist_max": dist_max}
-    try:
-        with open(a.fechas):
-            cfg["fechas"] = a.fechas
-    except OSError:
-        pass
+    if a.fechas:
+        if not os.path.exists(a.fechas):
+            sys.exit(f"No existe el archivo de fechas '{a.fechas}'.")
+        cfg["fechas"] = a.fechas
     if a.referencia is not None:
         cfg["referencia"] = a.referencia
     elif vmin < 0 < vmax:
         cfg["referencia"] = 0.0
-    ruta = a.salida or cfg_ruta("config_eic.json")
+    # un config por video (no se pisan entre sí); si ya existe se conservan las claves que calibrar no calcula
+    ruta = a.salida or cfg_ruta("config_" + os.path.splitext(os.path.basename(a.video))[0] + ".json")
+    if os.path.exists(ruta):
+        with open(ruta) as fh:
+            previo = json.load(fh)
+        conservar = {k: v for k, v in previo.items() if k not in cfg and k != "fechas"}
+        if "fechas" in previo and "fechas" not in cfg and a.fechas is None and previo.get("video") == a.video:
+            conservar["fechas"] = previo["fechas"]
+        cfg.update(conservar)
+        if conservar:
+            print(f"Se conservaron de {ruta}: {', '.join(conservar)}")
     with open(ruta, "w") as fh:
         json.dump(cfg, fh, indent=2)
     print(f"Rango: {vmin:g} .. {vmax:g} °C | ponderar_latitud={lat_ok} | dist_max={dist_max:g} | escala={cfg['escala']}")

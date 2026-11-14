@@ -21,5 +21,6 @@
   "dist_max": 8.0,
   "mascara_estatica": true,
   "umbral_estatico": 3.0,
+  "frac_estatico": 0.7,
   "borde_px": 1
 }

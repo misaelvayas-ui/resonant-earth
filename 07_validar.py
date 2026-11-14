@@ -1,12 +1,14 @@
 """
 07 — Validación objetiva del prototipo (no solo "a oído").
 
-1. Espectrograma de rocola.wav  -> el trazo principal debe subir en escalera.
+1. Tono de la nota base de cada fotograma (control.json) -> debe coincidir con el de rocola.wav;
+   el trazo principal sube en escalera. Los arpegios no se miden.
 2. Balance L/R por ventana      -> debe ir de izquierda (+L) a derecha (+R).
 3. Comprobaciones automáticas con PASA/FALLA.
 Genera validacion.png.
 """
 import json
+import os
 import sys
 import numpy as np
 from rutas import sal
@@ -23,45 +25,78 @@ r = json.load(open(sal("rasgos.json")))["rasgos"]
 spf = int(ctl["seg_por_fotograma"] * fs)
 n_f = len(ctl["midi"])
 
-# 1) tono dominante por fotograma (pico del espectro entre 100 y 1200 Hz, sin el dron)
+# 1) tono dominante por fotograma. control.json trae la NOTA BASE de cada fotograma ("midi"), su arpegio
+#    ("notas") y "ataque_en_fotograma". Solo se miden los fotogramas CON ataque (en uno ligado la nota
+#    viene del fotograma anterior, ya se apagó y solo queda el dron), y solo su PRIMERA nota (ventana de
+#    30 a 200 ms, acortada si la nota dura menos). Se ignora la frecuencia del dron y sus armónicos,
+#    salvo los que coinciden con la nota esperada (si la nota base ES el dron, no se puede enmascarar).
 mono = x.mean(axis=1)
-pico_hz = []
-for i in range(n_f):
-    seg = mono[i * spf + spf // 4:(i + 1) * spf]          # salta el ataque
-    S = np.abs(np.fft.rfft(seg * np.hanning(len(seg))))
-    f = np.fft.rfftfreq(len(seg), 1 / fs)
-    banda = (f > 120) & (f < 1200)
-    pico_hz.append(f[banda][np.argmax(S[banda])])
-pico_hz = np.array(pico_hz)
-esperado = 440 * 2 ** ((np.array(ctl["midi"]) - 69) / 12)
+hz = lambda m: 440 * 2 ** ((np.asarray(m, dtype=float) - 69) / 12)
+con = np.array(ctl.get("ataque_en_fotograma", [True] * n_f))
+dron_hz = hz(ctl["dron"]) if "dron" in ctl else None
+pico_hz = np.full(n_f, np.nan)
+for i in np.flatnonzero(con):
+    k = len(ctl["notas"][i]) if "notas" in ctl else 1
+    ini = i * spf + int(0.03 * fs)
+    fin = i * spf + min(int(0.20 * fs), int(spf / k) - int(0.01 * fs))
+    seg = mono[ini:fin]
+    S = np.abs(np.fft.rfft(seg * np.hanning(len(seg)), 16 * len(seg)))       # relleno de ceros: pico más fino
+    f = np.fft.rfftfreq(16 * len(seg), 1 / fs)
+    banda = (f > 100) & (f < 2500)
+    if dron_hz is not None:
+        esp_i = hz(ctl["midi"][i])
+        for h in (1, 2, 3, 4):
+            if abs(1200 * np.log2(dron_hz * h / esp_i)) > 50:                 # armónico que no es la nota
+                banda &= np.abs(1200 * np.log2(np.maximum(f, 1e-9) / (dron_hz * h))) > 50
+    pico_hz[i] = f[banda][np.argmax(S[banda])]
+esperado = hz(ctl["midi"])
+nota_ok = np.where(con)[0]
+print(f"Tono medido en {len(nota_ok)} fotogramas con ataque de {n_f} (los {n_f - len(nota_ok)} ligados se excluyen)")
 
-# 2) balance L/R en dB por fotograma
+# notas exactas: el .mid debe contener justo los ataques que control.json declara (arpegios, ligaduras, re-golpes)
+import mido
+atq_mid, esp_mid = [], []
+for m in mido.merge_tracks(mido.MidiFile(sal("rocola.mid")).tracks):
+    if m.type == "note_on" and m.velocity > 0 and m.channel == 0:
+        atq_mid.append(m.note)
+esp_mid = ctl["notas_ataque"]
+notas_exactas = atq_mid == esp_mid and len(atq_mid) == ctl["ataques"]
+
+# 2) balance L/R en dB por fotograma, medido en el ATAQUE (20-100 ms): la marimba decae y después solo
+#    queda el dron, que es central. Un fotograma con la nota ligada (sin golpe nuevo) no informa del
+#    paneo y se excluye.
 bal = []
 for i in range(n_f):
-    L, R = x[i * spf:(i + 1) * spf, 0], x[i * spf:(i + 1) * spf, 1]
+    seg = x[i * spf + int(0.02 * fs): i * spf + int(0.10 * fs)]
+    L, R = seg[:, 0], seg[:, 1]
     bal.append(20 * np.log10((np.sqrt(np.mean(R ** 2)) + 1e-9) / (np.sqrt(np.mean(L ** 2)) + 1e-9)))
 bal = np.array(bal)
+con = np.array(ctl.get("ataque_en_fotograma", [True] * n_f))
+bal_a, idx_a = bal[con], np.arange(n_f)[con]
 
-err_cents = 1200 * np.abs(np.log2(pico_hz / esperado))
+err_cents = 1200 * np.abs(np.log2(pico_hz[con] / esperado[con]))
+sintetico = os.path.basename(json.load(open(sal("rasgos.json"))).get("fuente", "")) == "04_video_sintetico.mp4"
 checks = {
-    "tono detectado = tono esperado (±50 cents)": bool(np.all(err_cents < 50)),
-    "el tono no baja (serie creciente)": bool(np.all(np.diff(esperado) >= 0)),
+    "tono de la nota base (fotogramas con ataque) = esperado (±50 cents)": bool(np.all(err_cents < 50)),
+    "notas de rocola.mid = notas esperadas de control.json": bool(notas_exactas),
+    # solo tienen sentido con el video sintético (media creciente y tormenta de izquierda a derecha)
+    "el tono no baja (serie creciente)": bool(np.all(np.diff(esperado) >= 0)) if sintetico else None,
     # el dron central "diluye" el balance, así que se valida la TENDENCIA, no un valor fijo
-    "paneo va de izquierda a derecha": bool(bal[0] < 0 < bal[-1] and np.corrcoef(np.arange(n_f), bal)[0, 1] > 0.9),
+    "paneo va de izquierda a derecha": bool(bal_a[0] < 0 < bal_a[-1] and np.corrcoef(idx_a, bal_a)[0, 1] > 0.9) if sintetico else None,
     "media de rasgos crece": bool(r[-1]["media"] > r[0]["media"]),
 }
 for k, v in checks.items():
-    print(f"[{'PASA' if v else 'FALLA'}] {k}")
-print(f"Error máximo de tono: {err_cents.max():.1f} cents | balance L/R: {bal[0]:.1f} dB -> {bal[-1]:.1f} dB")
+    print(f"[{'NO APLICA' if v is None else 'PASA' if v else 'FALLA'}] {k}" + ("" if v is not None else " (solo para el video sintético)"))
+print(f"Error máximo de tono: {err_cents.max():.1f} cents | balance L/R (fotogramas con golpe): {bal_a[0]:.1f} dB -> {bal_a[-1]:.1f} dB, r = {np.corrcoef(idx_a, bal_a)[0, 1]:.2f}")
 
 fig, ax = plt.subplots(3, 1, figsize=(10, 9))
 f, t, S = spectrogram(mono, fs, nperseg=4096, noverlap=3072)
 ax[0].pcolormesh(t, f, 10 * np.log10(S + 1e-12), shading="auto", cmap="magma")
-ax[0].set_ylim(0, 1500); ax[0].set_ylabel("Hz"); ax[0].set_title("Espectrograma de rocola.wav")
+ax[0].set_ylim(0, 2500); ax[0].set_ylabel("Hz"); ax[0].set_title("Espectrograma de rocola.wav")
 ax[1].plot(esperado, "o-", label="esperado"); ax[1].plot(pico_hz, "x--", label="detectado")
-ax[1].set_ylabel("Hz"); ax[1].legend(); ax[1].set_title("Tono por fotograma")
-ax[2].plot(bal, "s-"); ax[2].axhline(0, color="gray", lw=0.8)
+ax[1].set_ylabel("Hz"); ax[1].legend(); ax[1].set_title("Nota base por fotograma")
+ax[2].plot(bal, "s--", alpha=0.4); ax[2].plot(idx_a, bal_a, "s-"); ax[2].axhline(0, color="gray", lw=0.8)
 ax[2].set_ylabel("dB (R/L)"); ax[2].set_xlabel("fotograma"); ax[2].set_title("Balance estéreo (+ = derecha)")
 plt.tight_layout(); plt.savefig(sal("validacion.png"), dpi=110)
 print(f"Gráfica: {sal('validacion.png')}")
-sys.exit(0 if all(checks.values()) else 1)
+sys.exit(0 if all(v is not False for v in checks.values()) else 1)
