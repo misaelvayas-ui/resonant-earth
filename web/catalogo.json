@@ -1,0 +1,13 @@
+{
+  "visualizaciones": [
+    {
+      "id": "ejemplo-sintetico",
+      "titulo": "Mancha de calor viajera (ejemplo)",
+      "descripcion": "Video de prueba con verdad conocida: una mancha caliente cruza el mapa de izquierda a derecha y crece. El tono sube, el volumen sube y el sonido viaja de izquierda a derecha.",
+      "video": "assets/ejemplo_sintetico.mp4",
+      "rasgos": "assets/ejemplo_sintetico_rasgos.json",
+      "unidad": "",
+      "leyenda": "Escala de 0 a 1. Morado oscuro: valor bajo. Verde: medio. Amarillo: valor alto."
+    }
+  ]
+}
