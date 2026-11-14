@@ -1003,4 +1003,5 @@ Comprobado: con master (más el escritor de video de macOS) y con esta fusión, 
 rocola.wav son IGUALES byte a byte (cmp) en el ejemplo sintético y en las dos pistas reales (13 de 13 archivos, 8 de 8
 textos). Solo con el respaldo numpy: nivelar_dron (FluidSynth) no se pudo ejecutar en este Mac.
 Web: las tres pistas cargan y suenan con los MP4 nuevos de master; sin errores en consola.
-PENDIENTE: evaluar.py estaba corriendo al guardar esta ronda; su resultado NO está confirmado todavía.
+evaluar.py (macOS, respaldo numpy), confirmado después de guardar la ronda: 43 PASA, 0 FALLA, 2 OMITIDA en 108 s
+(F4: este ffmpeg no trae drawtext; K1: sin FluidSynth ni SoundFont). Son las mismas 45 pruebas que master (45 PASA allí).
