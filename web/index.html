@@ -4,13 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Rocola de la Tierra · Resonant Earth</title>
-  <meta name="description" content="Rocola de la Tierra: escucha visualizaciones del clima convertidas en sonido.">
+  <meta name="description" content="Rocola de la Tierra: escucha visualizaciones del clima de la NASA convertidas en sonido.">
   <meta name="theme-color" content="#000000">
   <link rel="icon" type="image/png" sizes="64x64" href="assets/icono-64.png">
   <link rel="apple-touch-icon" href="assets/icono-180.png">
   <link rel="preload" href="assets/fonts/plus-jakarta-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="estilos.css">
+  <!-- arranque.js va sin defer: pone el idioma y el tema antes de pintar -->
+  <script src="arranque.js"></script>
+  <script src="textos.js" defer></script>
   <script src="describir.js" defer></script>
+  <script src="momentos.js" defer></script>
+  <script src="sonidos.js" defer></script>
+  <script src="voz.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -20,7 +26,7 @@
     <div class="capa capa-cercana"></div>
     <div class="fugaz"></div>
   </div>
-  <a class="saltar" href="#reproductor">Saltar al reproductor</a>
+  <a class="saltar" href="#reproductor" data-i18n="saltar">Saltar al reproductor</a>
 
   <header class="cabecera">
     <span class="logo-marco">
@@ -28,60 +34,84 @@
            srcset="assets/logo-240.jpg 240w, assets/logo-480.jpg 480w"
            sizes="(max-width: 600px) 136px, (max-width: 999px) 148px, 184px"
            width="184" height="184" fetchpriority="high"
+           data-i18n-attr="alt:logo.alt"
            alt="Logo de Resonant Earth: la Tierra con auriculares y ondas de sonido, con el lema Hear the Earth. Imagen generada con IA, con la marca «Generado con IA»">
     </span>
     <div class="cabecera-texto">
-      <p class="rotulo">Resonant Earth</p>
-      <h1>Rocola de la Tierra</h1>
-      <p class="lema">Visualizaciones del clima convertidas en sonido. Elige una pista y escucha los datos.</p>
+      <p class="rotulo" lang="en">Resonant Earth</p>
+      <h1 data-i18n="cabecera.titulo">Rocola de la Tierra</h1>
+      <p class="lema" data-i18n="cabecera.lema">Visualizaciones del clima de la NASA convertidas en sonido. Elige una pista y escucha los datos.</p>
+    </div>
+    <div class="ajustes" role="group" aria-label="Ajustes de la página" data-i18n-attr="aria-label:ajustes">
+      <div class="idiomas" role="group" aria-label="Idioma" data-i18n-attr="aria-label:ajustes.idioma">
+        <button type="button" class="boton-idioma" data-idioma="es" lang="es" aria-pressed="true">Español</button>
+        <button type="button" class="boton-idioma" data-idioma="en" lang="en" aria-pressed="false">English</button>
+      </div>
+      <div class="campo-tema">
+        <label for="tema" data-i18n="ajustes.tema">Tema</label>
+        <select id="tema">
+          <option value="sistema" data-i18n="tema.sistema">Sistema</option>
+          <option value="claro" data-i18n="tema.claro">Claro</option>
+          <option value="oscuro" data-i18n="tema.oscuro">Oscuro</option>
+        </select>
+      </div>
+      <a class="enlace-ayuda" href="#ayuda" data-i18n="ajustes.ayuda">Ayuda</a>
     </div>
   </header>
 
   <main class="rejilla">
     <section class="rocola" aria-labelledby="titulo-rocola">
-      <h2 id="titulo-rocola">Elige una visualización</h2>
-      <p id="estado-catalogo" class="aviso" role="status">Cargando el catálogo…</p>
+      <h2 id="titulo-rocola" data-i18n="rocola.titulo">Elige una visualización</h2>
+      <p id="estado-catalogo" class="aviso" role="status" data-i18n="rocola.cargando">Cargando el catálogo…</p>
       <ol id="lista" class="lista"></ol>
     </section>
 
     <section id="reproductor" class="reproductor" aria-labelledby="titulo-actual" tabindex="-1">
-      <h2 id="titulo-actual">Ninguna visualización elegida</h2>
+      <h2 id="titulo-actual" data-i18n="reproductor.ninguna">Ninguna visualización elegida</h2>
       <p id="descripcion-actual" class="descripcion"></p>
 
       <div class="pantalla">
         <video id="video" preload="metadata" playsinline aria-describedby="descripcion-actual leyenda-colores"></video>
       </div>
 
-      <div class="controles" role="group" aria-label="Controles del reproductor">
+      <div class="controles" role="group" aria-label="Controles del reproductor" data-i18n-attr="aria-label:reproductor.controles">
         <button id="play" class="boton-play" type="button" disabled>
           <span class="icono" aria-hidden="true">▶</span>
-          <span class="texto">Reproducir</span>
+          <span class="texto" data-i18n="reproductor.reproducir">Reproducir</span>
         </button>
 
-        <div class="campo campo-progreso">
-          <label for="progreso">Progreso</label>
-          <input id="progreso" type="range" min="0" max="0" step="0.1" value="0" disabled
-                 aria-valuetext="0:00 de 0:00">
-          <span id="tiempo" class="tiempo" aria-hidden="true">0:00 / 0:00</span>
-        </div>
+        <button id="completa" class="boton-secundario" type="button" disabled hidden>
+          <svg class="icono" aria-hidden="true" focusable="false" viewBox="0 0 16 16" width="16" height="16">
+            <path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          </svg>
+          <span class="texto" data-i18n="reproductor.completa">Pantalla completa</span>
+        </button>
 
         <div class="campo campo-volumen">
-          <label for="volumen">Volumen</label>
+          <label for="volumen" data-i18n="reproductor.volumen">Volumen</label>
           <input id="volumen" type="range" min="0" max="100" step="5" value="80"
                  aria-valuetext="80 %">
         </div>
+
+        <div class="campo campo-progreso">
+          <label for="progreso" data-i18n="reproductor.progreso">Progreso</label>
+          <input id="progreso" type="range" min="0" max="0" step="0.1" value="0" disabled
+                 aria-valuetext="0:00 / 0:00">
+          <span id="tiempo" class="tiempo" aria-hidden="true">0:00 / 0:00</span>
+        </div>
       </div>
 
-      <p class="atajos" id="atajos">
+      <p class="atajos" id="atajos" data-i18n-html="reproductor.atajos">
         Teclado: <kbd>Espacio</kbd> reproduce o pausa ·
         <kbd><span aria-hidden="true">←</span><span class="solo-lector">flecha izquierda</span></kbd>
         <kbd><span aria-hidden="true">→</span><span class="solo-lector">flecha derecha</span></kbd>
         retrocede o avanza 5 segundos ·
-        <kbd>Tab</kbd> pasa al siguiente control.
+        <kbd>Tab</kbd> pasa al siguiente control ·
+        <kbd>?</kbd> abre la ayuda.
       </p>
 
       <figure class="grafico">
-        <figcaption class="rotulo" id="grafico-titulo">Temperatura media</figcaption>
+        <figcaption class="rotulo" id="grafico-titulo" data-i18n="grafico.temperatura">Temperatura media</figcaption>
         <div class="grafico-marco">
           <div class="eje-y" aria-hidden="true">
             <span id="eje-y-max">–</span>
@@ -105,65 +135,186 @@
               <line id="grafico-cursor" class="g-cursor" x1="0" x2="0" y1="0" y2="200" vector-effect="non-scaling-stroke"/>
             </svg>
             <span id="grafico-punto" class="g-punto" aria-hidden="true" hidden></span>
-            <span id="grafico-ref-rotulo" class="g-ref-rotulo" aria-hidden="true">referencia</span>
+            <span id="grafico-ref-rotulo" class="g-ref-rotulo" aria-hidden="true" hidden></span>
           </div>
         </div>
         <div class="eje-x" aria-hidden="true">
           <span id="eje-x-ini">–</span>
-          <span class="eje-x-nota">clic en el gráfico para saltar</span>
+          <span class="eje-x-nota" data-i18n="grafico.nota">clic en el gráfico para saltar</span>
           <span id="eje-x-fin">–</span>
         </div>
       </figure>
+
+      <div class="momentos" role="group" aria-labelledby="titulo-momentos" aria-describedby="nota-momentos">
+        <h3 id="titulo-momentos" class="rotulo" data-i18n="momentos.titulo">Momentos clave</h3>
+        <p id="nota-momentos" class="nota" data-i18n="momentos.nota">Detectados automáticamente a partir de los datos. Pulsa uno para saltar a ese momento.</p>
+        <ol id="momentos" class="lista-momentos"></ol>
+      </div>
     </section>
 
     <section class="en-vivo" aria-labelledby="titulo-descripcion">
-      <h2 id="titulo-descripcion">Qué pasa ahora</h2>
-      <p class="rotulo etiqueta-ia">Descripción automática</p>
+      <h2 id="titulo-descripcion" data-i18n="vivo.titulo">Qué pasa ahora</h2>
+      <p class="rotulo etiqueta-ia" data-i18n="vivo.etiqueta">Descripción automática</p>
       <p class="registro">
         <span id="registro-tiempo" class="registro-tiempo">--:--</span>
-        <span id="descripcion-viva" class="descripcion-viva">Elige una visualización para ver aquí, en palabras, lo que muestra el video en cada momento.</span>
+        <span id="descripcion-viva" class="descripcion-viva" data-i18n="vivo.inicial">Elige una visualización para ver aquí, en palabras, lo que muestra el video en cada momento.</span>
       </p>
       <!-- región viva para lectores de pantalla: se actualiza como mucho cada pocos segundos -->
       <div id="anuncio" class="solo-lector" aria-live="polite" aria-atomic="true"></div>
       <div class="opciones">
         <label class="casilla">
           <input id="anunciar" type="checkbox" checked>
-          Leer cambios con lector de pantalla (cada pocos segundos)
+          <span data-i18n="vivo.anunciar">Leer cambios con lector de pantalla (cada pocos segundos)</span>
         </label>
         <label class="casilla">
           <input id="subtitulos" type="checkbox">
-          Mostrar la descripción como subtítulos sobre el video
+          <span data-i18n="vivo.subtitulos">Mostrar la descripción como subtítulos sobre el video</span>
+        </label>
+        <label class="casilla" id="casilla-voz" hidden>
+          <input id="voz" type="checkbox">
+          <span data-i18n="vivo.voz">Narrar con voz (para quien no usa lector de pantalla)</span>
+        </label>
+        <label class="casilla" id="casilla-vibrar" hidden>
+          <input id="vibrar" type="checkbox">
+          <span data-i18n="vivo.vibrar">Vibrar en los cambios bruscos (teléfonos)</span>
         </label>
       </div>
     </section>
 
     <section class="leyenda" aria-labelledby="titulo-leyenda">
-      <h2 id="titulo-leyenda">Qué estás escuchando</h2>
-      <table class="mapeo">
-        <thead>
-          <tr><th scope="col">Dato</th><th scope="col">Sonido</th></tr>
-        </thead>
-        <tbody>
-          <tr><th scope="row">Temperatura media</th><td>Altura de la nota: más aguda = más caliente</td></tr>
-          <tr><th scope="row">Tamaño de la zona caliente</th><td>Volumen: más fuerte = más área caliente</td></tr>
-          <tr><th scope="row">Dónde está lo caliente</th><td>Izquierda / derecha en el estéreo</td></tr>
-          <tr><th scope="row">Valor de referencia</th><td>Tono grave fijo: si la nota suena por encima, el dato está por encima de la referencia</td></tr>
-        </tbody>
-      </table>
+      <h2 id="titulo-leyenda" data-i18n="leyenda.titulo">Qué estás escuchando</h2>
+      <p class="nota" id="leyenda-intro" data-i18n="leyenda.intro">Aprende los sonidos antes de escuchar una pista: cada botón toca un ejemplo corto.</p>
+      <ul class="mapeo" id="mapeo">
+        <li>
+          <h3 data-i18n="leyenda.tono.dato">Valor medio (temperatura)</h3>
+          <p data-i18n="leyenda.tono.sonido">Altura de la nota: más aguda = más caliente.</p>
+          <button type="button" class="boton-ejemplo" data-ejemplo="tono" data-i18n-attr="aria-label:leyenda.tono.ejemplo"
+                  aria-label="Oír ejemplo: cuatro notas, de grave a aguda"><span aria-hidden="true">▶</span> <span data-i18n="leyenda.oir">Oír ejemplo</span></button>
+        </li>
+        <li>
+          <h3 data-i18n="leyenda.volumen.dato">Tamaño de la zona caliente</h3>
+          <p data-i18n="leyenda.volumen.sonido">Volumen: más fuerte = más área caliente.</p>
+          <button type="button" class="boton-ejemplo" data-ejemplo="volumen" data-i18n-attr="aria-label:leyenda.volumen.ejemplo"
+                  aria-label="Oír ejemplo: la misma nota, de suave a fuerte"><span aria-hidden="true">▶</span> <span data-i18n="leyenda.oir">Oír ejemplo</span></button>
+        </li>
+        <li>
+          <h3 data-i18n="leyenda.paneo.dato">Dónde está lo caliente</h3>
+          <p id="leyenda-paneo" data-i18n="leyenda.paneo.x">Izquierda o derecha en el estéreo, igual que en el mapa. Usa auriculares.</p>
+          <button type="button" class="boton-ejemplo" data-ejemplo="paneo" data-i18n-attr="aria-label:leyenda.paneo.ejemplo"
+                  aria-label="Oír ejemplo: la misma nota a la izquierda, al centro y a la derecha"><span aria-hidden="true">▶</span> <span data-i18n="leyenda.oir">Oír ejemplo</span></button>
+        </li>
+        <li>
+          <h3 data-i18n="leyenda.dron.dato">Valor de referencia</h3>
+          <p data-i18n="leyenda.dron.sonido">Tono grave fijo. Si la melodía suena lejos por encima, el dato está por encima de la referencia.</p>
+          <button type="button" class="boton-ejemplo" data-ejemplo="dron" data-i18n-attr="aria-label:leyenda.dron.ejemplo"
+                  aria-label="Oír ejemplo: el tono grave fijo, con una nota cerca y otra muy por encima"><span aria-hidden="true">▶</span> <span data-i18n="leyenda.oir">Oír ejemplo</span></button>
+        </li>
+        <li>
+          <h3 data-i18n="leyenda.ritmo.dato">Cuánto calor hay</h3>
+          <p data-i18n="leyenda.ritmo.sonido">Ritmo: una, dos o cuatro notas por momento. Más notas = valor más alto.</p>
+          <button type="button" class="boton-ejemplo" data-ejemplo="ritmo" data-i18n-attr="aria-label:leyenda.ritmo.ejemplo"
+                  aria-label="Oír ejemplo: una nota, luego dos, luego cuatro"><span aria-hidden="true">▶</span> <span data-i18n="leyenda.oir">Oír ejemplo</span></button>
+        </li>
+        <li>
+          <h3 data-i18n="leyenda.golpe.dato">Cambio brusco</h3>
+          <p data-i18n="leyenda.golpe.sonido">Un golpe más fuerte cuando el valor salta de un momento al siguiente.</p>
+          <button type="button" class="boton-ejemplo" data-ejemplo="golpe" data-i18n-attr="aria-label:leyenda.golpe.ejemplo"
+                  aria-label="Oír ejemplo: tres notas suaves y un golpe fuerte"><span aria-hidden="true">▶</span> <span data-i18n="leyenda.oir">Oír ejemplo</span></button>
+        </li>
+      </ul>
       <p id="leyenda-colores" class="leyenda-colores"></p>
+    </section>
+
+    <section id="ayuda" class="ayuda" aria-labelledby="titulo-ayuda">
+      <h2 id="titulo-ayuda" tabindex="-1" data-i18n="ayuda.titulo">Ayuda</h2>
+
+      <div class="ayuda-columnas" data-solo-idioma="es" lang="es">
+        <div>
+          <h3>Cómo se usa</h3>
+          <ul>
+            <li><strong>Elige una pista</strong> de la lista de arriba: empieza a sonar. Usa auriculares: parte de la información viaja entre el oído izquierdo y el derecho.</li>
+            <li><strong>Teclado:</strong> <kbd>Tab</kbd> recorre los controles, <kbd>Enter</kbd> elige, <kbd>Espacio</kbd> reproduce o pausa y las flechas izquierda y derecha retroceden o avanzan 5 segundos. La tecla <kbd>?</kbd> trae esta ayuda.</li>
+            <li><strong>Lector de pantalla:</strong> la descripción de «Qué pasa ahora» se anuncia sola, como mucho cada 4 segundos mientras suena y enseguida al pausar o saltar. Se apaga con su casilla. El gráfico tiene un resumen en texto.</li>
+            <li><strong>Voz:</strong> si no usas lector de pantalla, marca «Narrar con voz». El navegador lee la descripción y la música baja mientras habla. Se calla al pausar.</li>
+            <li><strong>Subtítulos:</strong> la misma descripción puede verse escrita sobre el video.</li>
+            <li><strong>Momentos clave:</strong> debajo del gráfico hay botones que saltan al inicio, al valor más bajo, al más alto y al mayor salto.</li>
+            <li><strong>Vibración:</strong> en teléfonos que vibran, puedes sentir los cambios bruscos.</li>
+            <li><strong>Idioma y tema:</strong> arriba puedes cambiar entre español e inglés, y entre tema claro y oscuro. La página recuerda lo que eliges.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Por qué suena así</h3>
+          <ul>
+            <li><strong>Música y no ruido.</strong> Las notas salen de una escala pentatónica (cinco notas que siempre suenan bien juntas). Así se puede escuchar mucho rato y los cambios se notan.</li>
+            <li><strong>Tono = valor medio.</strong> Subir de tono se entiende como «más» en casi todas las culturas: más caliente, más agudo.</li>
+            <li><strong>Volumen = tamaño de la zona caliente.</strong> Algo más grande suena más fuerte.</li>
+            <li><strong>Estéreo = lugar.</strong> El sonido se mueve entre los dos oídos según dónde está lo caliente. En los videos de la NASA, el sur va a la izquierda y el norte a la derecha.</li>
+            <li><strong>Tono grave fijo = referencia.</strong> Es la vara de medir. En el mapa de temperatura marca el promedio de 1951–1980: si la melodía se aleja hacia arriba, el planeta está más caliente que entonces.</li>
+            <li><strong>Más notas = más calor.</strong> Con valores altos, cada momento toca dos o cuatro notas en vez de una. La música se acelera y transmite urgencia.</li>
+            <li><strong>Golpe fuerte = cambio brusco.</strong> Cuando el valor salta de un momento al siguiente, la nota se toca con más fuerza para que no pase inadvertida.</li>
+          </ul>
+          <h3>Qué tan fiel es</h3>
+          <p>El programa lee los colores de cada imagen del video y, con la barra de colores del propio video, los convierte en números. De esos números sale la música. Por eso el sonido cuenta lo mismo que el mapa, con el límite de lo que se puede leer en un video. Las descripciones en texto se arman con reglas fijas a partir de los mismos números.</p>
+        </div>
+      </div>
+
+      <div class="ayuda-columnas" data-solo-idioma="en" lang="en" hidden>
+        <div>
+          <h3>How to use it</h3>
+          <ul>
+            <li><strong>Pick a track</strong> from the list above: it starts playing. Use headphones: part of the information travels between your left and right ears.</li>
+            <li><strong>Keyboard:</strong> <kbd>Tab</kbd> moves through the controls, <kbd>Enter</kbd> selects, <kbd>Space</kbd> plays or pauses, and the left and right arrows go back or forward 5 seconds. The <kbd>?</kbd> key brings up this help.</li>
+            <li><strong>Screen reader:</strong> the “What is happening now” description is announced by itself, at most every 4 seconds while playing and right away when you pause or jump. Its checkbox turns it off. The chart has a text summary.</li>
+            <li><strong>Voice:</strong> if you do not use a screen reader, tick “Narrate with a voice”. The browser reads the description and the music gets quieter while it speaks. It stops when you pause.</li>
+            <li><strong>Captions:</strong> the same description can be shown as text over the video.</li>
+            <li><strong>Key moments:</strong> below the chart there are buttons that jump to the start, the lowest value, the highest value and the biggest jump.</li>
+            <li><strong>Vibration:</strong> on phones that vibrate, you can feel the sudden changes.</li>
+            <li><strong>Language and theme:</strong> at the top you can switch between Spanish and English, and between a light and a dark theme. The page remembers your choice.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Why it sounds like this</h3>
+          <ul>
+            <li><strong>Music, not noise.</strong> The notes come from a pentatonic scale (five notes that always sound good together). You can listen for a long time and still notice the changes.</li>
+            <li><strong>Pitch = average value.</strong> Going up in pitch is understood as “more” in almost every culture: warmer, higher.</li>
+            <li><strong>Loudness = size of the hot area.</strong> Something bigger sounds louder.</li>
+            <li><strong>Stereo = place.</strong> The sound moves between your ears depending on where the heat is. In the NASA videos, south is on the left and north is on the right.</li>
+            <li><strong>Steady low tone = reference.</strong> It is the measuring stick. In the temperature map it marks the 1951–1980 average: when the melody climbs away from it, the planet is warmer than it was then.</li>
+            <li><strong>More notes = more heat.</strong> With high values, each moment plays two or four notes instead of one. The music speeds up and conveys urgency.</li>
+            <li><strong>Strong hit = sudden change.</strong> When the value jumps from one moment to the next, the note is played harder so it does not go unnoticed.</li>
+          </ul>
+          <h3>How faithful it is</h3>
+          <p>The program reads the colors of every video frame and, using the video's own color bar, turns them into numbers. The music comes from those numbers. So the sound tells the same story as the map, within the limits of what can be read from a video. The text descriptions are built with fixed rules from the same numbers.</p>
+        </div>
+      </div>
+
+      <label class="casilla">
+        <input id="atajo-ayuda" type="checkbox" checked>
+        <span data-i18n="ayuda.atajo">Usar la tecla ? para abrir esta ayuda</span>
+      </label>
     </section>
   </main>
 
   <footer class="pie">
-    <h2 class="rotulo">Créditos</h2>
-    <ul class="creditos">
-      <li>Datos del video real: NASA Scientific Visualization Studio,
-        <a href="https://svs.gsfc.nasa.gov/5207/">SVS 5207</a> (GISTEMP, 1880–2023). El ejemplo incluido es sintético.</li>
-      <li>Hecho con ayuda de IA (Claude). Logo generado con IA.</li>
+    <h2 class="rotulo" data-i18n="pie.titulo">Créditos</h2>
+    <ul class="creditos" data-solo-idioma="es" lang="es">
+      <li>Videos reales: NASA Scientific Visualization Studio,
+        <a href="https://svs.gsfc.nasa.gov/5207/">SVS 5207</a> (GISTEMP, 1880–2023) y
+        <a href="https://svs.gsfc.nasa.gov/3912/">SVS 3912</a> (ECCO2, 2007–2008). La «Mancha de calor viajera» es un ejemplo sintético.</li>
+      <li>Uso de IA: el código de esta página y parte del programa que crea el sonido se escribieron con ayuda de IA (Claude, de Anthropic). El logo fue generado con IA y lleva la marca «Generado con IA». El sonido y las descripciones salen de reglas fijas sobre los datos, no de una IA.</li>
       <li>Fuentes: Unbounded, Plus Jakarta Sans y Space Mono (licencia SIL OFL).</li>
+      <li>Proyecto del equipo Resonant Earth para el NASA Space Apps Challenge 2026. No está avalado por la NASA.</li>
+    </ul>
+    <ul class="creditos" data-solo-idioma="en" lang="en" hidden>
+      <li>Real videos: NASA Scientific Visualization Studio,
+        <a href="https://svs.gsfc.nasa.gov/5207/">SVS 5207</a> (GISTEMP, 1880–2023) and
+        <a href="https://svs.gsfc.nasa.gov/3912/">SVS 3912</a> (ECCO2, 2007–2008). “Travelling heat spot” is a synthetic example.</li>
+      <li>Use of AI: the code of this page and part of the program that creates the sound were written with the help of AI (Claude, by Anthropic). The logo was generated with AI and carries the visible mark “Generado con IA” (AI-generated). The sound and the descriptions come from fixed rules applied to the data, not from an AI.</li>
+      <li>Fonts: Unbounded, Plus Jakarta Sans and Space Mono (SIL OFL license).</li>
+      <li>A project by team Resonant Earth for the NASA Space Apps Challenge 2026. Not endorsed by NASA.</li>
     </ul>
   </footer>
 
-  <noscript><p class="aviso">Esta rocola necesita JavaScript activado.</p></noscript>
+  <noscript><p class="aviso" data-i18n="noscript">Esta rocola necesita JavaScript activado.</p></noscript>
 </body>
 </html>

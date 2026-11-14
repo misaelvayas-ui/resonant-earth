@@ -1,13 +1,40 @@
 {
   "visualizaciones": [
     {
+      "id": "gistemp-1880-2023",
+      "titulo": "Temperatura del planeta, 1880–2023",
+      "titulo_en": "Temperature of the planet, 1880–2023",
+      "descripcion": "Mapa mundial de anomalías de temperatura (GISTEMP, NASA), con 60 años muestreados entre 1881 y 2023. Cada anomalía compara la temperatura con el promedio de 1951–1980. En el sonido, el tono es la anomalía media del planeta (más agudo = más caliente); el volumen sube cuando una parte mayor del mapa está más de 1 °C por encima del promedio; el sonido va a la izquierda o a la derecha según esa zona caliente esté más al sur o más al norte. Un tono grave fijo marca el promedio de 1951–1980.",
+      "descripcion_en": "World map of temperature anomalies (GISTEMP, NASA), with 60 years sampled between 1881 and 2023. Each anomaly compares the temperature with the 1951–1980 average. In the sound, the pitch is the average anomaly of the planet (higher = warmer); the volume rises when a larger part of the map is more than 1 °C above the average; the sound goes left or right depending on whether that hot area is further south or further north. A steady low tone marks the 1951–1980 average.",
+      "video": "assets/gistemp_1880_2023.mp4",
+      "rasgos": "assets/gistemp_1880_2023_rasgos.json",
+      "unidad": "°C",
+      "leyenda": "Azul: más frío que el promedio. Blanco: cerca del promedio. Rojo y amarillo: más caliente que el promedio.",
+      "leyenda_en": "Blue: colder than the average. White: close to the average. Red and yellow: warmer than the average."
+    },
+    {
+      "id": "sst-ecco2-2007-2008",
+      "titulo": "Corrientes y temperatura del mar, 2007–2008",
+      "titulo_en": "Ocean currents and sea temperature, 2007–2008",
+      "descripcion": "Temperatura de la superficie del mar y corrientes oceánicas (modelo ECCO2, NASA SVS 3912). Los datos cubren 344 días, del 25 de marzo de 2007 al 3 de marzo de 2008, así que se oye cómo cambian las estaciones. El tono es la temperatura media del mar (más agudo = más cálido); el volumen sube cuando una parte mayor del océano supera los 25 °C; y el sonido va a la izquierda o a la derecha según el agua cálida esté más al sur o más al norte que su posición media del período. La temperatura es un índice relativo: solo se mide en las líneas de corriente brillantes, que son más cálidas que el mar completo, así que el número sale más alto que el real. Sirve para comparar un momento con otro, no para leer grados exactos. Un tono grave fijo marca el promedio del período.",
+      "descripcion_en": "Sea surface temperature and ocean currents (ECCO2 model, NASA SVS 3912). The data covers 344 days, from March 25, 2007 to March 3, 2008, so you can hear the seasons change. The pitch is the average sea temperature (higher = warmer); the volume rises when a larger part of the ocean is above 25 °C; and the sound goes left or right depending on whether the warm water is further south or further north than its average position over the period. The temperature is a relative index: it is only measured on the bright current lines, which are warmer than the whole sea, so the number comes out higher than the real one. It is good for comparing one moment with another, not for reading exact degrees. A steady low tone marks the average of the period.",
+      "video": "assets/sst_ecco2_2007_2008.mp4",
+      "rasgos": "assets/sst_ecco2_2007_2008_rasgos.json",
+      "unidad": "",
+      "leyenda": "Cada línea es una corriente del mar. Azul: agua fría (0 °C). Verde: unos 10 a 20 °C. Amarillo: unos 25 °C. Rojo: 32 °C. Gris: tierra.",
+      "leyenda_en": "Each line is an ocean current. Blue: cold water (0 °C). Green: about 10 to 20 °C. Yellow: about 25 °C. Red: 32 °C. Grey: land."
+    },
+    {
       "id": "ejemplo-sintetico",
       "titulo": "Mancha de calor viajera (ejemplo)",
+      "titulo_en": "Travelling heat spot (example)",
       "descripcion": "Video de prueba con verdad conocida: una mancha caliente cruza el mapa de izquierda a derecha y crece. El tono sube, el volumen sube y el sonido viaja de izquierda a derecha.",
+      "descripcion_en": "Test video with a known truth: a hot spot crosses the map from left to right and grows. The pitch rises, the volume rises and the sound travels from left to right.",
       "video": "assets/ejemplo_sintetico.mp4",
       "rasgos": "assets/ejemplo_sintetico_rasgos.json",
       "unidad": "",
-      "leyenda": "Escala de 0 a 1. Morado oscuro: valor bajo. Verde: medio. Amarillo: valor alto."
+      "leyenda": "Escala de 0 a 1. Morado oscuro: valor bajo. Verde: medio. Amarillo: valor alto.",
+      "leyenda_en": "Scale from 0 to 1. Dark purple: low value. Green: medium. Yellow: high value."
     }
   ]
 }

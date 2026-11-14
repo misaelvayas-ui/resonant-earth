@@ -3,6 +3,10 @@
 
 const SALTO_S = 5;            // flechas: ±5 s
 const ANUNCIO_CADA_MS = 4000; // lector de pantalla: como mucho un anuncio cada 4 s al reproducir
+const VOLUMEN_CON_VOZ = 0.35;  // la música baja a este nivel mientras habla la narración
+const VIBRACION_MS = 80;      // duración de la vibración en un cambio brusco
+// CLAVE_PREFERENCIAS, leerPreferencias(), guardarPreferencias(), aplicarTema(): arranque.js
+// t(), campoCatalogo(), traducirPagina(), idiomaActual: textos.js
 
 const $ = (id) => document.getElementById(id);
 const el = {
@@ -13,6 +17,7 @@ const el = {
   descripcion: $("descripcion-actual"),
   video: $("video"),
   play: $("play"),
+  completa: $("completa"),
   progreso: $("progreso"),
   tiempo: $("tiempo"),
   volumen: $("volumen"),
@@ -20,7 +25,17 @@ const el = {
   anuncio: $("anuncio"),
   anunciar: $("anunciar"),
   subtitulos: $("subtitulos"),
+  voz: $("voz"),
+  casillaVoz: $("casilla-voz"),
+  vibrar: $("vibrar"),
+  casillaVibrar: $("casilla-vibrar"),
+  momentos: $("momentos"),
+  cajaMomentos: document.querySelector(".momentos"),
+  tema: $("tema"),
+  atajoAyuda: $("atajo-ayuda"),
+  tituloAyuda: $("titulo-ayuda"),
   leyendaColores: $("leyenda-colores"),
+  leyendaPaneo: $("leyenda-paneo"),
   registroTiempo: $("registro-tiempo"),
   grafico: $("grafico"),
   graficoArea: document.querySelector(".grafico-area"),
@@ -42,7 +57,9 @@ const estado = {
   catalogo: [],
   actual: null,      // entrada del catálogo elegida
   rasgos: [],        // rasgos de la entrada actual, ordenados por tiempo del video
-  contexto: {},      // unidad, vmin, vmax, referencia
+  contexto: {},      // unidad, vmin, vmax, referencia, seg, paneo, idioma
+  cargada: false,    // video y rasgos de la pista actual ya listos
+  vozHabla: false,   // la narración está hablando: la música suena más bajo
   indice: -1,        // rasgo en pantalla
   ultimoAnuncio: 0,
   turno: 0,          // descarta respuestas viejas si describir() es asíncrona
@@ -64,8 +81,8 @@ function textoTiempo(s) {
   const m = Math.floor(s / 60);
   const seg = Math.floor(s % 60);
   const partes = [];
-  if (m) partes.push(`${m} ${m === 1 ? "minuto" : "minutos"}`);
-  partes.push(`${seg} ${seg === 1 ? "segundo" : "segundos"}`);
+  if (m) partes.push(`${m} ${t(m === 1 ? "tiempo.minuto" : "tiempo.minutos")}`);
+  partes.push(`${seg} ${t(seg === 1 ? "tiempo.segundo" : "tiempo.segundos")}`);
   return partes.join(" ");
 }
 
@@ -79,6 +96,67 @@ function anunciar(texto, forzar = false) {
   setTimeout(() => { el.anuncio.textContent = texto; }, 50);
 }
 
+/* Preferencias del visitante (se guardan con guardarPreferencias de arranque.js). */
+function guardarCasillas() {
+  guardarPreferencias({
+    volumen: Number(el.volumen.value),
+    anunciar: el.anunciar.checked,
+    subtitulos: el.subtitulos.checked,
+    voz: el.voz.checked,
+    vibrar: el.vibrar.checked,
+    atajoAyuda: el.atajoAyuda.checked,
+  });
+}
+
+function aplicarPreferencias() {
+  const p = leerPreferencias();
+  if (Number.isFinite(p.volumen) && p.volumen >= 0 && p.volumen <= 100) el.volumen.value = String(p.volumen);
+  for (const nombre of ["anunciar", "subtitulos", "voz", "vibrar", "atajoAyuda"]) {
+    if (typeof p[nombre] === "boolean") el[nombre].checked = p[nombre];
+  }
+  el.tema.value = temaGuardado();
+  // la voz y la vibración solo se ofrecen si el navegador las tiene
+  el.casillaVoz.hidden = !vozDisponible();
+  el.casillaVibrar.hidden = !("vibrate" in navigator);
+  if (el.casillaVoz.hidden) el.voz.checked = false;
+  if (el.casillaVibrar.hidden) el.vibrar.checked = false;
+}
+
+/* ---------- idioma y tema ---------- */
+
+function pintarBotonesDeIdioma() {
+  for (const b of document.querySelectorAll(".boton-idioma")) {
+    b.setAttribute("aria-pressed", String(b.dataset.idioma === idiomaActual));
+  }
+}
+
+/* Vuelve a escribir todo lo que depende del idioma: textos fijos, lista, pista elegida,
+   descripción, subtítulos, gráfico y momentos clave. */
+function cambiarIdioma(idioma) {
+  if (!IDIOMAS.includes(idioma) || idioma === idiomaActual) return;
+  idiomaActual = idioma;
+  guardarPreferencias({ idioma });
+  callarVoz();
+  pintarTodoElTexto();
+}
+
+function pintarTodoElTexto() {
+  traducirPagina();
+  pintarBotonesDeIdioma();
+  estado.contexto.idioma = idiomaActual;
+  pintarLista();
+  pintarPlay();
+  pintarProgreso();
+  pintarVolumen();
+  if (!estado.actual) return;
+  pintarPista(estado.actual);
+  dibujarGrafico();
+  if (!estado.cargada) return;
+  pintarMomentos();
+  ponerSubtitulos(estado.actual);
+  actualizarDescripcion(true, { silencio: true });
+}
+
 /* ---------- catálogo ---------- */
 
 async function cargarCatalogo() {
@@ -89,40 +167,58 @@ async function cargarCatalogo() {
     estado.catalogo = (datos.visualizaciones || []).filter((v) => v.id && v.titulo && v.video);
   } catch (e) {
     el.estado.classList.add("error");
-    el.estado.textContent = location.protocol === "file:"
-      ? "No pude leer el catálogo. Abre la página con un servidor: en la carpeta web/ ejecuta «python -m http.server 8000» y entra a http://localhost:8000"
-      : `No pude leer el catálogo (${e.message}).`;
+    ponerEstado(location.protocol === "file:" ? "rocola.error-archivo" : "rocola.error", { detalle: e.message });
     return;
   }
   if (!estado.catalogo.length) {
-    el.estado.textContent = "El catálogo está vacío. Agrega una entrada en catalogo.json.";
+    ponerEstado("rocola.vacio");
     return;
   }
-  el.estado.textContent = "";
+  ponerEstado(null);
   pintarLista();
   const pedido = decodeURIComponent(location.hash.slice(1));
   const inicial = estado.catalogo.find((v) => v.id === pedido) || estado.catalogo[0];
   elegir(inicial, { reproducir: false });
 }
 
+/* Mensaje bajo "Elige una visualización" (null = ninguno). Guarda la clave para que el
+   cambio de idioma lo traduzca. */
+function ponerEstado(clave, datos) {
+  if (!clave) {
+    delete el.estado.dataset.i18n;
+    el.estado.textContent = "";
+    return;
+  }
+  el.estado.dataset.i18n = clave;
+  el.estado.textContent = t(clave, datos);
+}
+
 function pintarLista() {
+  const elegida = estado.actual?.id;
   el.lista.replaceChildren(...estado.catalogo.map((v) => {
     const li = document.createElement("li");
     const b = document.createElement("button");
     b.type = "button";
     b.className = "boton-rocola";
     b.dataset.id = v.id;
-    b.setAttribute("aria-pressed", "false");
+    b.setAttribute("aria-pressed", String(v.id === elegida));
 
+    // nombre accesible = solo el título (la descripción completa puede ser muy larga);
+    // el resumen se lee como descripción y "Elegida" ya lo dice aria-pressed
     const titulo = document.createElement("span");
     titulo.className = "titulo";
-    titulo.textContent = v.titulo;
+    titulo.id = `pista-${v.id}-titulo`;
+    titulo.textContent = campoCatalogo(v, "titulo");
     const resumen = document.createElement("span");
     resumen.className = "resumen";
-    resumen.textContent = v.descripcion || "";
+    resumen.id = `pista-${v.id}-resumen`;
+    resumen.textContent = campoCatalogo(v, "descripcion");
+    b.setAttribute("aria-labelledby", titulo.id);
+    if (resumen.textContent) b.setAttribute("aria-describedby", resumen.id);
     const sonando = document.createElement("span");
     sonando.className = "sonando";
-    sonando.innerHTML = '<span class="barras" aria-hidden="true"><i></i><i></i><i></i></span> Elegida';
+    sonando.setAttribute("aria-hidden", "true");
+    sonando.textContent = t("rocola.elegida");
 
     b.append(titulo, resumen, sonando);
     b.addEventListener("click", () => elegir(v, { reproducir: true }));
@@ -131,41 +227,64 @@ function pintarLista() {
   }));
 }
 
+/* Textos de la pista elegida (se repinta al cambiar de idioma). */
+function pintarPista(v) {
+  const titulo = campoCatalogo(v, "titulo");
+  const leyenda = campoCatalogo(v, "leyenda");
+  el.titulo.textContent = titulo;
+  el.descripcion.textContent = campoCatalogo(v, "descripcion");
+  el.leyendaColores.textContent = leyenda ? t("leyenda.colores", { leyenda }) : "";
+  el.video.setAttribute("aria-label", t("reproductor.video", { titulo }));
+  el.leyendaPaneo.textContent = t(estado.contexto.paneo === "y" ? "leyenda.paneo.y" : "leyenda.paneo.x");
+}
+
 async function elegir(v, { reproducir }) {
   estado.actual = v;
+  estado.cargada = false;
   estado.rasgos = [];
   estado.indice = -1;
   estado.escalaG = null;
+  estado.contexto = { unidad: v.unidad ?? "", paneo: "x", idioma: idiomaActual }; // hasta que lleguen los rasgos
+  callarVoz();
+  callarEjemplo();
   dibujarGrafico();
+  pintarMomentos();
   el.registroTiempo.textContent = "--:--";
-  history.replaceState(null, "", "#" + encodeURIComponent(v.id));
+  history.replaceState(null, "", location.search + "#" + encodeURIComponent(v.id));
 
   for (const b of el.lista.querySelectorAll(".boton-rocola")) {
     b.setAttribute("aria-pressed", String(b.dataset.id === v.id));
   }
-  el.titulo.textContent = v.titulo;
-  el.descripcion.textContent = v.descripcion || "";
-  el.leyendaColores.textContent = v.leyenda ? `Colores de este video: ${v.leyenda}` : "";
-  el.video.setAttribute("aria-label", `Video: ${v.titulo}`);
-  el.viva.textContent = "Cargando…";
-  el.play.disabled = true;
-  el.progreso.disabled = true;
+  pintarPista(v);
+  el.viva.textContent = t("reproductor.cargando");
+  activarControles(false);
 
   await Promise.all([cargarVideo(v), cargarRasgos(v)]);
   if (estado.actual !== v) return; // el usuario eligió otra mientras cargaba
   if (el.video.error) {
-    el.viva.textContent = `No pude cargar el video «${v.video}».`;
+    el.viva.textContent = t("reproductor.sin-video", { archivo: v.video });
     return;
   }
-  el.play.disabled = false;
-  el.progreso.disabled = false;
-  actualizarDescripcion(true);
+  estado.cargada = true;
+  activarControles(true);
+  pintarPista(v);
+  await actualizarDescripcion(true, { silencio: true });
+  if (estado.actual !== v) return;
   ponerSubtitulos(v);
   dibujarGrafico();
+  pintarMomentos();
   if (reproducir) {
     el.video.play().catch(() => {});
-    anunciar(`Elegiste ${v.titulo}.`, true);
+    anunciar(t("reproductor.elegiste", { titulo: campoCatalogo(v, "titulo") }), true);
+  } else {
+    anunciar(el.viva.textContent, true); // al abrir la página: solo al lector de pantalla, sin voz
   }
+}
+
+function activarControles(activos) {
+  el.play.disabled = !activos;
+  el.progreso.disabled = !activos;
+  el.completa.disabled = !activos;
 }
 
 /* El video se descarga entero y se reproduce desde un Blob: así se puede saltar a cualquier
@@ -187,7 +306,7 @@ async function cargarVideo(v) {
       if (estado.actual !== v) { lector.cancel(); return; }
       partes.push(value);
       recibido += value.length;
-      if (total) el.viva.textContent = `Cargando video… ${Math.round((100 * recibido) / total)} %`;
+      if (total) el.viva.textContent = t("reproductor.cargando-video", { porcentaje: Math.round((100 * recibido) / total) });
     }
     src = estado.urlVideo = URL.createObjectURL(new Blob(partes, { type: "video/mp4" }));
   } catch (e) {
@@ -204,7 +323,7 @@ async function cargarVideo(v) {
 
 async function cargarRasgos(v) {
   if (!v.rasgos) {
-    el.viva.textContent = "Esta visualización no tiene archivo de rasgos: no hay descripción en vivo.";
+    el.viva.textContent = t("reproductor.sin-rasgos");
     return;
   }
   try {
@@ -217,16 +336,19 @@ async function cargarRasgos(v) {
     estado.rasgos = lista
       .map((x) => ({ ...x, _t: x.t_video ?? x.t ?? 0 }))
       .sort((a, b) => a._t - b._t);
+    marcarSaltos(estado.rasgos, umbralDeSalto(d)); // momentos.js: el mismo umbral que el golpe fuerte del audio
     const primero = estado.rasgos[0];
     estado.contexto = {
+      idioma: idiomaActual,
       unidad: v.unidad ?? d.unidad ?? "",
       vmin: d.vmin,
       vmax: d.vmax,
       referencia: d.referencia ?? (primero ? primero.media : null), // igual que el dron de 06
       seg: d.seg_por_fotograma,
+      paneo: d.paneo === "y" ? "y" : "x", // mismo eje que el paneo del audio (06)
     };
   } catch (e) {
-    el.viva.textContent = `No pude leer los rasgos (${e.message}).`;
+    el.viva.textContent = t("reproductor.error-rasgos", { detalle: e.message });
   }
 }
 
@@ -251,8 +373,8 @@ async function ponerSubtitulos(v) {
   });
   const pista = document.createElement("track");
   pista.kind = "captions";
-  pista.srclang = "es";
-  pista.label = "Descripción automática";
+  pista.srclang = idiomaActual;
+  pista.label = t("vivo.pista-subtitulos");
   pista.src = URL.createObjectURL(new Blob(["WEBVTT\n\n" + cues.join("\n\n") + "\n"], { type: "text/vtt" }));
   el.video.append(pista);
   pista.track.mode = el.subtitulos.checked ? "showing" : "hidden";
@@ -270,22 +392,80 @@ function indiceEn(t) {
   return Math.max(res, R.length ? 0 : -1);
 }
 
-async function actualizarDescripcion(forzarAnuncio = false) {
+/* forzar: escribe y anuncia aunque el rasgo no haya cambiado (al pausar, saltar o cambiar de idioma).
+   silencio: no anuncia ni narra (hay otro anuncio en curso, p. ej. "Elegiste…").
+   sinVoz: lo anuncia al lector de pantalla pero no lo narra (al pausar, la voz se calla). */
+async function actualizarDescripcion(forzar = false, { silencio = false, sinVoz = false } = {}) {
   if (!estado.rasgos.length) return;
   const i = indiceEn(el.video.currentTime);
-  if (i === estado.indice && !forzarAnuncio) return;
+  if (i === estado.indice && !forzar) return;
+  const cambioDeRasgo = i !== estado.indice;
   estado.indice = i;
+  const rasgo = estado.rasgos[i];
   const turno = ++estado.turno;
   let texto;
   try {
-    texto = await describir(estado.rasgos[i], estado.contexto);
+    texto = await describir(rasgo, estado.contexto);
   } catch (e) {
-    texto = "No se pudo generar la descripción.";
+    texto = t("vivo.error");
   }
   if (turno !== estado.turno) return; // llegó tarde: ya hay un rasgo más nuevo
-  el.registroTiempo.textContent = reloj(estado.rasgos[i]._t);
+  el.registroTiempo.textContent = reloj(rasgo._t);
   el.viva.textContent = texto;
-  anunciar(texto, forzarAnuncio);
+  if (silencio) return;
+  anunciar(texto, forzar);
+  if (!sinVoz) narrarRasgo(rasgo, texto, forzar);
+  if (cambioDeRasgo && rasgo.salto) vibrar();
+}
+
+/* Narración con voz: mientras suena, una frase corta (fecha y valor) cuando la voz está libre;
+   en pausa (al saltar a un momento), la descripción completa. Al pausar, se calla. */
+function narrarRasgo(rasgo, textoCompleto, forzar) {
+  if (!el.voz.checked) return;
+  if (el.video.paused) {
+    if (forzar) narrar(textoCompleto, idiomaActual, true);
+    return;
+  }
+  Promise.resolve(describir(rasgo, estado.contexto, { breve: true }))
+    .then((breve) => narrar(breve, idiomaActual, false))
+    .catch(() => {});
+}
+
+function vibrar() {
+  if (el.vibrar.checked && !el.video.paused && navigator.vibrate) navigator.vibrate(VIBRACION_MS);
+}
+
+/* ---------- momentos clave: botones que saltan al momento (momentos.js los calcula) ---------- */
+
+function pintarMomentos() {
+  const momentos = estado.cargada ? calcularMomentos(estado.rasgos, estado.contexto.referencia) : [];
+  el.cajaMomentos.hidden = !momentos.length;
+  el.momentos.replaceChildren(...momentos.map((m) => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "boton-momento";
+    const cuando = document.createElement("span");
+    cuando.className = "cuando";
+    cuando.textContent = m.rasgo.fecha != null ? fechaCorta(m.rasgo.fecha, idiomaActual) : formatoTiempo(m.rasgo._t);
+    const que = document.createElement("span");
+    que.className = "que";
+    que.textContent = m.tipos.map((tipo) => t(`momentos.${tipo}`)).join(" · ");
+    const valor = document.createElement("span");
+    valor.className = "valor";
+    Promise.resolve(describir({ media: m.rasgo.media }, estado.contexto, { breve: true }))
+      .then((texto) => { valor.textContent = texto; })
+      .catch(() => {});
+    b.append(cuando, que, valor);
+    b.addEventListener("click", () => saltarA(m.rasgo._t));
+    li.append(b);
+    return li;
+  }));
+}
+
+function saltarA(segundo) {
+  if (el.play.disabled) return;
+  el.video.currentTime = segundo + 0.01; // un pelo dentro del rasgo, para caer en él y no en el anterior
 }
 
 /* ---------- gráfico: curva de la media y línea del momento actual (SVG) ---------- */
@@ -325,7 +505,7 @@ function interpoladorMonotono(xs, ys) {
 function dibujarGrafico() {
   const R = estado.rasgos.filter((r) => r.media != null);
   const c = estado.contexto;
-  const nombre = c.unidad === "°C" ? "Temperatura media" : "Valor medio";
+  const nombre = t(c.unidad === "°C" ? "grafico.temperatura" : "grafico.valor");
   el.graficoTitulo.textContent = c.unidad ? `${nombre} (${c.unidad})` : nombre;
   if (!R.length) {
     el.curva.setAttribute("d", "");
@@ -334,7 +514,7 @@ function dibujarGrafico() {
     el.ref.setAttribute("visibility", "hidden");
     el.refRotulo.hidden = true;
     for (const e of [el.ejeYMax, el.ejeYMin, el.ejeXIni, el.ejeXFin]) e.textContent = "–";
-    el.grafico.setAttribute("aria-label", "Gráfico sin datos todavía.");
+    el.grafico.setAttribute("aria-label", t("grafico.sin-datos"));
     pintarCursor();
     return;
   }
@@ -369,7 +549,7 @@ function dibujarGrafico() {
   el.estela.setAttribute("d", d);
 
   // signo menos tipográfico (−) en las lecturas del gráfico
-  const num = (v) => v.toLocaleString("es", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace("-", "−");
+  const num = (v) => v.toLocaleString(idiomaActual, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace("-", "−");
   if (c.referencia != null) {
     const yr = y(c.referencia).toFixed(1);
     el.ref.setAttribute("y1", yr);
@@ -377,7 +557,7 @@ function dibujarGrafico() {
     el.ref.setAttribute("visibility", "visible");
     el.refRotulo.hidden = false;
     el.refRotulo.style.top = `${(yr / ALTO_G) * 100}%`;
-    el.refRotulo.textContent = `referencia ${num(c.referencia)}`;
+    el.refRotulo.textContent = t("grafico.referencia", { valor: num(c.referencia) });
   } else {
     el.ref.setAttribute("visibility", "hidden");
     el.refRotulo.hidden = true;
@@ -385,24 +565,29 @@ function dibujarGrafico() {
   el.ejeYMax.textContent = num(max);
   el.ejeYMin.textContent = num(min);
   const primero = R[0], ultimo = R[R.length - 1];
-  el.ejeXIni.textContent = primero.fecha != null ? String(primero.fecha) : "0:00";
-  el.ejeXFin.textContent = ultimo.fecha != null ? String(ultimo.fecha) : formatoTiempo(dur);
+  el.ejeXIni.textContent = primero.fecha != null ? fechaCorta(primero.fecha, idiomaActual) : "0:00";
+  el.ejeXFin.textContent = ultimo.fecha != null ? fechaCorta(ultimo.fecha, idiomaActual) : formatoTiempo(dur);
 
   // resumen en texto para lectores de pantalla (fijo: no se anuncia al moverse el cursor)
   const u = c.unidad ? " " + c.unidad : "";
-  const cuando = (r) => (r.fecha != null ? `en ${r.fecha}` : `a los ${textoTiempo(r._t)}`);
+  const cuando = (r) => (r.fecha != null
+    ? t("grafico.en-fecha", { fecha: fechaCorta(r.fecha, idiomaActual) })
+    : t("grafico.a-los", { tiempo: textoTiempo(r._t) }));
   const iMax = valores.indexOf(Math.max(...valores));
-  el.grafico.setAttribute("aria-label",
-    `Gráfico de ${nombre.toLowerCase()} a lo largo del video. Empieza en ${num(primero.media)}${u} ${cuando(primero)}, ` +
-    `termina en ${num(ultimo.media)}${u} ${cuando(ultimo)} y su máximo es ${num(valores[iMax])}${u} ${cuando(R[iMax])}.`);
+  el.grafico.setAttribute("aria-label", t("grafico.resumen", {
+    nombre: nombre.toLowerCase(),
+    inicio: num(primero.media) + u, cuandoInicio: cuando(primero),
+    fin: num(ultimo.media) + u, cuandoFin: cuando(ultimo),
+    maximo: num(valores[iMax]) + u, cuandoMaximo: cuando(R[iMax]),
+  }));
   pintarCursor();
 }
 
 function pintarCursor() {
   const g = estado.escalaG;
   const dur = g?.dur;
-  const t = dur ? Math.min(el.video.currentTime, dur) : 0;
-  const xc = dur ? (t / dur) * ANCHO_G : 0;
+  const ahora = dur ? Math.min(el.video.currentTime, dur) : 0;
+  const xc = dur ? (ahora / dur) * ANCHO_G : 0;
   el.cursor.setAttribute("x1", xc.toFixed(1));
   el.cursor.setAttribute("x2", xc.toFixed(1));
   el.cursor.setAttribute("visibility", dur ? "visible" : "hidden");
@@ -410,9 +595,9 @@ function pintarCursor() {
   el.recorte.setAttribute("width", dur ? (xc + 10).toFixed(1) : "0");
   el.punto.hidden = !dur;
   if (dur) {
-    const tp = Math.min(Math.max(t, g.t0), g.t1); // el punto no sale de la curva
+    const tp = Math.min(Math.max(ahora, g.t0), g.t1); // el punto no sale de la curva
     el.punto.style.left = `${((tp / dur) * 100).toFixed(3)}%`;
-    el.punto.style.top = `${((g.yDe(t) / ALTO_G) * 100).toFixed(3)}%`;
+    el.punto.style.top = `${((g.yDe(ahora) / ALTO_G) * 100).toFixed(3)}%`;
   }
 }
 
@@ -434,47 +619,74 @@ el.graficoArea.addEventListener("click", (e) => {
 
 function alternar() {
   if (el.play.disabled) return;
-  if (el.video.paused || el.video.ended) el.video.play().catch(() => {});
-  else el.video.pause();
+  if (el.video.paused || el.video.ended) {
+    callarEjemplo();
+    el.video.play().catch(() => {});
+  } else el.video.pause();
 }
 
 function saltar(delta) {
   if (el.play.disabled || !isFinite(el.video.duration)) return;
-  const t = Math.min(Math.max(el.video.currentTime + delta, 0), el.video.duration);
-  el.video.currentTime = t;
+  el.video.currentTime = Math.min(Math.max(el.video.currentTime + delta, 0), el.video.duration);
+}
+
+/* Pantalla completa del video (en iPhone, el modo propio de Safari para videos). */
+function puedePantallaCompleta() {
+  return Boolean(document.fullscreenEnabled || el.video.webkitEnterFullscreen);
+}
+
+function pantallaCompleta() {
+  if (el.completa.disabled) return;
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  else if (el.video.requestFullscreen) el.video.requestFullscreen().catch(() => {});
+  else if (el.video.webkitEnterFullscreen) el.video.webkitEnterFullscreen();
 }
 
 function pintarPlay() {
   const pausado = el.video.paused || el.video.ended;
   el.play.querySelector(".icono").textContent = pausado ? "▶" : "❚❚";
-  el.play.querySelector(".texto").textContent = pausado ? "Reproducir" : "Pausar";
+  el.play.querySelector(".texto").textContent = t(pausado ? "reproductor.reproducir" : "reproductor.pausar");
   const b = el.lista.querySelector('[aria-pressed="true"]');
   for (const x of el.lista.querySelectorAll(".boton-rocola")) x.classList.toggle("reproduciendo", !pausado && x === b);
 }
 
 function pintarProgreso() {
   const dur = isFinite(el.video.duration) ? el.video.duration : 0;
-  const t = el.video.currentTime;
+  const ahora = el.video.currentTime;
   el.progreso.max = String(dur);
-  if (!estado.arrastrando) el.progreso.value = String(t);
-  el.tiempo.textContent = `${formatoTiempo(t)} / ${formatoTiempo(dur)}`;
-  el.progreso.setAttribute("aria-valuetext", `${textoTiempo(t)} de ${textoTiempo(dur)}`);
+  if (!estado.arrastrando) el.progreso.value = String(ahora);
+  el.tiempo.textContent = `${formatoTiempo(ahora)} / ${formatoTiempo(dur)}`;
+  el.progreso.setAttribute("aria-valuetext", t("tiempo.de", { actual: textoTiempo(ahora), total: textoTiempo(dur) }));
   pintarCursor();
 }
 
 function pintarVolumen() {
-  el.video.volume = Number(el.volumen.value) / 100;
+  // mientras habla la narración, la música baja para que se entienda la voz
+  el.video.volume = (Number(el.volumen.value) / 100) * (estado.vozHabla ? VOLUMEN_CON_VOZ : 1);
   el.volumen.setAttribute("aria-valuetext", `${el.volumen.value} %`);
 }
 
 el.play.addEventListener("click", alternar);
+el.completa.addEventListener("click", pantallaCompleta);
+el.completa.hidden = !puedePantallaCompleta();
 el.video.addEventListener("click", alternar);
 el.video.addEventListener("play", () => { pintarPlay(); requestAnimationFrame(seguirCursor); });
-el.video.addEventListener("pause", () => { pintarPlay(); actualizarDescripcion(true); });
+el.video.addEventListener("pause", () => {
+  pintarPlay();
+  callarVoz(); // la narración se calla al pausar
+  actualizarDescripcion(true, { silencio: el.video.ended, sinVoz: true });
+});
 el.video.addEventListener("ended", pintarPlay);
+el.video.addEventListener("emptied", pintarPlay); // al cambiar de pista no llega "pause"
 el.video.addEventListener("loadedmetadata", pintarProgreso);
 el.video.addEventListener("timeupdate", () => { pintarProgreso(); actualizarDescripcion(); });
-el.video.addEventListener("seeked", () => { pintarProgreso(); actualizarDescripcion(true); });
+// "seeking" llega en cuanto se pide el salto (con "seeked" habría que esperar a que el video
+// decodifique la imagen, y en una pestaña en segundo plano puede tardar mucho)
+el.video.addEventListener("seeking", () => {
+  pintarProgreso();
+  if (estado.cargada) actualizarDescripcion(true);
+});
+el.video.addEventListener("seeked", pintarProgreso);
 
 el.progreso.addEventListener("input", () => {
   estado.arrastrando = true;
@@ -490,12 +702,56 @@ el.progreso.addEventListener("keydown", (e) => {
 });
 
 el.volumen.addEventListener("input", pintarVolumen);
-el.anunciar.addEventListener("change", () => { if (!el.anunciar.checked) el.anuncio.textContent = ""; });
+el.volumen.addEventListener("change", guardarCasillas);
+el.anunciar.addEventListener("change", () => {
+  if (!el.anunciar.checked) el.anuncio.textContent = "";
+  guardarCasillas();
+});
 el.subtitulos.addEventListener("change", () => {
-  for (const t of el.video.textTracks) t.mode = el.subtitulos.checked ? "showing" : "hidden";
+  for (const pista of el.video.textTracks) pista.mode = el.subtitulos.checked ? "showing" : "hidden";
+  guardarCasillas();
+});
+el.voz.addEventListener("change", () => {
+  if (el.voz.checked) actualizarDescripcion(true); // dice enseguida dónde estamos
+  else callarVoz();
+  guardarCasillas();
+});
+el.vibrar.addEventListener("change", guardarCasillas);
+el.atajoAyuda.addEventListener("change", guardarCasillas);
+narrador.alCambiar = (habla) => { estado.vozHabla = habla; pintarVolumen(); };
+
+/* idioma y tema */
+for (const b of document.querySelectorAll(".boton-idioma")) {
+  b.addEventListener("click", () => cambiarIdioma(b.dataset.idioma));
+}
+el.tema.addEventListener("change", () => {
+  guardarPreferencias({ tema: el.tema.value });
+  aplicarTema(el.tema.value);
+});
+if (window.matchMedia) { // con "Sistema", seguir al sistema operativo si cambia mientras la página está abierta
+  matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => aplicarTema(temaGuardado()));
+}
+
+/* "Aprende los sonidos": cada botón toca un ejemplo corto (sonidos.js) */
+for (const b of document.querySelectorAll(".boton-ejemplo")) {
+  b.addEventListener("click", () => {
+    if (!el.video.paused) el.video.pause();
+    const dura = tocarEjemplo(b.dataset.ejemplo, Number(el.volumen.value) / 100);
+    if (!dura) anunciar(t("leyenda.sin-audio"), true);
+  });
+}
+
+/* ayuda: el enlace de la cabecera y la tecla ? llevan al título de la sección */
+function abrirAyuda() {
+  el.tituloAyuda.scrollIntoView();
+  el.tituloAyuda.focus({ preventScroll: true });
+}
+document.querySelector(".enlace-ayuda").addEventListener("click", (e) => {
+  e.preventDefault();
+  abrirAyuda();
 });
 
-/* atajos globales: Espacio = play/pausa, ← → = ±5 s */
+/* atajos globales: Espacio = play/pausa, ← → = ±5 s, ? = ayuda (se puede apagar en la ayuda) */
 document.addEventListener("keydown", (e) => {
   if (e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey) return;
   const destino = e.target;
@@ -509,6 +765,9 @@ document.addEventListener("keydown", (e) => {
     if (etiqueta === "BUTTON" || etiqueta === "A" || destino.type === "checkbox") return;
     e.preventDefault();
     alternar();
+  } else if (e.key === "?" && el.atajoAyuda.checked) {
+    e.preventDefault();
+    abrirAyuda();
   } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
     if (destino === el.volumen) return; // las flechas ajustan el volumen
     e.preventDefault();
@@ -521,5 +780,8 @@ window.addEventListener("hashchange", () => {
   if (v && v !== estado.actual) elegir(v, { reproducir: false });
 });
 
+aplicarPreferencias();
+traducirPagina();
+pintarBotonesDeIdioma();
 pintarVolumen();
 cargarCatalogo();
