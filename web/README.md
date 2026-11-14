@@ -1,7 +1,7 @@
 # Rocola de la Tierra · versión web (Resonant Earth)
 
 > **Esta parte del proyecto (la carpeta `web/`) se hizo con ayuda de IA (Claude Code).**
-> **El logo de Resonant Earth (`assets/logo.jpg`) fue generado con IA.**
+> **El logo de Resonant Earth (`assets/logo.jpg`) fue generado con IA.** Lleva la marca visible «Generado con IA» escrita dentro de la propia imagen (arriba a la izquierda), así que se conserva si alguien la descarga. El texto alternativo y el pie de la página también lo dicen.
 > La descripción en texto que aparece en la página también es automática y está marcada como "Descripción automática".
 
 Página para elegir una visualización del clima, como en una rocola, y escucharla. Solo usa HTML, CSS y JavaScript puro: no tiene frameworks ni paso de compilación.
@@ -27,9 +27,9 @@ Teclado: `Tab` recorre los controles · `Enter` elige · `Espacio` reproduce o p
 | `describir.js` | `describir(rasgo, contexto)`: arma el texto de lo que se ve en cada momento |
 | `catalogo.json` | lista de visualizaciones |
 | `assets/` | videos (mp4 con el audio ya mezclado) y rasgos (.json) |
-| `assets/logo.jpg` | logo original (2048 px, generado con IA) |
-| `assets/logo-240.jpg`, `logo-480.jpg` | logo de la portada (el navegador elige según la densidad de la pantalla) |
-| `assets/icono-64.png`, `icono-180.png` | ícono de la pestaña y del acceso directo |
+| `assets/logo.jpg` | logo en grande (2048 px, generado con IA, con la marca «Generado con IA») |
+| `assets/logo-240.jpg`, `logo-480.jpg` | logo de la portada, con la misma marca (el navegador elige según la densidad de la pantalla) |
+| `assets/icono-64.png`, `icono-180.png` | ícono de la pestaña y del acceso directo (recorte del logo, sin marca: a 64 px no se leería) |
 | `assets/fonts/` | Unbounded, Plus Jakarta Sans y Space Mono en woff2 (licencia SIL OFL); no depende de internet |
 | `GUIA_ESTILO.md` | guía de estilo en una página: paleta, fuentes, distribución, componentes y dónde vive cada cosa |
 | `capturas/` | capturas de escritorio y móvil |
