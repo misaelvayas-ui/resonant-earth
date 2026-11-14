@@ -1,6 +1,6 @@
 # Auditoría 3: segunda pista (SST/ECCO2), modo en vivo y entrega web, tras las rondas 22–26 (2026-11-14)
 
-Estado: **aplicada en la ronda 27** (rama `misael/auditoria3`): hallazgos 1–4 y 12a (parche, ya integrado y sin archivo aparte), 5, 6 y 13. Ronda 28: dron continuo, `regolpe_vel` 0,7 y `exportar_web` (el hallazgo 5 de la ronda 27 no explicaba los silencios: eran el dron GM 89, que decae). El 7 solo cambió la descripción de SST; el 8, 9 (salvo la protección de `preparar_datos.py`), 10, 11 y 14 siguen abiertos.
+Estado: **aplicada en la ronda 28** (rama `misael/auditoria3`): hallazgos 1–4 y 12a (parche, ya integrado y sin archivo aparte), 5, 6 y 13. Ronda 29: dron continuo, `regolpe_vel` 0,7 y `exportar_web` (el hallazgo 5 de la ronda 28 no explicaba los silencios: eran el dron GM 89, que decae). El 7 solo cambió la descripción de SST; el 8, 9 (salvo la protección de `preparar_datos.py`), 10, 11 y 14 siguen abiertos.
 
 Pregunta: ¿qué está mal, qué puede fallar con otro video o en otra máquina, y qué choca con el trabajo del equipo
 desde la auditoría 2?
@@ -12,10 +12,10 @@ Alcance: lo nuevo desde la auditoría 2 (`05` modo matiz, `fechas.py`, `calibrar
 `0505d9d` (ya incluye los PR #3, #4 y #5).
 
 No se cambió ningún archivo versionado. Esta auditoría son dos archivos nuevos sin commit:
-`docs/AUDITORIA_3.md` y el parche de la auditoría (aplicado en la ronda 27).
+`docs/AUDITORIA_3.md` y el parche de la auditoría (aplicado en la ronda 28).
 
 Cómo se comprobó: cada hallazgo marcado **Confirmado** se reprodujo hoy en una copia de `origin/master` fuera
-del repositorio. Las correcciones 1, 2, 3, 4 y 12a se aplicaron en esa copia (el parche de la auditoría (aplicado en la ronda 27), que
+del repositorio. Las correcciones 1, 2, 3, 4 y 12a se aplicaron en esa copia (el parche de la auditoría (aplicado en la ronda 28), que
 `git apply --check` acepta sobre `master`): `evaluar.py` dio 37 PASA, 0 FALLA, y `rasgos.json` de GISTEMP y de
 SST salieron idénticos (`cmp`) a los actuales. Entorno: Linux, Python 3.12.3, numpy 2.5.4, opencv 5.0.0,
 ffmpeg 6.1.1, FluidSynth 2.3.4.
@@ -71,7 +71,7 @@ Juan. Los hallazgos 5, 6, 7 y 13 esperan una decisión de Misael; 14 necesita la
   (distancia Lab) y 05 lo lee como 20 unidades de matiz (40°). El mensaje final dice "dist_max=20".
 - Al revés (config matiz, se vuelve a calibrar sin la opción): queda `modo_color: "matiz"` con `dist_max: 20`.
 
-**Corrección (en el parche de la auditoría (aplicado en la ronda 27)):** el modo efectivo es el de `--modo-color` o, si no se pasa, el del
+**Corrección (en el parche de la auditoría (aplicado en la ronda 28)):** el modo efectivo es el de `--modo-color` o, si no se pasa, el del
 config que ya exista. En modo matiz se escriben `dist_max: 4.0`, `borde_px: 0` y `mascara_estatica: false`
 (si el config ya era matiz se respetan los suyos). Al volver a Lab no se heredan `modo_color`, `borde_px`,
 `mascara_estatica`, `brillo_min` ni `saturacion_min`. El mensaje final imprime el `dist_max` que se guardó.

@@ -26,7 +26,7 @@ TICKS_F = int(SEG_POR_FOTOGRAMA * TPB * BPM / 60)          # 06:66
 TONICA, OCTAVAS, GRADOS = 48, 3, (0, 2, 4, 7, 9)           # 06:110 + sintesis.py:73,77-80
 DEFECTOS = {"ligar": True, "suavizado": 3, "densidad": True, "octava": 1, "humanizar": True,
             "instrumento_melodia": 13, "dron_programa": 90, "dron_octava": 0, "dron_nivel": 0.048,
-            "reverb": 50, "paneo": "x", "regolpe_ligado": 2, "regolpe_vel": 0.7, "umbral_evento": None}   # 06:70-72
+            "reverb": 50, "paneo": "x", "regolpe_ligado": 1, "regolpe_vel": 0.7, "umbral_evento": None}   # 06:70-72
 VEL_FUERTE = 100                   # 06:176
 AREA_CENTRO = 0.01                 # 06:63,141: con area < 0,01 el paneo va al centro
 DRON_FLUID = 0.35                  # 06:64,296-300: con FluidSynth el RMS del dron = DRON_FLUID * dron_nivel / raiz(2)

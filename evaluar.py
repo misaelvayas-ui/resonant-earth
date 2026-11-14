@@ -434,7 +434,7 @@ def esperados_e2(media):
         for j, nota in enumerate(arp):
             tick, forzado = f * tpf + j * tpf / k, fuerte[f] and j == 0
             if out and nota == out[-1][1] and not forzado:
-                if j == 0 and f - ult >= 2:
+                if j == 0 and f - ult >= 1:
                     out.append((tick, nota, "regolpe"))
                     ult = f
                 continue
@@ -445,7 +445,7 @@ def esperados_e2(media):
 
 def e2():
     """06 con sus valores por defecto frente a un cálculo independiente (suavizado 3, densidad, arpegio,
-    ligar + re-golpe cada 2 fotogramas, ataque fuerte por evento, octava +1, humanizar, dron pad)."""
+    ligar + re-golpe en cada fotograma, ataque fuerte por evento, octava +1, humanizar, dron pad)."""
     media = [0.10, 0.10, 0.10, 0.10, 0.50, 1.20, 1.20, 1.15]          # cubre 1, 2 y 4 notas, notas ligadas, un salto y el arpegio en lo alto
     with tempfile.TemporaryDirectory() as d:
         R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]

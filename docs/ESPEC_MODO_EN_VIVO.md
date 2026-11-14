@@ -59,7 +59,7 @@ hz       = 440 * 2 ** ((dron - 69) / 12)
 |---|---|
 | El dron es la nota que la **melodía** toca con el valor `referencia`, una octava abajo, **constante** en toda la pista (no depende de ningún rasgo) | `06:116-120` |
 | `dron_octava` (por defecto 0) lo desplaza más octavas | `06:120`, `06:70` |
-| **Dron continuo (ronda 28):** suena de forma ininterrumpida desde el tick 0 hasta el final, canal 2, y su nivel es **constante**: el RMS de un seno de amplitud `dron_nivel × factor_fluidsynth` = 0,048 × 0,35 (RMS 0,012, −38,5 dB), unos **~7 dB por debajo de la melodía** en el WAV. Nunca debe ser una nota golpeada que decae (antes, GM 89 se apagaba en ~6 s y en las notas ligadas la mezcla quedaba muda) | `06:64`, `06:294-300`, `06:226-227` |
+| **Dron continuo (ronda 29):** suena de forma ininterrumpida desde el tick 0 hasta el final, canal 2, y su nivel es **constante**: el RMS de un seno de amplitud `dron_nivel × factor_fluidsynth` = 0,048 × 0,35 (RMS 0,012, −38,5 dB), unos **~7 dB por debajo de la melodía** en el WAV. Nunca debe ser una nota golpeada que decae (antes, GM 89 se apagaba en ~6 s y en las notas ligadas la mezcla quedaba muda) | `06:64`, `06:294-300`, `06:226-227` |
 | Instrumento: programa GM **90** (Pad 2 warm), que no decae (el 89 sí); en Web Audio basta un seno o un pad sostenido a ese nivel | `06:71`, `06:145` |
 | La velocidad MIDI del dron (`round(45 * dron_nivel / 0.08)` = 27) solo queda en el `.mid`: con FluidSynth se renormaliza el RMS, así que no decide el volumen | `06:143` |
 
@@ -83,7 +83,7 @@ velocidad[i] = redondearPar(127 * ganancia[i])                // velocidad MIDI 
 | Regla | Fuente |
 |---|---|
 | `area` → velocidad MIDI del golpe de la melodía: −6 dB (el área mínima de la pista) a 0 dB (el área máxima) | `06:124-127` |
-| `area` se normaliza **entre su mínimo y su máximo** (ronda 27; antes, por el máximo: SST solo recorría 0,8 dB) | `06:124-127` |
+| `area` se normaliza **entre su mínimo y su máximo** (ronda 28; antes, por el máximo: SST solo recorría 0,8 dB) | `06:124-127` |
 | En el respaldo numpy, la ganancia es la misma curva interpolada linealmente entre centros de fotograma y suavizada 80 ms | `06:316` |
 | Un evento fuerte (sección 2.5) sube la velocidad a `max(v, 100)` | `06:176,182-183` |
 
@@ -109,7 +109,7 @@ pan[i] = 2 * cPan - 1                                      // -1 (izquierda) .. 
 | Suavizado: media móvil de 3 fotogramas | `06:136` |
 | Normalización con percentiles 5 y 95 de la serie suavizada (interpolación lineal como `numpy.percentile`) | `06:137-138` |
 | **Rama estrecha**: si el recorrido p95 − p5 es menor que 0,1, no se estira; se mide contra el punto medio con ancho 0,1 | `06:138-139` |
-| **Sin zona caliente (ronda 27):** con `area < area_centro` (0,01) el centroide no significa nada y `cPan = 0,5` (pan 0); `area` es la cruda (no la normalizada), y la interpolación y el suavizado de 0,15 s siguientes no cambian | `06:63`, `06:140-141` |
+| **Sin zona caliente (ronda 28):** con `area < area_centro` (0,01) el centroide no significa nada y `cPan = 0,5` (pan 0); `area` es la cruda (no la normalizada), y la interpolación y el suavizado de 0,15 s siguientes no cambian | `06:63`, `06:140-141` |
 | `pan = 2 * cPan - 1`; el MIDI guarda `CC10 = round(64 + 63 * pan)` por fotograma | `06:142`, `06:222`, `06:347` |
 | En el WAV: el pan por fotograma se interpola linealmente entre los **centros** de fotograma (`(i + 0.5) * 0.5 s`) y se suaviza con un polo de 0,15 s | `06:291` |
 | Ley de potencia constante: `th = (pan + 1) * π/4`, `L = cos(th)`, `R = sin(th)` (en Web Audio, `StereoPannerNode` usa la misma ley) | `sin:117-120` |
@@ -139,7 +139,7 @@ fuerte[i] = i > 0 && Math.abs(media[i] - media[i-1]) > umbral_evento
 | `umbral_evento`: del config; si falta, `(vmax_sonido − vmin_sonido) / 12` (GISTEMP y SST: 0,15) | `06:113-114`, `06:71` |
 | Evento fuerte = ataque aunque la nota no cambie, con velocidad ≥ 100 (solo la primera nota del fotograma) | `06:175-183` |
 | **Ligar**: si la nota es igual a la del ataque anterior y no es evento fuerte, no se vuelve a atacar; la nota se extiende | `06:184-192`, `06:70` |
-| **Re-golpe**: una nota ligada se vuelve a tocar suave (`velocidad × 0,7`; antes 0,4, que dejaba la marimba casi muda) cada 2 fotogramas | `06:185-189`, `06:71` |
+| **Re-golpe**: una nota ligada se vuelve a tocar suave (`velocidad × 0,7`; antes 0,4, que dejaba la marimba casi muda) en **cada** fotograma (`regolpe_ligado` 1; antes cada 2, ronda 30) | `06:185-189`, `06:71` |
 
 Valores por pista: GISTEMP `densidad_umbrales` [0,3; 0,7] (45 fotogramas con 1 nota, 8 con 2, 7 con 4; 19 eventos fuertes). SST usa los de defecto [21,96; 22,18] (25 con 1 nota, 22 con 2, 14 con 4; 7 eventos fuertes).
 

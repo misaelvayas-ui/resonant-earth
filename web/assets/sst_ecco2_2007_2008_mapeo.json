@@ -110,7 +110,7 @@
  "articulacion": {
   "umbral_evento": 0.15,
   "ligar": true,
-  "regolpe_ligado": 2,
+  "regolpe_ligado": 1,
   "regolpe_vel": 0.7,
   "duracion_nota": 0.95
  },

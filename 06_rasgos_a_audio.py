@@ -26,7 +26,7 @@ Claves opcionales (van en el config de 05 y se copian a rasgos.json); entre par�
   "ligar" (true)           misma nota que la anterior -> se extiende en vez de re-atacar
   "suavizado" (3)          media móvil centrada de N fotogramas sobre la media (0 o 1 = sin suavizar)
   "densidad" (true)        notas por fotograma según la anomalía; false = una nota por fotograma
-  "regolpe_ligado" (2)     en una nota ligada, la vuelve a tocar cada N fotogramas (0 = nunca)
+  "regolpe_ligado" (1)     en una nota ligada, la vuelve a tocar cada N fotogramas (0 = nunca)
   "regolpe_vel" (0.7)      velocidad del re-golpe como fracción de la de la nota (0,4 dejaba la marimba casi muda en las notas ligadas)
   "umbral_evento" (1/12 del rango de sonido; 0,15 en GISTEMP)   si la media CRUDA cambia más que esto entre fotogramas, ataque fuerte (vel >= 100)
                            aunque la nota no cambie
@@ -69,7 +69,7 @@ SF2 = [os.environ.get("ROCOLA_SF2", ""), "/usr/share/sounds/sf2/FluidR3_GM.sf2",
 APT = "sudo apt install fluidsynth fluid-soundfont-gm"
 DEFECTOS = {"ligar": True, "suavizado": 3, "densidad": True, "octava": 1, "humanizar": True,
             "instrumento_melodia": 13, "dron_programa": 90, "dron_octava": 0, "dron_nivel": 0.048,
-            "reverb": 50, "paneo": "x", "regolpe_ligado": 2, "regolpe_vel": 0.7, "umbral_evento": None}
+            "reverb": 50, "paneo": "x", "regolpe_ligado": 1, "regolpe_vel": 0.7, "umbral_evento": None}
 
 _raras = [a for a in sys.argv[1:] if a.startswith("--") and a != "--sintetico"]
 if _raras:
