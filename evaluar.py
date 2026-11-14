@@ -851,6 +851,59 @@ def h3():
         f"fecha 'mes' = {Rm[0]['fecha']!r}, por defecto = {Ra[0]['fecha']!r}, time.txt = año suelto: {'sí' if unit else 'NO'}; formato inválido: mensaje {'sí' if ok_msg else 'NO'}"
 
 
+def i1():
+    """Especificación del modo en vivo (docs/ESPEC_MODO_EN_VIVO.md): aplicar sus fórmulas a rasgos.json reproduce
+    lo que sonó (control.json de 06; sintético) y los _esperado.json de las pistas reales (con su _mapeo.json)."""
+    from herramientas.exportar_mapeo import aplicar_mapeo, comparar_con_control, construir_mapeo
+    rng = np.random.default_rng(7)
+    n = 60
+    casos = {
+        # eje x, rama amplia, rango de sonido propio, referencia, valores fuera de rango
+        "x amplia": dict(extra={"vmin_sonido": 0.2, "vmax_sonido": 0.8, "referencia": 0.5},
+                         cx=np.clip(0.5 + 0.35 * np.sin(np.arange(n) / 7), 0, 1), cy=np.full(n, 0.5)),
+        # eje y, rama estrecha (recorrido < 0,1), sin referencia, umbrales de densidad propios, octava 0, dron +1
+        "y estrecha": dict(extra={"paneo": "y", "densidad_umbrales": [0.4, 0.6], "octava": 0, "dron_octava": 1},
+                           cx=np.full(n, 0.5), cy=0.5 + 0.02 * np.sin(np.arange(n) / 9)),
+        # eje y con rama amplia, sin densidad ni suavizado, umbral de evento propio
+        "y amplia sin densidad": dict(extra={"paneo": "y", "densidad": False, "suavizado": 0, "umbral_evento": 0.1},
+                                      cx=np.full(n, 0.5), cy=np.clip(0.5 + 0.3 * np.cos(np.arange(n) / 6), 0, 1)),
+    }
+    res = []
+    with tempfile.TemporaryDirectory() as d:
+        for nombre, c in casos.items():
+            R = _serie(n)
+            media = np.clip(0.5 + 0.45 * np.sin(np.arange(n) / 5) + 0.05 * rng.standard_normal(n), 0, 1)
+            for i, r in enumerate(R["rasgos"]):
+                r.update(media=float(media[i]), area=float(np.clip(0.1 + 0.4 * abs(np.sin(i / 11)), 0, 1)),
+                         centroide_x=float(c["cx"][i]), centroide_y=float(c["cy"][i]))
+            R["rasgos"][5]["media"] = None                    # dato ausente: se rellena con el anterior
+            R.update(c["extra"])
+            ctl, r = _06(R, d)
+            if ctl is None:
+                return False, "06 falló: " + r.stderr.strip()[-120:]
+            m = construir_mapeo(R, nombre)
+            f = comparar_con_control(aplicar_mapeo(R["rasgos"], m), ctl, tol_pan=0.02)
+            res.append((nombre + f" (rama {m['paneo']['rama']})", f))
+    # pistas reales: solo si están sus archivos (web/assets/<id>_esperado.json, _mapeo.json y los rasgos)
+    reales = []
+    for id_, carpeta in (("gistemp_1880_2023", "salidas_gistemp"), ("sst_ecco2_2007_2008", "salidas_sst")):
+        ruta = lambda suf: os.path.join("web", "assets", f"{id_}_{suf}.json")
+        rasgos = next((q for q in (ruta("rasgos"), os.path.join(carpeta, "rasgos.json")) if os.path.exists(q)), None)
+        if not (os.path.exists(ruta("esperado")) and os.path.exists(ruta("mapeo")) and rasgos):
+            continue
+        esp = json.load(open(ruta("esperado")))["fotogramas"]
+        calc = aplicar_mapeo(json.load(open(rasgos))["rasgos"], json.load(open(ruta("mapeo"))))
+        fallas = [] if len(calc) == len(esp) else [f"{len(calc)} fotogramas frente a {len(esp)}"]
+        for e, c in zip(esp, calc):
+            if (e["nota"], e["notas"], e["dron"]) != (c["nota"], c["notas"], c["dron"]) or abs(e["pan"] - c["pan"]) > 0.02 \
+                    or abs(e["ganancia"] - c["ganancia"]) > 1e-4:
+                fallas.append(f"f{e['i']}")
+        reales.append((id_, fallas))
+    todo = res + reales
+    return all(not f for _, f in todo), "; ".join(f"{n_}: {'reproduce' if not f else str(len(f)) + ' discrepancias ' + str(f[:3])}" for n_, f in todo) \
+        + ("" if reales else "; pistas reales: sin archivos (no se comprobaron)")
+
+
 EVALUACIONES = [
     ("A1", "fase inicial = 0", "|x[0]| < 1e-12", a1),
     ("A2", "tono(440) → 440 Hz", "440 ± 1 Hz", a2),
@@ -887,6 +940,7 @@ EVALUACIONES = [
     ("H1", "calibrar: orientación de la barra", "horizontal detectada; vertical (también con mesetas) igual que antes", h1),
     ("H2", "05: modo_color 'matiz'", "barra horizontal + color atenuado: error < 0,5 °C, validos > 0,95; 'lab' < 0,5", h2),
     ("H3", "fechas ISO: 'mar 2007'", "mes con fechas_formato 'mes', año por defecto, time.txt intacto, error claro", h3),
+    ("I1", "especificación modo en vivo", "fórmulas de la ESPEC = control.json: notas exactas, pan ± 0,02 (3 casos sintéticos + 2 pistas)", i1),
     ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]
 

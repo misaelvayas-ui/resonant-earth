@@ -1,0 +1,120 @@
+{
+ "id": "sst_ecco2_2007_2008",
+ "fuente": "datos/ecco2_sst_flow.mp4",
+ "n_fotogramas": 61,
+ "seg_por_fotograma": 0.5,
+ "relleno_media": 16.0,
+ "suavizado_fotogramas": 3,
+ "escala": {
+  "tonica_midi": 48,
+  "octavas": 3,
+  "grados": [
+   0,
+   2,
+   4,
+   7,
+   9
+  ],
+  "notas_base": [
+   48,
+   50,
+   52,
+   55,
+   57,
+   60,
+   62,
+   64,
+   67,
+   69,
+   72,
+   74,
+   76,
+   79,
+   81,
+   84
+  ],
+  "octava": 1,
+  "notas_sonando": [
+   60,
+   62,
+   64,
+   67,
+   69,
+   72,
+   74,
+   76,
+   79,
+   81,
+   84,
+   86,
+   88,
+   91,
+   93,
+   96
+  ],
+  "nota_min": 60,
+  "nota_max": 96
+ },
+ "vmin_sonido": 21.47,
+ "vmax_sonido": 22.45,
+ "referencia": 21.97,
+ "nota_referencia_base": 67,
+ "dron": {
+  "nota_midi": 67,
+  "hz": 391.99543598174927,
+  "dron_octava": 0,
+  "velocidad": 27,
+  "nivel": 0.048
+ },
+ "volumen": {
+  "db_min": -6.0,
+  "db_max": 0.0,
+  "area_max": 0.4939,
+  "area_max_minimo": 1e-06,
+  "ganancia_min": 0.5011872336272722,
+  "ganancia_max": 1.0,
+  "velocidad_max": 127,
+  "velocidad_fuerte": 100
+ },
+ "densidad": {
+  "activa": true,
+  "umbrales": [
+   21.96,
+   22.177777777777777
+  ],
+  "notas_por_fotograma": [
+   1,
+   2,
+   4
+  ]
+ },
+ "paneo": {
+  "eje": "y",
+  "campo": "centroide_y",
+  "suavizado_fotogramas": 3,
+  "p5": 0.4889333333333334,
+  "p95": 0.5381333333333332,
+  "centro": 0.5135333333333333,
+  "umbral_rama": 0.1,
+  "ancho_rama_estrecha": 0.1,
+  "rama": "estrecha",
+  "suavizado_s": 0.15,
+  "ley": "potencia_constante"
+ },
+ "articulacion": {
+  "umbral_evento": 0.15,
+  "ligar": true,
+  "regolpe_ligado": 2,
+  "regolpe_vel": 0.4,
+  "duracion_nota": 0.95
+ },
+ "opcional": {
+  "instrumento_melodia": 13,
+  "dron_programa": 89,
+  "reverb_cc91": 50,
+  "humanizar": true,
+  "humanizar_semilla": 12345,
+  "humanizar_ms": 10,
+  "humanizar_vel": 0.1
+ }
+}
