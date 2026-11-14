@@ -9,11 +9,11 @@ Prototipo para NASA Space Apps (reto 9), probado con el video **NASA SVS 5207 �
 | Dato del mapa | Sonido |
 |---|---|
 | valor medio (`media`) | **altura** de la voz principal (escala pentatónica, 3 octavas) |
-| zona caliente (`area`) | **volumen** de la voz (−6 a 0 dB) |
-| posición de lo caliente (`centroide_x` o `centroide_y`, según `paneo`) | **paneo** izquierda ↔ derecha (con `"paneo": "y"`: sur ↔ norte; GISTEMP lo usa) |
+| zona caliente (`area`) | **volumen** de la voz (−6 a 0 dB, entre el área mínima y la máxima de la pista) |
+| posición de lo caliente (`centroide_x` o `centroide_y`, según `paneo`) | **paneo** izquierda ↔ derecha (con `"paneo": "y"`: sur ↔ norte; GISTEMP y SST lo usan); con `area` < 0,01 el sonido va al centro |
 | cambio de nota | **golpe** (pluck) |
-| valor de referencia (p. ej. 0 °C) | **dron** (pad) fijo una octava por debajo de la nota que la melodía toca con ese valor: se oye si el presente está por encima o por debajo |
-| anomalía alta | **más notas por fotograma** (1, 2 o 4, en arpegio ascendente) |
+| valor de referencia (p. ej. 0 °C) | **dron** (pad sostenido, GM 90) continuo toda la pista, una octava por debajo de la nota que la melodía toca con ese valor: se oye si el presente está por encima o por debajo |
+| anomalía alta | **más notas por fotograma** (1, 2 o 4, en arpegio ascendente; en lo más alto de la escala, descendente desde la nota base) |
 
 Con el video real, la media extraída sigue la curva oficial de GISTEMP con una correlación de **0,99** (58 años muestreados).
 
@@ -51,7 +51,7 @@ Todos los comandos se ejecutan **desde la raíz del proyecto**; si no, el script
 ## Uso rápido
 
 ```bash
-python evaluar.py                                  # 37 pruebas PASA/FALLA en ~50 s (no toca salidas/)
+python evaluar.py                                  # 45 pruebas PASA/FALLA en ~50 s (no toca salidas/)
 python 04_video_sintetico.py && python 05_video_a_rasgos.py && python 06_rasgos_a_audio.py && python 07_validar.py
 python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 ```
@@ -102,7 +102,8 @@ Obligatorias: `video`, `mapa` y `barra` (rectángulos `[x0, y0, x1, y1]` en píx
 | `densidad_umbrales` | 50 % y 72 % del rango de sonido | `[u1, u2]`: media bajo u1 → 1 nota; hasta u2 → 2; más → 4 |
 | `paneo` | `"x"` | eje del paneo: `"x"` izquierda–derecha del mapa, `"y"` sur–norte (si el centroide recorre menos del 10 % del mapa, el paneo se reduce) |
 | `dron_octava` | 0 | octavas extra del dron (0 = una octava bajo la melodía) |
-| `ligar`, `suavizado`, `densidad`, `regolpe_ligado`, `regolpe_vel`, `umbral_evento`, `octava`, `humanizar`, `dron_nivel`, `dron_programa`, `instrumento_melodia`, `reverb` | ver cabecera de 06 | musicalidad de 06 (por defecto: ligar, suavizado 3, densidad, octava +1, humanizar, re-golpe de notas ligadas cada 2 fotogramas, ataque fuerte si la media cruda cambia más de 1/12 del rango de sonido (0,15 en GISTEMP; clave `umbral_evento`), dron pad 89, marimba 13); `ligar: false, suavizado: 0, densidad: false, octava: 0, humanizar: false` = sonido simple |
+| `ligar`, `suavizado`, `densidad`, `regolpe_ligado`, `regolpe_vel`, `umbral_evento`, `octava`, `humanizar`, `dron_nivel`, `dron_programa`, `instrumento_melodia`, `reverb` | ver cabecera de 06 | musicalidad de 06 (por defecto: ligar, suavizado 3, densidad, octava +1, humanizar, re-golpe suave de las notas ligadas en cada fotograma, ataque fuerte si la media cruda cambia más de 1/12 del rango de sonido (0,15 en GISTEMP; clave `umbral_evento`), dron pad 90, marimba 13); `ligar: false, suavizado: 0, densidad: false, octava: 0, humanizar: false` = sonido simple |
+| `validos_min` | 0.5 (0.1 con `matiz`) | aviso si la mediana de `validos` queda por debajo |
 | `dist_max` | 8.0 | distancia de color (Lab) máxima para aceptar un píxel |
 | `mascara_estatica`, `umbral_estatico`, `frac_estatico` | true, 3.0, 0.7 | descartar tierra, costas y logos que no cambian |
 | `mascara_imagen` | — | máscara a mano (PNG, negro = descartar) |
@@ -137,6 +138,7 @@ datos/         videos y barras descargados (ignorado por git)
 salidas/       todo lo generado (WAV, MP4, PNG, JSON); salidas_sst/ = el de ECCO2 (ROCOLA_SALIDAS=salidas_sst)
 herramientas/  calibrar.py   →  python -m herramientas.calibrar (barra vertical u horizontal; --mapa, --modo-color)
                exportar_mapeo.py → python -m herramientas.exportar_mapeo (mapeo rasgo→sonido para el modo en vivo; ver docs/ESPEC_MODO_EN_VIVO.md)
+               exportar_web.py   → python -m herramientas.exportar_web (MP4 y rasgos de web/assets desde la MISMA salida que el demo; comprueba el audio)
 web/           rocola web accesible (la mantiene Juan; ver web/README.md)
 docs/          CAMBIOS.txt (historial de cambios), AUDITORIA.md y AUDITORIA_2.md (auditorías)
 archivo/       ejercicios 01–03, verificar_01/graficar_01, PLAN.md y sus salidas (nada se borró;

@@ -98,7 +98,21 @@ def agregar_al_catalogo(entrada):
     print(f"Catálogo: agregada '{entrada['id']}'")
 
 
+def comprobar_fuente(ruta_rasgos, video):
+    """Aborta si rasgos.json no es de ese video: así un audio de otra corrida (p. ej. el ejemplo sintético que
+    deja salidas/) no se mezcla con el video real."""
+    if not os.path.exists(ruta_rasgos):
+        sys.exit(f"Falta {ruta_rasgos}: ejecuta antes 05 y 06 con el video real. No se modificó web/assets/.")
+    with open(ruta_rasgos, encoding="utf-8") as fh:
+        fuente = json.load(fh).get("fuente", "")
+    if os.path.basename(fuente) != os.path.basename(video):
+        sys.exit(f"{ruta_rasgos} es de '{fuente}', no de '{os.path.basename(video)}': salidas/ tiene otra corrida y su audio "
+                 "no corresponde a esta pista. Genera la pista antes (05 y 06 con ROCOLA_SALIDAS=salidas y "
+                 "config/config_eic.json) o borra salidas/ para usar el ejemplo sintético. No se modificó web/assets/.")
+
+
 def preparar_real():
+    comprobar_fuente(REAL_RASGOS, REAL_VIDEO)
     salida = os.path.join(ASSETS, "gistemp_1880_2023.mp4")
     factor = duracion(REAL_WAV) / duracion(REAL_VIDEO)
     filtro = f"setpts=PTS*{factor:.6f},scale=1280:-2" if not 0.99 <= factor <= 1.01 else "scale=1280:-2"

@@ -43,6 +43,8 @@ Claves opcionales del config (valores por defecto):
                             la barra). "matiz": solo cuenta el MATIZ (HSV): para videos cuyo color pierde
                             brillo/saturación según otra variable (líneas de flujo sobre fondo oscuro, p. ej.
                             ECCO2). Entonces 'dist_max' son unidades de matiz de OpenCV (0-179; 2 = 4°)
+  "validos_min": 0.5 (0.1 con "matiz")   AVISO si la mediana de 'validos' queda por debajo (en "matiz" solo las
+                            líneas brillantes son dato, p. ej. ~0,26 en ECCO2)
   "brillo_min", "saturacion_min": 60, 60   (solo "matiz") V y S mínimos (0-255) para que un píxel cuente;
                             descartan el fondo oscuro y la tierra gris
   "hemisferios": false      true = añade a cada rasgo media_norte, media_sur (media de cada hemisferio, filas
@@ -137,7 +139,13 @@ def tabla_desde_barra(frame):
     if cfg["barra_vertical"] and cfg["barra_arriba_es_max"]:
         vals = vals[::-1]
     if MODO == "matiz":
-        return TablaMatiz(perfil, cfg.get("saturacion_min", 60), cfg.get("brillo_min", 60)), vals
+        s_min, v_min = cfg.get("saturacion_min", 60), cfg.get("brillo_min", 60)
+        hsv_b = cv2.cvtColor(np.round(perfil).astype(np.uint8).reshape(-1, 1, 3), cv2.COLOR_BGR2HSV).reshape(-1, 3)
+        gris = float(((hsv_b[:, 1] < s_min) | (hsv_b[:, 2] < v_min)).mean())
+        if gris > 0.02:
+            print(f"AVISO: el {gris:.0%} de la barra tiene saturación o brillo por debajo de saturacion_min/brillo_min: "
+                  "esos valores no se pueden leer por matiz (¿paleta con blanco o gris? Usa modo_color \"lab\").")
+        return TablaMatiz(perfil, s_min, v_min), vals
     return cKDTree(a_lab(perfil)), vals
 
 
@@ -330,9 +338,17 @@ if FECHAS and k > len(FECHAS) - 1:
     print(f"AVISO: '{cfg['fechas']}' tiene {len(FECHAS)} líneas y el video llega al fotograma {k}: "
           f"la última fecha ({FECHAS[-1]}) se repite al final.")
 _med = float(np.median([r["validos"] for r in rasgos]))
-if _med < 0.5:
-    print(f"AVISO: la mediana de 'validos' es {_med:.2f} (< 0,5): casi ningún píxel del mapa coincide con la barra. "
-          "Revisa 'mapa', 'barra', 'vmin/vmax' y 'dist_max' (mira salidas/fotograma_ref.png).")
+_min_val = cfg.get("validos_min", 0.1 if MODO == "matiz" else 0.5)   # en "matiz" solo cuentan las líneas brillantes
+if _med < _min_val:
+    print(f"AVISO: la mediana de 'validos' es {_med:.2f} (< {_min_val:g}): casi ningún píxel del mapa coincide con la barra. "
+          f"Revisa 'mapa', 'barra', 'vmin/vmax' y 'dist_max' (mira {sal('fotograma_ref.png')})."
+          + (" En modo matiz revisa también 'borde_px' (0 con líneas finas), 'brillo_min' y 'saturacion_min'." if MODO == "matiz" else ""))
+if cfg.get("vmin_sonido") is not None and cfg.get("vmax_sonido") is not None and not cfg.get("rasgo_tono"):
+    _fuera = sum(not cfg["vmin_sonido"] <= r["media"] <= cfg["vmax_sonido"] for r in rasgos)
+    if _fuera > 0.2 * len(rasgos):
+        print(f"AVISO: {_fuera} de {len(rasgos)} fotogramas tienen la media fuera de vmin_sonido..vmax_sonido "
+              f"({cfg['vmin_sonido']}..{cfg['vmax_sonido']}): la melodía se quedará pegada a la nota más alta o más baja. "
+              "Vuelve a medir el rango (y 'referencia') con los valores de abajo.")
 salida = {"fuente": cfg["video"], "vmin": cfg["vmin"], "vmax": cfg["vmax"],
           "fps_rasgos": fps_video / paso, "rasgos": rasgos}
 if cfg.get("referencia") is not None:
