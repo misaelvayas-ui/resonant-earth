@@ -1,0 +1,10 @@
+{
+  "universidad": "Universidad de Las Américas (UDLA), Quito",
+  "integrantes": [
+    { "nombre": "Nombre Apellido 1", "carrera": "Networking y Telecomunicaciones", "aporte": "Aporte al proyecto (editar)" },
+    { "nombre": "Nombre Apellido 2", "carrera": "Electrónica y Automatización", "aporte": "Aporte al proyecto (editar)" },
+    { "nombre": "Nombre Apellido 3", "carrera": "Inteligencia Artificial", "aporte": "Aporte al proyecto (editar)" },
+    { "nombre": "Nombre Apellido 4", "carrera": "Inteligencia Artificial", "aporte": "Aporte al proyecto (editar)" },
+    { "nombre": "Nombre Apellido 5", "carrera": "Inteligencia Artificial", "aporte": "Aporte al proyecto (editar)" }
+  ]
+}

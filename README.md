@@ -51,7 +51,7 @@ Todos los comandos se ejecutan **desde la raíz del proyecto**; si no, el script
 ## Uso rápido
 
 ```bash
-python evaluar.py                                  # 45 pruebas PASA/FALLA en ~50 s (no toca salidas/)
+python evaluar.py                                  # 44 pruebas PASA/FALLA en ~50 s (no toca salidas/)
 python 04_video_sintetico.py && python 05_video_a_rasgos.py && python 06_rasgos_a_audio.py && python 07_validar.py
 python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 ```
@@ -139,7 +139,7 @@ salidas/       todo lo generado (WAV, MP4, PNG, JSON); salidas_sst/ = el de ECCO
 herramientas/  calibrar.py   →  python -m herramientas.calibrar (barra vertical u horizontal; --mapa, --modo-color)
                exportar_mapeo.py → python -m herramientas.exportar_mapeo (mapeo rasgo→sonido para el modo en vivo; ver docs/ESPEC_MODO_EN_VIVO.md)
                exportar_web.py   → python -m herramientas.exportar_web (MP4 y rasgos de web/assets desde la MISMA salida que el demo; comprueba el audio)
-web/           rocola web accesible (la mantiene Juan; ver web/README.md)
+web/           web del proyecto: GISTEMP y SST con globo 3D y rocola accesible (ver web/README.md)
 docs/          CAMBIOS.txt (historial de cambios), AUDITORIA.md y AUDITORIA_2.md (auditorías)
 archivo/       ejercicios 01–03, verificar_01/graficar_01, PLAN.md y sus salidas (nada se borró;
                también está en el tag git "practica-completa")
@@ -156,3 +156,9 @@ Variables de entorno: `ROCOLA_SALIDAS` y `ROCOLA_CONFIG` redirigen las carpetas;
 - `demo_rocola.mp4`: el video empieza 0,1 s después del audio. Es la configuración que no se entrecorta en VLC.
 
 El detalle de cada cambio y de cada medición está en [docs/CAMBIOS.txt](docs/CAMBIOS.txt).
+
+## Web
+
+La web del proyecto vive en `web/` y muestra solo las dos pistas reales (GISTEMP y SST/ECCO2). Para abrirla:
+`cd web && python -m http.server 8000` y entra a <http://localhost:8000>. Sus medios se regeneran desde el pipeline con
+`python -m herramientas.exportar_web` y `python -m herramientas.exportar_mapeo`. Detalles en `web/README.md`.

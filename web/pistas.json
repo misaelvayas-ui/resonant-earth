@@ -1,0 +1,50 @@
+{
+  "pistas": [
+    {
+      "id": "gistemp-1880-2023",
+      "titulo": "Temperatura del planeta",
+      "periodo": "1880–2023",
+      "fuente": "GISTEMP, NASA SVS 5207",
+      "fuente_url": "https://svs.gsfc.nasa.gov/5207/",
+      "resumen": "143 años en 30 segundos",
+      "descripcion": "Un mapa del mundo que se calienta. La melodía se queda abajo durante un siglo y en los últimos cuarenta años no deja de subir.",
+      "descripcion_accesible": "El video es un mapa del mundo que pasa de azules y blancos a rojos y amarillos entre 1881 y 2023. Se oye una marimba: al principio toca notas graves y espaciadas; desde los años ochenta sube, toca más notas por segundo y suena más fuerte. El sonido se va a la derecha cuando el calor se concentra en el norte. Una nota grave continua marca el promedio de 1951 a 1980.",
+      "leyenda": "Azul: más frío que el promedio de 1951–1980. Blanco: cerca del promedio. Rojo y amarillo: más caliente.",
+      "fotograma": "fotogramas/gistemp-1880-2023.jpg",
+      "video": "assets/gistemp_1880_2023.mp4",
+      "rasgos": "assets/gistemp_1880_2023_rasgos.json",
+      "duracion_s": 30,
+      "lectura": {
+        "plantilla": "{fecha}: {valor_signo} °C respecto al promedio de 1951–1980. El {area} % del mapa lo supera en más de 1 °C.",
+        "decimales": 2
+      },
+      "grafico": {
+        "etiqueta_ref": "promedio 1951–1980",
+        "resumen": "Anomalía media de temperatura por año: de −0,24 °C en 1881 a +1,06 °C en 2023. El punto más frío es 1911 (−0,61 °C)."
+      }
+    },
+    {
+      "id": "sst-ecco2-2007-2008",
+      "titulo": "Corrientes y temperatura del mar",
+      "periodo": "2007–2008",
+      "fuente": "Modelo ECCO2, NASA SVS 3912",
+      "fuente_url": "https://svs.gsfc.nasa.gov/3912/",
+      "resumen": "344 días en 30,5 segundos",
+      "descripcion": "Un año de océano. Se oyen las estaciones: la melodía baja hasta noviembre y vuelve a subir.",
+      "descripcion_accesible": "El video muestra los océanos como miles de líneas de corriente sobre fondo oscuro, de azul (agua fría) a rojo (agua cálida), con los continentes en gris. Se oye una marimba que empieza aguda en marzo de 2007, baja hasta su nota más grave en noviembre y vuelve a subir hasta febrero de 2008. La temperatura es un índice relativo: sirve para comparar un momento con otro, no para leer grados exactos.",
+      "leyenda": "Cada línea es una corriente. Azul: agua fría (0 °C). Verde: de 10 a 20 °C. Amarillo: unos 25 °C. Rojo: 32 °C. Gris: tierra.",
+      "fotograma": "fotogramas/sst-ecco2-2007-2008.jpg",
+      "video": "assets/sst_ecco2_2007_2008.mp4",
+      "rasgos": "assets/sst_ecco2_2007_2008_rasgos.json",
+      "duracion_s": 30.5,
+      "lectura": {
+        "plantilla": "{fecha}: índice {valor}, {dif_ref_signo} respecto a la media del período. El {area} % del agua medida supera los 25 °C.",
+        "decimales": 2
+      },
+      "grafico": {
+        "etiqueta_ref": "media del período",
+        "resumen": "Índice de temperatura del mar: máximo en marzo de 2007 (22,44), mínimo en noviembre de 2007 (21,48) y de vuelta a 22,12 en febrero de 2008."
+      }
+    }
+  ]
+}

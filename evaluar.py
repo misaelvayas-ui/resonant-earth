@@ -1041,32 +1041,6 @@ def j3():
     return ok, f"base 11: {suben}; base 15 (tope): {bajan}; sin notas repetidas en ningún fotograma: {all(len(set(x)) == len(x) for x in nf)}"
 
 
-def j4():
-    """web/preparar_datos.py aborta si salidas/rasgos.json no es del video de la pista que va a generar."""
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("preparar_datos", os.path.join("web", "preparar_datos.py"))
-    pd = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(pd)
-    video = os.path.join("datos", "2023GISTEMP_Map_SOS.mp4")
-    res = {}
-    with tempfile.TemporaryDirectory() as d:
-        for nombre, fuente in (("sintético", "04_video_sintetico.mp4"), ("otro video", "datos/ecco2_sst_flow.mp4"), ("el mismo", "datos/2023GISTEMP_Map_SOS.mp4")):
-            ruta = os.path.join(d, "r.json")
-            json.dump({"fuente": fuente, "rasgos": []}, open(ruta, "w"))
-            try:
-                pd.comprobar_fuente(ruta, video)
-                res[nombre] = "pasa"
-            except SystemExit as e:
-                res[nombre] = "aborta" if fuente.split("/")[-1] in str(e) else "aborta (mensaje sin la fuente)"
-        try:
-            pd.comprobar_fuente(os.path.join(d, "no_existe.json"), video)
-            res["sin rasgos.json"] = "pasa"
-        except SystemExit as e:
-            res["sin rasgos.json"] = "aborta" if "Falta" in str(e) else "aborta (mensaje raro)"
-    ok = res == {"sintético": "aborta", "otro video": "aborta", "el mismo": "pasa", "sin rasgos.json": "aborta"}
-    return ok, "; ".join(f"{k}: {v}" for k, v in res.items())
-
-
 def k1():
     """06 con FluidSynth: el dron suena continuo (sin ventanas de 0,5 s casi mudas ni caídas de más de 12 dB aunque la nota se repita y se ligue)."""
     if not (shutil.which("fluidsynth") and any(os.path.exists(p) for p in ("/usr/share/sounds/sf2/FluidR3_GM.sf2", "/usr/share/sounds/sf2/default-GM.sf2"))):
@@ -1149,7 +1123,6 @@ EVALUACIONES = [
     ("J1", "06: area < 0,01 -> pan al centro", "pan = 0 donde area < 0,01; con area = 0,01 sigue al centroide", j1),
     ("J2", "06: volumen min-max", "area 0,43-0,49 -> velocidad 64..127; area constante: 127 (hay zona) o 64", j2),
     ("J3", "06: arpegio en lo alto de la escala", "sube si caben las notas, baja desde la base si no; sin notas repetidas", j3),
-    ("J4", "preparar_datos: protección de la fuente", "aborta si rasgos.json no es del video de la pista; pasa si coincide", j4),
     ("K1", "06: dron continuo (FluidSynth)", "ninguna ventana de 0,5 s < -40 dB ni caída > 12 dB con notas ligadas", k1),
     ("K2", "exportar_web: audio web = rocola.wav", "acepta el MP4 de ese WAV; rechaza canales invertidos y 10 dB menos", k2),
     ("I1", "especificación modo en vivo", "fórmulas de la ESPEC = control.json: notas exactas, pan ± 0,02 (4 casos sintéticos + 2 pistas)", i1),
