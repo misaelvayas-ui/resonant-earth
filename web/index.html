@@ -3,167 +3,216 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Rocola de la Tierra · Resonant Earth</title>
-  <meta name="description" content="Rocola de la Tierra: escucha visualizaciones del clima convertidas en sonido.">
+  <title>Escucha la Tierra | Resonant Earth</title>
+  <meta name="description" content="Resonant Earth convierte visualizaciones de la NASA en sonido: la temperatura del planeta desde 1880 y la del mar en 2007–2008. NASA Space Apps Challenge 2026, Quito.">
   <meta name="theme-color" content="#000000">
   <link rel="icon" type="image/png" sizes="64x64" href="assets/icono-64.png">
   <link rel="apple-touch-icon" href="assets/icono-180.png">
+  <link rel="preload" href="assets/fonts/unbounded-latin-300-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/plus-jakarta-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="estilos.css">
-  <script src="describir.js" defer></script>
-  <script src="app.js" defer></script>
+  <script>document.documentElement.classList.add("js")</script>
+  <script src="vendor/gsap.min.js" defer></script>
+  <script src="vendor/ScrollTrigger.min.js" defer></script>
+  <script type="module" src="js/principal.js"></script>
 </head>
 <body>
-  <div class="cielo" aria-hidden="true">
-    <div class="capa capa-lejana"></div>
-    <div class="capa capa-media"></div>
-    <div class="capa capa-cercana"></div>
-    <div class="fugaz"></div>
-  </div>
-  <a class="saltar" href="#reproductor">Saltar al reproductor</a>
+  <a class="saltar" href="#rocola">Saltar a la rocola</a>
 
-  <header class="cabecera">
-    <span class="logo-marco">
-      <img class="logo" src="assets/logo-480.jpg"
-           srcset="assets/logo-240.jpg 240w, assets/logo-480.jpg 480w"
-           sizes="(max-width: 600px) 136px, (max-width: 999px) 148px, 184px"
-           width="184" height="184" fetchpriority="high"
-           alt="Logo de Resonant Earth: la Tierra con auriculares y ondas de sonido, con el lema Hear the Earth. Imagen generada con IA, con la marca «Generado con IA»">
-    </span>
-    <div class="cabecera-texto">
-      <p class="rotulo">Resonant Earth</p>
-      <h1>Rocola de la Tierra</h1>
-      <p class="lema">Visualizaciones del clima convertidas en sonido. Elige una pista y escucha los datos.</p>
+  <header class="barra">
+    <a class="marca" href="#inicio">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="10.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M3.5 12c1.6-5 3.2-5 4.8 0s3.2 5 4.8 0 3.2-5 4.8 0 1.2 3 2.6 3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span>Resonant Earth</span>
+    </a>
+    <nav aria-label="Secciones">
+      <ul>
+        <li><a href="#rocola">La rocola</a></li>
+        <li><a href="#como-funciona">Cómo funciona</a></li>
+        <li><a href="#porque">El porqué</a></li>
+        <li><a href="#accesibilidad">Accesibilidad</a></li>
+        <li><a href="#equipo">Equipo</a></li>
+      </ul>
+    </nav>
+    <div class="barra-acciones">
+      <a class="boton boton-contorno boton-repo" href="https://github.com/misaelvayas-ui/rocola_practica">Repositorio</a>
+      <a class="boton boton-contorno" href="#rocola">Abrir la rocola</a>
     </div>
   </header>
 
-  <main class="rejilla">
-    <section class="rocola" aria-labelledby="titulo-rocola">
-      <h2 id="titulo-rocola">Elige una visualización</h2>
-      <p id="estado-catalogo" class="aviso" role="status">Cargando el catálogo…</p>
-      <ol id="lista" class="lista"></ol>
-    </section>
-
-    <section id="reproductor" class="reproductor" aria-labelledby="titulo-actual" tabindex="-1">
-      <h2 id="titulo-actual">Ninguna visualización elegida</h2>
-      <p id="descripcion-actual" class="descripcion"></p>
-
-      <div class="pantalla">
-        <video id="video" preload="metadata" playsinline aria-describedby="descripcion-actual leyenda-colores"></video>
+  <main>
+    <section id="inicio" class="heroe" aria-labelledby="t-inicio">
+      <div class="globo-capa" aria-hidden="true">
+        <div class="globo-respaldo"></div>
+        <canvas id="globo"></canvas>
+        <div class="heroe-velo"></div>
       </div>
-
-      <div class="controles" role="group" aria-label="Controles del reproductor">
-        <button id="play" class="boton-play" type="button" disabled>
-          <span class="icono" aria-hidden="true">▶</span>
-          <span class="texto">Reproducir</span>
-        </button>
-
-        <div class="campo campo-progreso">
-          <label for="progreso">Progreso</label>
-          <input id="progreso" type="range" min="0" max="0" step="0.1" value="0" disabled
-                 aria-valuetext="0:00 de 0:00">
-          <span id="tiempo" class="tiempo" aria-hidden="true">0:00 / 0:00</span>
-        </div>
-
-        <div class="campo campo-volumen">
-          <label for="volumen">Volumen</label>
-          <input id="volumen" type="range" min="0" max="100" step="5" value="80"
-                 aria-valuetext="80 %">
-        </div>
-      </div>
-
-      <p class="atajos" id="atajos">
-        Teclado: <kbd>Espacio</kbd> reproduce o pausa ·
-        <kbd><span aria-hidden="true">←</span><span class="solo-lector">flecha izquierda</span></kbd>
-        <kbd><span aria-hidden="true">→</span><span class="solo-lector">flecha derecha</span></kbd>
-        retrocede o avanza 5 segundos ·
-        <kbd>Tab</kbd> pasa al siguiente control.
-      </p>
-
-      <figure class="grafico">
-        <figcaption class="rotulo" id="grafico-titulo">Temperatura media</figcaption>
-        <div class="grafico-marco">
-          <div class="eje-y" aria-hidden="true">
-            <span id="eje-y-max">–</span>
-            <span id="eje-y-min">–</span>
-          </div>
-          <div class="grafico-area">
-            <svg id="grafico" role="img" aria-label="Gráfico sin datos todavía."
-                 viewBox="0 0 1000 200" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="grad-estela" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1000" y2="0">
-                  <stop class="g-estela-ini" offset="0"/>
-                  <stop class="g-estela-fin" offset="1"/>
-                </linearGradient>
-                <clipPath id="recorte-estela">
-                  <rect id="grafico-recorte" x="-10" y="-20" width="0" height="240"/>
-                </clipPath>
-              </defs>
-              <line id="grafico-ref" class="g-ref" x1="0" x2="1000" y1="100" y2="100" vector-effect="non-scaling-stroke"/>
-              <path id="grafico-curva" class="g-curva" d="" vector-effect="non-scaling-stroke"/>
-              <path id="grafico-estela" class="g-estela" d="" clip-path="url(#recorte-estela)" vector-effect="non-scaling-stroke"/>
-              <line id="grafico-cursor" class="g-cursor" x1="0" x2="0" y1="0" y2="200" vector-effect="non-scaling-stroke"/>
-            </svg>
-            <span id="grafico-punto" class="g-punto" aria-hidden="true" hidden></span>
-            <span id="grafico-ref-rotulo" class="g-ref-rotulo" aria-hidden="true">referencia</span>
+      <div class="heroe-contenido">
+        <h1 id="t-inicio" class="heroe-titulo"><span class="linea">Escucha</span> <span class="linea">la Tierra</span></h1>
+        <div class="heroe-cierre">
+          <p class="heroe-sub">Convertimos visualizaciones de la NASA en música. El color de cada mapa decide qué nota suena, qué tan fuerte y de qué lado. Escucha la temperatura del planeta desde 1880 y la del mar a lo largo de un año.</p>
+          <p class="heroe-reto">NASA Space Apps Challenge 2026, Quito. Reto: La rocola de la Tierra.</p>
+          <div class="heroe-acciones">
+            <a class="boton boton-lleno" href="#rocola">Abrir la rocola</a>
+            <a class="boton boton-contorno" href="#como-funciona">Cómo funciona</a>
           </div>
         </div>
-        <div class="eje-x" aria-hidden="true">
-          <span id="eje-x-ini">–</span>
-          <span class="eje-x-nota">clic en el gráfico para saltar</span>
-          <span id="eje-x-fin">–</span>
+        <section class="escucha" aria-labelledby="t-escucha">
+          <h2 id="t-escucha" class="escucha-titulo">Qué vas a oír</h2>
+          <dl class="escucha-lista">
+            <div><dt>Tono</dt><dd>Más agudo cuando el mapa está más caliente.</dd></div>
+            <div><dt>Volumen</dt><dd>Más fuerte cuando la zona caliente crece.</dd></div>
+            <div><dt>Lado</dt><dd>A la izquierda si el calor está al sur; a la derecha si está al norte.</dd></div>
+            <div><dt>Nota grave fija</dt><dd>El promedio de referencia, para oír cuánto se aleja el dato.</dd></div>
+          </dl>
+        </section>
+        <ul class="cifras" tabindex="0" aria-label="Cifras del proyecto">
+          <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="143">143</span><span class="cifra-texto">años de temperatura del planeta en una pista de 30 segundos</span></li>
+          <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="344">344</span><span class="cifra-texto">días de océano en una pista de 30,5 segundos</span></li>
+          <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="45">45</span><span class="cifra-texto">pruebas automáticas comprueban que el audio sigue a los datos</span></li>
+        </ul>
+        <div class="heroe-tarjetas">
+          <article id="tarjeta-temperatura" class="vidrio vidrio--globo" data-brillo data-inclinar>
+            <h2>Temperatura del planeta</h2>
+            <div id="mini-grafico"></div>
+            <p id="mini-grafico-texto">Anomalía de temperatura, 1881–2023</p>
+          </article>
+          <article id="tarjeta-sonando" class="vidrio vidrio--globo" data-brillo data-inclinar>
+            <h2>Sonando ahora</h2>
+            <p id="sonando-titulo">Nada suena todavía</p>
+            <canvas id="mini-espectro" width="240" height="48" aria-hidden="true"></canvas>
+            <button id="btn-muestra" class="boton boton-contorno" type="button">Escuchar una muestra</button>
+          </article>
         </div>
-      </figure>
-    </section>
-
-    <section class="en-vivo" aria-labelledby="titulo-descripcion">
-      <h2 id="titulo-descripcion">Qué pasa ahora</h2>
-      <p class="rotulo etiqueta-ia">Descripción automática</p>
-      <p class="registro">
-        <span id="registro-tiempo" class="registro-tiempo">--:--</span>
-        <span id="descripcion-viva" class="descripcion-viva">Elige una visualización para ver aquí, en palabras, lo que muestra el video en cada momento.</span>
-      </p>
-      <!-- región viva para lectores de pantalla: se actualiza como mucho cada pocos segundos -->
-      <div id="anuncio" class="solo-lector" aria-live="polite" aria-atomic="true"></div>
-      <div class="opciones">
-        <label class="casilla">
-          <input id="anunciar" type="checkbox" checked>
-          Leer cambios con lector de pantalla (cada pocos segundos)
-        </label>
-        <label class="casilla">
-          <input id="subtitulos" type="checkbox">
-          Mostrar la descripción como subtítulos sobre el video
-        </label>
       </div>
     </section>
 
-    <section class="leyenda" aria-labelledby="titulo-leyenda">
-      <h2 id="titulo-leyenda">Qué estás escuchando</h2>
-      <table class="mapeo">
-        <thead>
-          <tr><th scope="col">Dato</th><th scope="col">Sonido</th></tr>
-        </thead>
-        <tbody>
-          <tr><th scope="row">Temperatura media</th><td>Altura de la nota: más aguda = más caliente</td></tr>
-          <tr><th scope="row">Tamaño de la zona caliente</th><td>Volumen: más fuerte = más área caliente</td></tr>
-          <tr><th scope="row">Dónde está lo caliente</th><td>Izquierda / derecha en el estéreo</td></tr>
-          <tr><th scope="row">Valor de referencia</th><td>Tono grave fijo: si la nota suena por encima, el dato está por encima de la referencia</td></tr>
-        </tbody>
-      </table>
-      <p id="leyenda-colores" class="leyenda-colores"></p>
+    <section id="rocola" class="seccion" aria-labelledby="t-rocola" tabindex="-1">
+      <div class="contenedor">
+        <h2 id="t-rocola" class="revelar">La rocola</h2>
+        <p class="entrada revelar">Dos visualizaciones de la NASA, dos maneras de sonar. La temperatura del planeta sube durante 143 años; la del mar respira con las estaciones.</p>
+        <div id="lista-pistas" class="pistas revelar" role="group" aria-label="Elige una pista"></div>
+        <div class="rocola-rejilla revelar">
+          <div id="escenario" class="escenario">
+            <div class="marco">
+              <video id="medio" playsinline preload="none"></video>
+              <canvas id="visualizador" aria-hidden="true"></canvas>
+            </div>
+            <div class="cabecera-pista">
+              <h3 id="titulo-pista">Elige una pista</h3>
+              <p id="fuente-pista" class="fuente"></p>
+              <p id="descripcion-pista"></p>
+            </div>
+            <div class="controles" role="group" aria-label="Controles de la rocola">
+              <button id="btn-reproducir" class="boton boton-lleno" type="button" disabled>Reproducir</button>
+              <button id="btn-cambiar" class="boton boton-contorno" type="button" disabled>Cambiar de pista</button>
+              <label class="volumen" for="volumen">Volumen</label>
+              <input id="volumen" type="range" min="0" max="100" step="1" value="80" aria-valuetext="80 %">
+              <span id="tiempo" class="dato">0:00 / 0:00</span>
+            </div>
+            <label class="oculto-visual" for="avance">Avance de la pista</label>
+            <input id="avance" type="range" min="0" max="1000" step="1" value="0" disabled>
+            <figure class="grafico-pista">
+              <div id="grafico-pista" aria-hidden="true"></div>
+              <figcaption id="resumen-grafico">Elige una pista para ver su gráfico.</figcaption>
+            </figure>
+            <p id="estado-rocola" role="status">Elige una pista para empezar.</p>
+          </div>
+          <aside class="lateral">
+            <section class="vidrio ahora" aria-labelledby="t-ahora">
+              <h3 id="t-ahora">Ahora</h3>
+              <p id="ahora-fecha" class="dato-grande">&nbsp;</p>
+              <p id="ahora-texto">Sin lectura todavía.</p>
+              <div id="lectura-viva" class="oculto-visual" aria-live="polite" aria-atomic="true"></div>
+              <label class="casilla"><input id="anunciar" type="checkbox" checked> Anunciar con el lector de pantalla mientras suena</label>
+            </section>
+            <section class="vidrio" aria-labelledby="t-accesible">
+              <h3 id="t-accesible">Qué se ve y qué se oye</h3>
+              <p id="descripcion-accesible">Elige una pista para leer su descripción.</p>
+            </section>
+            <section class="vidrio" aria-labelledby="t-leyenda">
+              <h3 id="t-leyenda">Colores del mapa</h3>
+              <p id="leyenda-pista">Elige una pista para ver qué significan los colores.</p>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="como-funciona" class="seccion" aria-labelledby="t-como">
+      <div class="contenedor">
+        <h2 id="t-como" class="revelar">Cómo funciona</h2>
+        <p class="entrada revelar">Cuatro pasos, todos con código abierto en Python.</p>
+        <div class="pipeline revelar">
+          <svg class="pipeline-linea pipeline-linea--h" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="linea-pipeline" pathLength="1" d="M0,30 C100,0 200,60 300,30 S500,0 600,30 S800,60 900,30 S1100,0 1200,30"/></svg>
+          <svg class="pipeline-linea pipeline-linea--v" viewBox="0 0 2 100" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="linea-pipeline" pathLength="1" d="M1,0 L1,100"/></svg>
+          <ol class="pasos">
+            <li class="paso"><span class="paso-nodo"></span><h3>Fotogramas</h3><p>Tomamos el video de la NASA y leemos un fotograma cada cierto tiempo.</p><p class="paso-dato">60 fotogramas de GISTEMP y 61 de ECCO2</p></li>
+            <li class="paso"><span class="paso-nodo"></span><h3>Rasgos</h3><p>En cada fotograma medimos tres cosas con la barra de color del propio mapa: el valor medio, cuánta superficie supera un umbral y dónde está esa superficie.</p><p class="paso-dato">2023: media +1,06 °C, 57 % del mapa más de 1 °C sobre el promedio</p></li>
+            <li class="paso"><span class="paso-nodo"></span><h3>Mapeo musical</h3><p>El valor medio elige la nota, la superficie decide el volumen y la posición decide de qué lado suena. Una nota grave fija marca la referencia.</p><p class="paso-dato">Do, Re, Mi, Sol y La en tres octavas</p></li>
+            <li class="paso"><span class="paso-nodo"></span><h3>Audio</h3><p>Sale una pista de marimba. Después medimos el audio y comprobamos que cada nota es la que dictan los datos.</p><p class="paso-dato">89 golpes en GISTEMP y 125 en ECCO2</p></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section id="porque" class="seccion" aria-labelledby="t-porque">
+      <div class="contenedor">
+        <h2 id="t-porque" class="revelar">El porqué</h2>
+        <div class="porque-rejilla">
+          <div class="porque-bloque revelar">
+            <h3>Por qué escuchar el clima</h3>
+            <p>En nuestra medición del mapa de GISTEMP, la anomalía media pasa de −0,24 °C en 1881 a +1,06 °C en 2023. Dicho así es un número. Oído, es una melodía que durante un siglo se queda abajo y en los últimos cuarenta años no deja de subir.</p>
+            <p>El sonido llega a quien no puede ver el mapa y también a quien ya lo vio demasiadas veces.</p>
+          </div>
+          <div class="porque-bloque revelar">
+            <h3>Decisiones artísticas</h3>
+            <ul>
+              <li>Escala pentatónica: cinco notas que nunca chocan entre sí, así ningún dato suena a error.</li>
+              <li>Una nota grave continua marca el promedio de referencia. La distancia entre esa nota y la melodía es la anomalía.</li>
+              <li>Más calor, más notas: uno, dos o cuatro golpes por medio segundo.</li>
+              <li>Fidelidad antes que adorno: suavizamos tres fotogramas para que suene a música, pero una prueba mide el audio final y exige que cada nota coincida con el dato.</li>
+            </ul>
+            <p class="nota">Límite conocido: en la pista del mar la temperatura es un índice relativo, medido en las líneas de corriente, no grados exactos del océano.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="accesibilidad" class="seccion" aria-labelledby="t-acc">
+      <div class="contenedor acc-rejilla">
+        <div>
+          <h2 id="t-acc" class="revelar">Accesibilidad</h2>
+          <p class="entrada revelar">La rocola nació para oír lo que no se ve. Se puede usar sin ratón y sin pantalla.</p>
+        </div>
+        <ul class="accesibilidad-lista revelar">
+          <li>Una frase en texto dice qué pasa en cada momento, generada desde los datos.</li>
+          <li>El lector de pantalla la anuncia mientras suena, y se puede apagar.</li>
+          <li>Todo se usa con teclado y el foco siempre se ve.</li>
+          <li>Cada pista explica qué se ve y qué se oye, y qué significan los colores.</li>
+          <li>Contraste AA o mejor en todo el texto.</li>
+          <li>Si pides menos movimiento al sistema, la página deja de moverse.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="equipo" class="seccion" aria-labelledby="t-equipo">
+      <div class="contenedor">
+        <h2 id="t-equipo" class="revelar">Equipo</h2>
+        <p class="entrada revelar">Cinco estudiantes de la Universidad de Las Américas (UDLA), Quito.</p>
+        <ul id="lista-equipo" class="equipo revelar"></ul>
+      </div>
     </section>
   </main>
 
   <footer class="pie">
-    <h2 class="rotulo">Créditos</h2>
-    <ul class="creditos">
-      <li>Datos del video real: NASA Scientific Visualization Studio,
-        <a href="https://svs.gsfc.nasa.gov/5207/">SVS 5207</a> (GISTEMP, 1880–2023). El ejemplo incluido es sintético.</li>
-      <li>Hecho con ayuda de IA (Claude). Logo generado con IA.</li>
-      <li>Fuentes: Unbounded, Plus Jakarta Sans y Space Mono (licencia SIL OFL).</li>
-    </ul>
+    <div class="contenedor pie-rejilla">
+      <p>Resonant Earth. Código con licencia MIT. <a href="https://github.com/misaelvayas-ui/rocola_practica">Repositorio en GitHub</a></p>
+      <p>Datos y visualizaciones: NASA Scientific Visualization Studio (<a href="https://svs.gsfc.nasa.gov/5207/">SVS 5207</a> y <a href="https://svs.gsfc.nasa.gov/3912/">SVS 3912</a>) y Earth Information Center. Texturas del globo: Blue Marble y Black Marble, NASA Earth Observatory.</p>
+      <p>Proyecto estudiantil para el NASA Space Apps Challenge 2026. No es un sitio oficial de la NASA. Hecho con ayuda de IA (Claude).</p>
+    </div>
   </footer>
-
-  <noscript><p class="aviso">Esta rocola necesita JavaScript activado.</p></noscript>
 </body>
 </html>

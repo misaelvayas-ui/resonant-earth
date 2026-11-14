@@ -920,3 +920,20 @@ Mar con hemisferios (copia local, 63 fotogramas, carpeta temporal, nada en web/a
 5,08); notas 62-96, dron 67; el modo en vivo reproduce control.json y el .mid.
 Pendiente: decidir con el equipo si el mar usa esta opción; la descripción en texto de la web (describir.js) sigue hablando
 de la media, no de la diferencia entre hemisferios.
+
+RONDA 32 - web nueva: solo GISTEMP y SST, globo 3D y rocola accesible (rama misael/web-nueva)   (2026-11-14)
+Antes: commit 0cf4c5c (master, con los PR #6, #7 y #8). Las rondas 31-35 del PR #9 (Alberto, aún sin fusionar) chocan en número con la 31 de Juan y chocarán también en web/.
+Decisión de Misael: rehacer la web desde cero mostrando solo lo importante del pipeline (GISTEMP y SST). Plan: .claude/plans/plan-20261114-163945.md.
+1. Se borró la web anterior: web/app.js, describir.js, catalogo.json, GUIA_ESTILO.md, capturas/, preparar_datos.py, el ejemplo sintético (mp4 y rasgos) y el logo generado con IA (logo*.jpg).
+2. Web nueva en web/ (HTML, CSS y JS puro con módulos ES, sin compilación): index.html, estilos.css, pistas.json, equipo.json y js/ (principal, datos, audio, rocola, lectura,
+   grafico, visualizador, globo, animaciones, tarjetas). Hero con globo 3D (Three.js, Blue Marble y Black Marble de NASA) y anillo de sonido que sigue el espectro real; rocola con
+   dos tarjetas de pista, visualizador (Web Audio), gráfico con cursor, lectura en vivo anunciable por el lector de pantalla; Cómo funciona, El porqué, Accesibilidad, Equipo, pie.
+   Librerías empaquetadas en web/vendor (three 0.160.1, GSAP 3.13.0 con ScrollTrigger; ver vendor/LICENCIAS.md). GSAP y no Motion: scrub del pipeline, matchMedia para movimiento
+   reducido y un solo bucle (gsap.ticker). Fuente nueva: Unbounded 300.
+3. Desviación del plan: sin scroll-behavior: smooth. Con desplazamiento suave ScrollTrigger medía mal las posiciones al redimensionar y el hero se quedaba atenuado.
+4. Sin cambios en el pipeline: ningún 0x_*.py ni herramientas/; web/assets/gistemp_* y sst_* idénticos (exportar_mapeo reproduce control.json y .mid en las dos pistas).
+   evaluar.py: se quitó la prueba J4 (probaba web/preparar_datos.py, que ya no existe; exportar_web.py comprueba la fuente y el audio). 44 PASA, 0 FALLA.
+5. Pruebas: web/pruebas/verificar.cjs (Playwright + axe, V1-V14 y capturas): todo PASA. Lighthouse (escritorio): accesibilidad 1,00, buenas prácticas 1,00, rendimiento 0,68
+   (Chromium sin GPU). El Chromium de Playwright no trae H.264: las pruebas sustituyen los mp4 por webm con WEBM_DIR (solo para probar).
+6. .github/workflows/pages.yml: publica web/ en GitHub Pages solo a mano (workflow_dispatch). README raíz con la sección Web.
+Pendiente: nombres del equipo (web/equipo.json), 60 fps en una laptop real, versión en inglés, y qué hacer con el PR #9 (reescribe la web anterior; chocará con esta rama).
