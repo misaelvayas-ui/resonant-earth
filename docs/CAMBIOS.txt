@@ -794,3 +794,26 @@ Antes: commit 0505d9d (master, con los PR #3, #4 y #5). La ronda 26 es la de Jua
 11. evaluar.py: 43 PASA, 0 FALLA. Nuevas: H4 (calibrar matiz), H5 (avisos de 05), J1 (pan al centro), J2 (volumen min-max), J3 (arpegio), J4 (protección de preparar_datos);
    ampliada H3 (formatos de fecha raros); E2 e I1 actualizadas a las reglas nuevas. Las nuevas FALLAN con el código anterior (comprobado en una copia).
 Pendiente: hallazgos 8 (PR #6), 9 (resto), 10, 11 y 14 de AUDITORIA_3.md.
+
+RONDA 28 - dron continuo, re-golpe más fuerte y MP4 web desde el mismo audio que el demo (rama misael/auditoria3)   (2026-11-14)
+Antes: commit c07a9d8 (ronda 27). Problema medido en el WAV de SST: silencio casi total (-50 a -70 dB) en 14,0-15,0 s, 17,5-19,0 s y 22,5 s; GISTEMP, 17 ventanas de 0,5 s < -40 dB.
+Causa (dos fallos que se suman): a) en los fotogramas 28, 30, 35, 37 y 45 de SST no hay ningún golpe: la nota va ligada (06:189, la nota se alarga) y la marimba decae en < 1 s;
+el re-golpe de cada 2 fotogramas salía con velocidad 28-42. b) el dron (GM 89, Pad 1 new age de FluidR3) DECAE: -57 dB al inicio y -96 dB a los 6 s (con velocidad 127: -34 -> -89 dB), así que
+no rellenaba esos huecos. El note-off del dron no es la causa (dura hasta el final, 06:226-227).
+1. 06: dron_programa 90 (Pad 2 warm, nivel constante) y renormalización del RMS del dron a DRON_FLUID (0,35) x dron_nivel / raiz(2), ~7 dB bajo la marimba, como el respaldo numpy.
+   La velocidad MIDI del dron (27) solo queda en el .mid.
+2. 06: regolpe_vel por defecto 0,4 -> 0,7. Notas, arpegios, pan y ataques IDÉNTICOS (cmp de control.json en las dos pistas); solo cambian las velocidades de 5 (GISTEMP) y 3 (SST) re-golpes
+   (24-27 -> 42-46 y 28-42 -> 49-72). Con 0,6: 16 y 7 ventanas de marimba flojas; 0,7: 14 y 7; 1,0: 12 y 5. Re-golpear cada fotograma (regolpe_ligado 1) las bajaría a 4 y 3 pero añade
+   ataques (75 -> 89, 117 -> 125): NO se aplicó, queda como opción.
+3. 07: TOL_DRON 100 cents (antes 50) alrededor de los armónicos del dron: el pad warm tiene chorus y su pico es más ancho (sin esto, 07 fallaba con 1948 cents en el sintético).
+4. herramientas/exportar_web.py (nuevo): construye los MP4 y rasgos de web/assets desde carpeta de salidas (rocola.wav, rasgos.json, video original sin texto) y COMPRUEBA que el audio del MP4 y el de
+   cada demo_*.mp4 son el de rocola.wav (RMS y balance L/R por ventana de 0,5 s). Escribe <id>_procedencia.json (sha256 de rocola.wav, rasgos.json y MP4).
+5. Web vs demo (pendiente del mensaje anterior): el MP4 web de GISTEMP que vio Misael (740b868 = origin/master, 11:45) salió del WAV que se regeneró en una carpeta temporal a las 11:14 con el
+   06 de la ronda 26, ANTES de las reglas 5, 6 y 13 (pan -12, -17 dB en los primeros años; saltaba de -0,96 a +1). El de c07a9d8 (12:34) sí salía del rocola.wav de salidas_gistemp (12:32) y era
+   idéntico al demo (RMS 0,02 dB, balance 0,01 dB de mediana), pero no estaba en master. Ahora: web y demos se comprueban contra el mismo rocola.wav (ver 4).
+6. _mapeo.json: dron.programa_gm (90), dron.factor_fluidsynth (0,35), dron.rms, dron.continuo; articulacion.regolpe_vel 0,7. _esperado.json NO cambia (notas, pan y ganancia idénticos).
+   docs/ESPEC_MODO_EN_VIVO.md: regla del dron continuo a ~-7 dB de la melodía, GM 90, re-golpe 0,7 y las citas de línea de 06 actualizadas. README.
+Resultados (ventanas de 0,5 s del WAV; marimba = canal 0 solo, "más de 15 dB bajo su nivel medio"):
+   GISTEMP  antes: 17 ventanas < -40 dB, 11 caídas > 12 dB (máx. 37,7), mínima -69,9 dB, marimba floja 17 de 60  ->  después: 0, 0 (máx. 5,4 dB), -25,8 dB, 14 de 60
+   SST      antes:  7 ventanas < -40 dB,  5 caídas > 12 dB (máx. 34,2), mínima -69,5 dB, marimba floja  8 de 61  ->  después: 0, 0 (máx. 3,8 dB), -25,2 dB,  7 de 61
+   07: 2 PASA + 3 NO APLICA en las dos (error de tono 13,0 cents en GISTEMP, 2,9 en SST). evaluar.py: 45 PASA (nuevas K1 y K2; E2 con el re-golpe a 0,7).

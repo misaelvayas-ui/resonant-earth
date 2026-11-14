@@ -466,8 +466,8 @@ def e2():
     notas_ok = [n for _, n, _ in ons] == [n for _, n, _ in esp]
     tiempos_ok = len(ons) == len(esp) and all(abs(o[0] - e[0]) <= tol + 0.5 for o, e in zip(ons, esp))
     tipos = {t for _, _, t in esp}
-    # velocidad base 64 (área 0): ataque 64, re-golpe 40 % = 26, fuerte >= 100; humanizar ±10 %
-    rango = {"ataque": (57, 71), "regolpe": (23, 29), "fuerte": (90, 127)}
+    # velocidad base 64 (área 0): ataque 64, re-golpe 70 % = 45, fuerte >= 100; humanizar ±10 %
+    rango = {"ataque": (57, 71), "regolpe": (40, 50), "fuerte": (90, 127)}      # base 64; re-golpe = 70 % (45), +-10 % humanizar
     vel_ok = len(ons) == len(esp) and all(rango[e[2]][0] <= o[2] <= rango[e[2]][1] for o, e in zip(ons, esp))
     # ascendente; en lo más alto de la escala (no caben todas arriba) desciende desde la nota base
     arp_ok = all(e == sorted(e) or e == sorted(e, reverse=True) for e in notas_f) and {len(e) for e in notas_f} >= {1, 4} \
@@ -1051,6 +1051,47 @@ def j4():
     return ok, "; ".join(f"{k}: {v}" for k, v in res.items())
 
 
+def k1():
+    """06 con FluidSynth: el dron suena continuo (sin ventanas de 0,5 s casi mudas ni caídas de más de 12 dB aunque la nota se repita y se ligue)."""
+    if not (shutil.which("fluidsynth") and any(os.path.exists(p) for p in ("/usr/share/sounds/sf2/FluidR3_GM.sf2", "/usr/share/sounds/sf2/default-GM.sf2"))):
+        return None, "fluidsynth o SoundFont no instalados"
+    R = _serie(40)
+    for i, r in enumerate(R["rasgos"]):
+        r["media"], r["area"] = (0.3 if i < 20 else 0.35), 0.2 + 0.1 * (i % 3)     # la misma nota ligada durante 20 fotogramas seguidos
+    with tempfile.TemporaryDirectory() as d:
+        os.makedirs(os.path.join(d, "salidas"))
+        ruta = os.path.join(d, "salidas", "k1.json")
+        json.dump(R, open(ruta, "w"))
+        r = correr("06_rasgos_a_audio.py", [ruta], d)                                # sin --sintetico: FluidSynth
+        if r.returncode != 0:
+            return False, "06 falló: " + r.stderr.strip()[-120:]
+        fs, x = wavfile.read(os.path.join(d, "salidas", "rocola.wav"))
+    m, w = (x.astype(float) / 32768).mean(axis=1), 22050
+    db = np.array([20 * np.log10(np.sqrt(np.mean(m[i * w:(i + 1) * w] ** 2)) + 1e-12) for i in range(len(m) // w)])
+    caida, minimo = float(-np.diff(db).min()), float(db.min())
+    return caida <= 12 and minimo > -40, f"{len(db)} ventanas de 0,5 s: mínima {minimo:.1f} dB, mayor caída entre contiguas {caida:.1f} dB"
+
+
+def k2():
+    """exportar_web: comparar_audio() acepta el MP4 hecho con ese rocola.wav y rechaza otro audio (canales invertidos, 10 dB menos)."""
+    if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
+        return None, "ffmpeg/ffprobe no instalados"
+    from herramientas.exportar_web import comparar_audio, crear_mp4
+    base = os.path.join(pipeline()["dir"], "salidas")
+    with tempfile.TemporaryDirectory() as d:
+        wav = os.path.join(base, "rocola.wav")
+        mp4 = os.path.join(d, "web.mp4")
+        crear_mp4(os.path.join(base, "04_video_sintetico.mp4"), wav, mp4)
+        fs, x = wavfile.read(wav)
+        invertido, bajo = os.path.join(d, "inv.wav"), os.path.join(d, "bajo.wav")
+        wavfile.write(invertido, fs, x[:, ::-1].copy())
+        wavfile.write(bajo, fs, (x.astype(float) * 0.316).astype(np.int16))
+        ok_mismo, t1 = comparar_audio(wav, mp4)
+        ok_inv, _ = comparar_audio(invertido, mp4)
+        ok_bajo, _ = comparar_audio(bajo, mp4)
+    return ok_mismo and not ok_inv and not ok_bajo, f"mismo WAV: {'acepta' if ok_mismo else 'RECHAZA'} ({t1[:70]}); canales invertidos: {'acepta' if ok_inv else 'rechaza'}; 10 dB menos: {'acepta' if ok_bajo else 'rechaza'}"
+
+
 EVALUACIONES = [
     ("A1", "fase inicial = 0", "|x[0]| < 1e-12", a1),
     ("A2", "tono(440) → 440 Hz", "440 ± 1 Hz", a2),
@@ -1093,6 +1134,8 @@ EVALUACIONES = [
     ("J2", "06: volumen min-max", "area 0,43-0,49 -> velocidad 64..127; area constante: 127 (hay zona) o 64", j2),
     ("J3", "06: arpegio en lo alto de la escala", "sube si caben las notas, baja desde la base si no; sin notas repetidas", j3),
     ("J4", "preparar_datos: protección de la fuente", "aborta si rasgos.json no es del video de la pista; pasa si coincide", j4),
+    ("K1", "06: dron continuo (FluidSynth)", "ninguna ventana de 0,5 s < -40 dB ni caída > 12 dB con notas ligadas", k1),
+    ("K2", "exportar_web: audio web = rocola.wav", "acepta el MP4 de ese WAV; rechaza canales invertidos y 10 dB menos", k2),
     ("I1", "especificación modo en vivo", "fórmulas de la ESPEC = control.json: notas exactas, pan ± 0,02 (3 casos sintéticos + 2 pistas)", i1),
     ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]

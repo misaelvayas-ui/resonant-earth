@@ -1,0 +1,16 @@
+{
+ "id": "sst_ecco2_2007_2008",
+ "carpeta": "salidas_sst",
+ "video_original": "ecco2_sst_flow.mp4",
+ "rocola_wav_sha256": "7ab6f7f95101b3237aaf4cc93e87920448efabcd9e09cc362b36860dc51bf404",
+ "rasgos_sha256": "1ab0d49efe791aab940071925de5699e81d88119f31e788ad7eab244d54b5b87",
+ "mp4_sha256": "b9606c39d19311696fc3017767cd96e6847aba84b2eac566b0140db34f107a4e",
+ "demos_comprobados": [
+  "demo_sst.mp4"
+ ],
+ "tolerancias": {
+  "rms_db": 1.5,
+  "balance_db": 3.0,
+  "piso_db": -45.0
+ }
+}

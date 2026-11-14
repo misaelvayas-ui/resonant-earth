@@ -34,6 +34,7 @@ n_f = len(ctl["midi"])
 #    30 a 200 ms, acortada si la nota dura menos). Se ignora la frecuencia del dron y sus armónicos,
 #    salvo los que coinciden con la nota esperada (si la nota base ES el dron, no se puede enmascarar).
 mono = x.mean(axis=1)
+TOL_DRON = 100    # cents que se enmascaran alrededor de cada armónico del dron: el pad GM 90 tiene chorus y su pico es más ancho que 50
 hz = lambda m: 440 * 2 ** ((np.asarray(m, dtype=float) - 69) / 12)
 con = np.array(ctl.get("ataque_en_fotograma", [True] * n_f))
 dron_hz = hz(ctl["dron"]) if "dron" in ctl else None
@@ -49,8 +50,8 @@ for i in np.flatnonzero(con):
     if dron_hz is not None:
         esp_i = hz(ctl["midi"][i])
         for h in (1, 2, 3, 4):
-            if abs(1200 * np.log2(dron_hz * h / esp_i)) > 50:                 # armónico que no es la nota
-                banda &= np.abs(1200 * np.log2(np.maximum(f, 1e-9) / (dron_hz * h))) > 50
+            if abs(1200 * np.log2(dron_hz * h / esp_i)) > TOL_DRON:           # armónico que no es la nota
+                banda &= np.abs(1200 * np.log2(np.maximum(f, 1e-9) / (dron_hz * h))) > TOL_DRON
     pico_hz[i] = f[banda][np.argmax(S[banda])]
 esperado = hz(ctl["midi"])
 nota_ok = np.where(con)[0]

@@ -1,0 +1,16 @@
+{
+ "id": "gistemp_1880_2023",
+ "carpeta": "salidas_gistemp",
+ "video_original": "2023GISTEMP_Map_SOS.mp4",
+ "rocola_wav_sha256": "57fd994b44bfa6ae5b76a72a0284e364f941910ad420c0b5177c9538cc843503",
+ "rasgos_sha256": "76be1fd077c038561b76775a867813971627f8553f02d7b5ac245902fb475d8b",
+ "mp4_sha256": "03a7ae4bb24557ff619e1809da21fbf81b482fe639b07dd28b38f145dd1d5902",
+ "demos_comprobados": [
+  "demo_gistemp.mp4"
+ ],
+ "tolerancias": {
+  "rms_db": 1.5,
+  "balance_db": 3.0,
+  "piso_db": -45.0
+ }
+}

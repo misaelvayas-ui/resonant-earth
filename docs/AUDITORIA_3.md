@@ -1,6 +1,6 @@
 # Auditoría 3: segunda pista (SST/ECCO2), modo en vivo y entrega web, tras las rondas 22–26 (2026-11-14)
 
-Estado: **aplicada en la ronda 27** (rama `misael/auditoria3`): hallazgos 1–4 y 12a (parche, ya integrado y sin archivo aparte), 5, 6 y 13. El 7 solo cambió la descripción de SST; el 8, 9 (salvo la protección de `preparar_datos.py`), 10, 11 y 14 siguen abiertos.
+Estado: **aplicada en la ronda 27** (rama `misael/auditoria3`): hallazgos 1–4 y 12a (parche, ya integrado y sin archivo aparte), 5, 6 y 13. Ronda 28: dron continuo, `regolpe_vel` 0,7 y `exportar_web` (el hallazgo 5 de la ronda 27 no explicaba los silencios: eran el dron GM 89, que decae). El 7 solo cambió la descripción de SST; el 8, 9 (salvo la protección de `preparar_datos.py`), 10, 11 y 14 siguen abiertos.
 
 Pregunta: ¿qué está mal, qué puede fallar con otro video o en otra máquina, y qué choca con el trabajo del equipo
 desde la auditoría 2?

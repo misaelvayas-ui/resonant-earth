@@ -20,15 +20,16 @@ import math
 import os
 import sys
 
-SEG_POR_FOTOGRAMA = 0.5            # 06:61
-TPB, BPM = 480, 120                # 06:63
-TICKS_F = int(SEG_POR_FOTOGRAMA * TPB * BPM / 60)          # 06:64
-TONICA, OCTAVAS, GRADOS = 48, 3, (0, 2, 4, 7, 9)           # 06:108 + sintesis.py:73,77-80
+SEG_POR_FOTOGRAMA = 0.5            # 06:62
+TPB, BPM = 480, 120                # 06:65
+TICKS_F = int(SEG_POR_FOTOGRAMA * TPB * BPM / 60)          # 06:66
+TONICA, OCTAVAS, GRADOS = 48, 3, (0, 2, 4, 7, 9)           # 06:110 + sintesis.py:73,77-80
 DEFECTOS = {"ligar": True, "suavizado": 3, "densidad": True, "octava": 1, "humanizar": True,
-            "instrumento_melodia": 13, "dron_programa": 89, "dron_octava": 0, "dron_nivel": 0.048,
-            "reverb": 50, "paneo": "x", "regolpe_ligado": 2, "regolpe_vel": 0.4, "umbral_evento": None}   # 06:68-70
-VEL_FUERTE = 100                   # 06:174
-AREA_CENTRO = 0.01                 # 06:62,139: con area < 0,01 el paneo va al centro
+            "instrumento_melodia": 13, "dron_programa": 90, "dron_octava": 0, "dron_nivel": 0.048,
+            "reverb": 50, "paneo": "x", "regolpe_ligado": 2, "regolpe_vel": 0.7, "umbral_evento": None}   # 06:70-72
+VEL_FUERTE = 100                   # 06:176
+AREA_CENTRO = 0.01                 # 06:63,141: con area < 0,01 el paneo va al centro
+DRON_FLUID = 0.35                  # 06:64,296-300: con FluidSynth el RMS del dron = DRON_FLUID * dron_nivel / raiz(2)
 PISTAS = {"gistemp_1880_2023": "gistemp", "sst_ecco2_2007_2008": "sst"}
 
 
@@ -43,7 +44,7 @@ def limitar(x, lo, hi):
 
 
 def rellenar(v, defecto):
-    """None/NaN -> último valor válido (o 'defecto' al inicio). 06:84-93."""
+    """None/NaN -> último valor válido (o 'defecto' al inicio). 06:86-95."""
     salida, ultimo = [], defecto
     for x in v:
         if x is None or (isinstance(x, float) and math.isnan(x)):
@@ -55,7 +56,7 @@ def rellenar(v, defecto):
 
 
 def media_movil(x, n):
-    """Media móvil centrada de n fotogramas; en los bordes la ventana se acorta. 06:96-99."""
+    """Media móvil centrada de n fotogramas; en los bordes la ventana se acorta. 06:98-101."""
     h = (int(n) | 1) // 2
     out = []
     for i in range(len(x)):
@@ -92,21 +93,21 @@ def db_a_lineal(db):
 def construir_mapeo(doc, id_="pista"):
     """Todos los parámetros que el JS necesita, a partir del rasgos.json (doc) de la pista."""
     R = doc["rasgos"]
-    cfg = {**DEFECTOS, **{k: doc[k] for k in DEFECTOS if doc.get(k) is not None}}      # 06:81
+    cfg = {**DEFECTOS, **{k: doc[k] for k in DEFECTOS if doc.get(k) is not None}}      # 06:83
     notas = escala_notas()
-    v0, v1 = doc.get("vmin_sonido", doc["vmin"]), doc.get("vmax_sonido", doc["vmax"])  # 06:109
+    v0, v1 = doc.get("vmin_sonido", doc["vmin"]), doc.get("vmax_sonido", doc["vmax"])  # 06:111
     relleno = (doc["vmin"] + doc["vmax"]) / 2
-    media = rellenar([r.get("media") for r in R], relleno)                              # 06:102
-    area = rellenar([r.get("area") for r in R], 0.0)                                    # 06:103
-    media_s = media_movil(media, cfg["suavizado"]) if int(cfg["suavizado"]) > 1 else media   # 06:105
+    media = rellenar([r.get("media") for r in R], relleno)                              # 06:104
+    area = rellenar([r.get("area") for r in R], 0.0)                                    # 06:105
+    media_s = media_movil(media, cfg["suavizado"]) if int(cfg["suavizado"]) > 1 else media   # 06:107
     octava = int(cfg["octava"])
     ref = doc.get("referencia")
     idx_ref = indice_nota(ref, v0, v1, len(notas)) if ref is not None else indice_nota(media_s[0], v0, v1, len(notas))
-    nota_ref = notas[idx_ref]                                                           # 06:115
-    nota_dron = int(limitar(nota_ref + 12 * octava - 12 + 12 * int(cfg["dron_octava"]), 0, 127))   # 06:118
-    umbral_evento = cfg["umbral_evento"] if cfg["umbral_evento"] is not None else (v1 - v0) / 12     # 06:111-112
-    u1, u2 = doc.get("densidad_umbrales") or (v0 + 0.5 * (v1 - v0), v0 + 13 / 18 * (v1 - v0))      # 06:151
-    # paneo (06:129-140)
+    nota_ref = notas[idx_ref]                                                           # 06:117
+    nota_dron = int(limitar(nota_ref + 12 * octava - 12 + 12 * int(cfg["dron_octava"]), 0, 127))   # 06:120
+    umbral_evento = cfg["umbral_evento"] if cfg["umbral_evento"] is not None else (v1 - v0) / 12     # 06:113-114
+    u1, u2 = doc.get("densidad_umbrales") or (v0 + 0.5 * (v1 - v0), v0 + 13 / 18 * (v1 - v0))      # 06:153
+    # paneo (06:131-142)
     eje = cfg["paneo"]
     if eje == "y" and not any("centroide_y" in r for r in R):
         eje = "x"
@@ -127,7 +128,11 @@ def construir_mapeo(doc, id_="pista"):
         "vmin_sonido": v0, "vmax_sonido": v1,
         "referencia": ref, "nota_referencia_base": nota_ref,
         "dron": {"nota_midi": nota_dron, "hz": 440.0 * 2 ** ((nota_dron - 69) / 12), "dron_octava": int(cfg["dron_octava"]),
-                 "velocidad": int(limitar(round(45 * cfg["dron_nivel"] / 0.08), 1, 127)), "nivel": cfg["dron_nivel"]},
+                 "velocidad": int(limitar(round(45 * cfg["dron_nivel"] / 0.08), 1, 127)), "nivel": cfg["dron_nivel"],
+                 # CONTINUO toda la pista (nunca una nota golpeada que decae): programa GM sostenido y un RMS fijo,
+                 # el de un seno de amplitud nivel * factor_fluidsynth (~7 dB bajo la melodía en el WAV)
+                 "programa_gm": int(cfg["dron_programa"]), "factor_fluidsynth": DRON_FLUID,
+                 "rms": DRON_FLUID * cfg["dron_nivel"] / math.sqrt(2), "continuo": True},
         "volumen": {"db_min": -6.0, "db_max": 0.0, "area_min": min(area), "area_max": max(area), "rango_minimo": 1e-6,
                     "ganancia_min": db_a_lineal(-6.0), "ganancia_max": 1.0, "velocidad_max": 127,
                     "velocidad_fuerte": VEL_FUERTE},

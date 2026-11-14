@@ -64,7 +64,11 @@
   "hz": 261.6255653005986,
   "dron_octava": 0,
   "velocidad": 27,
-  "nivel": 0.048
+  "nivel": 0.048,
+  "programa_gm": 90,
+  "factor_fluidsynth": 0.35,
+  "rms": 0.011879393923933997,
+  "continuo": true
  },
  "volumen": {
   "db_min": -6.0,
@@ -107,12 +111,12 @@
   "umbral_evento": 0.15,
   "ligar": true,
   "regolpe_ligado": 2,
-  "regolpe_vel": 0.4,
+  "regolpe_vel": 0.7,
   "duracion_nota": 0.95
  },
  "opcional": {
   "instrumento_melodia": 13,
-  "dron_programa": 89,
+  "dron_programa": 90,
   "reverb_cc91": 50,
   "humanizar": true,
   "humanizar_semilla": 12345,
