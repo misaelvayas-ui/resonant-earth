@@ -1,6 +1,6 @@
 {
  "id": "gistemp_1880_2023",
- "fuente": "datos/2023GISTEMP_Map_SOS.mp4",
+ "fuente": "2023GISTEMP_Map_SOS.mp4",
  "n_fotogramas": 60,
  "seg_por_fotograma": 0.5,
  "relleno_media": 0.0,
@@ -69,8 +69,9 @@
  "volumen": {
   "db_min": -6.0,
   "db_max": 0.0,
+  "area_min": 0.0,
   "area_max": 0.5708,
-  "area_max_minimo": 1e-06,
+  "rango_minimo": 1e-06,
   "ganancia_min": 0.5011872336272722,
   "ganancia_max": 1.0,
   "velocidad_max": 127,
@@ -92,6 +93,7 @@
   "eje": "y",
   "campo": "centroide_y",
   "suavizado_fotogramas": 3,
+  "area_centro": 0.01,
   "p5": 0.3589983333333333,
   "p95": 0.85483,
   "centro": 0.6069141666666666,

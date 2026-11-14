@@ -428,7 +428,8 @@ def esperados_e2(media):
     for f, m in enumerate(ms):
         k = 1 if m < 0.3 else (2 if m <= 0.7 else 4)
         b = list(sc).index(int(valor_a_nota(m, -0.6, 1.2, sc)))
-        arp = [int(sc[min(b + j, len(sc) - 1)]) + 12 for j in range(k)]
+        paso = 1 if b + k <= len(sc) else -1                         # sin sitio arriba, el arpegio baja desde la base
+        arp = [int(sc[b + paso * j]) + 12 for j in range(k)]
         notas_f.append(arp)
         for j, nota in enumerate(arp):
             tick, forzado = f * tpf + j * tpf / k, fuerte[f] and j == 0
@@ -445,7 +446,7 @@ def esperados_e2(media):
 def e2():
     """06 con sus valores por defecto frente a un cálculo independiente (suavizado 3, densidad, arpegio,
     ligar + re-golpe cada 2 fotogramas, ataque fuerte por evento, octava +1, humanizar, dron pad)."""
-    media = [0.00, 0.10, 0.50, 1.20, 1.20, 1.20, 1.15, 1.20]          # cubre 1, 2 y 4 notas, notas ligadas y un salto
+    media = [0.10, 0.10, 0.10, 0.10, 0.50, 1.20, 1.20, 1.15]          # cubre 1, 2 y 4 notas, notas ligadas, un salto y el arpegio en lo alto
     with tempfile.TemporaryDirectory() as d:
         R = leer_json(os.path.join(pipeline()["dir"], "salidas", "rasgos.json"))[0]
         for r, m in zip(R["rasgos"], media):
@@ -468,7 +469,9 @@ def e2():
     # velocidad base 64 (área 0): ataque 64, re-golpe 40 % = 26, fuerte >= 100; humanizar ±10 %
     rango = {"ataque": (57, 71), "regolpe": (23, 29), "fuerte": (90, 127)}
     vel_ok = len(ons) == len(esp) and all(rango[e[2]][0] <= o[2] <= rango[e[2]][1] for o, e in zip(ons, esp))
-    arp_ok = all(e == sorted(e) for e in notas_f) and {len(e) for e in notas_f} >= {1, 4}
+    # ascendente; en lo más alto de la escala (no caben todas arriba) desciende desde la nota base
+    arp_ok = all(e == sorted(e) or e == sorted(e, reverse=True) for e in notas_f) and {len(e) for e in notas_f} >= {1, 4} \
+        and any(e != sorted(e) for e in notas_f)
     ref = int(escala(48, 3)[list(escala(48, 3)).index(int(valor_a_nota(0.0, -0.6, 1.2, escala(48, 3))))]) + 12
     dron_ok = dron == [(ref - 12, 27)]            # ref = melodía(0 °C) con octava +1; dron = ref - 12
     ctl_ok = (ctl["midi"] == [e[0] for e in notas_f] and ctl["notas"] == notas_f
@@ -668,6 +671,7 @@ def g3():
         n = len(R["rasgos"])
         for i, r in enumerate(R["rasgos"]):
             r["centroide_x"], r["centroide_y"] = 0.5, 0.2 + 0.6 * i / (n - 1)
+            r["area"] = 0.1                                          # con area < 0,01 el paneo va al centro (prueba G6)
         R["paneo"] = "y"
         os.makedirs(os.path.join(d, "salidas"))
         ruta = os.path.join(d, "salidas", "k.json")
@@ -847,8 +851,15 @@ def h3():
         ok_msg = r.returncode != 0 and "fechas_formato" in (r.stderr + r.stdout) and "Traceback" not in r.stderr
         unit = (crudos[0] == "2007-03-25T00:00Z" and etiqueta(crudos[0], "mes") == "mar 2007" and etiqueta(crudos[0]) == 2007
                 and etiqueta("1881", "mes") == 1881 and etiqueta("2008-12-01T00:00Z", "mes") == "dic 2008" and leer_fechas(anio) == ["1881", "1882"])
+        # formatos que antes fallaban: segundos, mes de 1 cifra, mes imposible (sin excepción) y 2 columnas sin ISO
+        raros = (etiqueta("2007-03-25T12:00:00Z", "mes") == "mar 2007" and etiqueta("2007-3-25T12:00Z", "mes") == "mar 2007"
+                 and etiqueta("2007-03-25T12:00:00+00:00") == 2007 and etiqueta("2007-13-01T00:00Z", "mes") == "2007-13-01T00:00Z")
+        dos_col = os.path.join(d, "dos.txt")
+        open(dos_col, "w").write("1881 enero\n23000  2007-03-25T12:00Z  extra\n")
+        raros = raros and leer_fechas(dos_col) == ["1881", "2007-03-25T12:00Z"]
+    unit = unit and raros
     return unit and Rm[0]["fecha"] == "mar 2007" and Ra[0]["fecha"] == 2007 and ok_msg, \
-        f"fecha 'mes' = {Rm[0]['fecha']!r}, por defecto = {Ra[0]['fecha']!r}, time.txt = año suelto: {'sí' if unit else 'NO'}; formato inválido: mensaje {'sí' if ok_msg else 'NO'}"
+        f"fecha 'mes' = {Rm[0]['fecha']!r}, por defecto = {Ra[0]['fecha']!r}, time.txt = año suelto y formatos raros (segundos, mes de 1 cifra, mes 13): {'sí' if unit else 'NO'}; formato inválido: mensaje {'sí' if ok_msg else 'NO'}"
 
 
 def i1():
@@ -860,13 +871,13 @@ def i1():
     casos = {
         # eje x, rama amplia, rango de sonido propio, referencia, valores fuera de rango
         "x amplia": dict(extra={"vmin_sonido": 0.2, "vmax_sonido": 0.8, "referencia": 0.5},
-                         cx=np.clip(0.5 + 0.35 * np.sin(np.arange(n) / 7), 0, 1), cy=np.full(n, 0.5)),
+                         cx=np.clip(0.5 + 0.35 * np.sin(np.arange(n) / 7), 0, 1), cy=np.full(n, 0.5), area="con huecos"),
         # eje y, rama estrecha (recorrido < 0,1), sin referencia, umbrales de densidad propios, octava 0, dron +1
         "y estrecha": dict(extra={"paneo": "y", "densidad_umbrales": [0.4, 0.6], "octava": 0, "dron_octava": 1},
-                           cx=np.full(n, 0.5), cy=0.5 + 0.02 * np.sin(np.arange(n) / 9)),
+                           cx=np.full(n, 0.5), cy=0.5 + 0.02 * np.sin(np.arange(n) / 9), area="estrecha"),
         # eje y con rama amplia, sin densidad ni suavizado, umbral de evento propio
         "y amplia sin densidad": dict(extra={"paneo": "y", "densidad": False, "suavizado": 0, "umbral_evento": 0.1},
-                                      cx=np.full(n, 0.5), cy=np.clip(0.5 + 0.3 * np.cos(np.arange(n) / 6), 0, 1)),
+                                      cx=np.full(n, 0.5), cy=np.clip(0.5 + 0.3 * np.cos(np.arange(n) / 6), 0, 1), area="normal"),
     }
     res = []
     with tempfile.TemporaryDirectory() as d:
@@ -874,7 +885,12 @@ def i1():
             R = _serie(n)
             media = np.clip(0.5 + 0.45 * np.sin(np.arange(n) / 5) + 0.05 * rng.standard_normal(n), 0, 1)
             for i, r in enumerate(R["rasgos"]):
-                r.update(media=float(media[i]), area=float(np.clip(0.1 + 0.4 * abs(np.sin(i / 11)), 0, 1)),
+                area = np.clip(0.1 + 0.4 * abs(np.sin(i / 11)), 0, 1)
+                if c["area"] == "estrecha":                         # como SST: el área casi no varía
+                    area = 0.43 + 0.06 * abs(np.sin(i / 11))
+                elif c["area"] == "con huecos" and i % 7 < 2:       # fotogramas sin zona caliente: el paneo va al centro
+                    area = 0.004
+                r.update(media=float(media[i]), area=float(area),
                          centroide_x=float(c["cx"][i]), centroide_y=float(c["cy"][i]))
             R["rasgos"][5]["media"] = None                    # dato ausente: se rellena con el anterior
             R.update(c["extra"])
@@ -902,6 +918,137 @@ def i1():
     todo = res + reales
     return all(not f for _, f in todo), "; ".join(f"{n_}: {'reproduce' if not f else str(len(f)) + ' discrepancias ' + str(f[:3])}" for n_, f in todo) \
         + ("" if reales else "; pistas reales: sin archivos (no se comprobaron)")
+
+
+def _calibrar(d, *args):
+    """Ejecuta 'python -m herramientas.calibrar' con las carpetas temporales; devuelve el proceso."""
+    return subprocess.run([sys.executable, "-m", "herramientas.calibrar", *map(str, args)], capture_output=True, text=True,
+                          env=entorno(d), timeout=120)
+
+
+def h4():
+    """calibrar con 'matiz': escribe dist_max 4 (unidades de matiz), borde_px 0 y mascara_estatica false; no mezcla las claves de Lab."""
+    with tempfile.TemporaryDirectory() as d:
+        cfg0, _ = video_matiz(d)
+        video = json.load(open(cfg0))["video"]
+        png = os.path.join(d, "barra.png")
+        _barra_png(png, True)
+        sal_cfg = os.path.join(d, "cal.json")
+        base = ["--video", video, "--barra", png, "--vmin", 0, "--vmax", 32, "--mapa", "10,20,270,170", "--salida", sal_cfg]
+        pasos = []
+        for nombre, extra in (("Lab", []), ("matiz", ["--modo-color", "matiz"]), ("matiz de nuevo, sin opción", []), ("de vuelta a Lab", ["--modo-color", "lab"])):
+            r = _calibrar(d, *base, *extra)
+            if r.returncode != 0:
+                return False, f"calibrar ({nombre}) falló: {(r.stderr + r.stdout).strip()[-150:]}"
+            pasos.append((nombre, json.load(open(sal_cfg))))
+        lab1, mat, mat2, lab2 = (c for _, c in pasos)
+        ok = (lab1.get("modo_color") is None and 8 <= lab1["dist_max"] <= 20 and "borde_px" not in lab1
+              and mat["modo_color"] == "matiz" and mat["dist_max"] == 4.0 and mat["borde_px"] == 0 and mat["mascara_estatica"] is False
+              and mat["barra_vertical"] is False
+              and mat2["modo_color"] == "matiz" and mat2["dist_max"] == 4.0                   # sin opción se mantiene el modo del config
+              and lab2["modo_color"] == "lab" and 8 <= lab2["dist_max"] <= 20 and "borde_px" not in lab2 and "mascara_estatica" not in lab2)
+    return ok, (f"Lab dist_max {lab1['dist_max']:g}; matiz: dist_max {mat['dist_max']:g}, borde_px {mat.get('borde_px')}, "
+                f"mascara_estatica {mat.get('mascara_estatica')}; sin opción: {mat2.get('modo_color')} {mat2['dist_max']:g}; "
+                f"de vuelta a Lab: dist_max {lab2['dist_max']:g}, borde_px {lab2.get('borde_px')}")
+
+
+def h5():
+    """05 avisa cuando la media se sale de vmin_sonido..vmax_sonido y usa un umbral de 'validos' propio del modo matiz."""
+    with tempfile.TemporaryDirectory() as d:
+        cfg, _ = video_matiz(d)
+        _, fuera = correr05(d, cfg, vmin_sonido=40.0, vmax_sonido=50.0)
+        _, dentro = correr05(d, cfg, vmin_sonido=0.0, vmax_sonido=32.0)
+        _, pocos = correr05(d, cfg, brillo_min=250)              # casi ningún píxel cuenta: aviso de 'validos' con el hint de matiz
+    ok = ("fuera de vmin_sonido..vmax_sonido" in fuera and "fuera de vmin_sonido..vmax_sonido" not in dentro
+          and "AVISO" not in dentro and "AVISO: la mediana de 'validos'" in pocos and "brillo_min" in pocos)
+    return ok, (f"rango 40-50: aviso {'sí' if 'fuera de' in fuera else 'NO'}; rango 0-32: sin aviso {'sí' if 'AVISO' not in dentro else 'NO'}; "
+                f"brillo_min 250: aviso de validos {'sí' if 'AVISO: la mediana' in pocos else 'NO'}")
+
+
+def j1():
+    """06: con area < 0,01 el paneo va al centro (pan = 0); con zona caliente sigue al centroide."""
+    n = 40
+    R = _serie(n)
+    for i, r in enumerate(R["rasgos"]):
+        r["centroide_x"] = 0.1 + 0.8 * i / (n - 1)
+        r["area"] = 0.005 if i < 10 or 20 <= i < 24 else 0.2             # 14 fotogramas sin zona caliente apreciable
+    R["rasgos"][3]["area"] = 0.0099                                       # justo por debajo del umbral
+    R["rasgos"][10]["area"] = 0.01                                        # en el umbral NO se centra
+    with tempfile.TemporaryDirectory() as d:
+        ctl, r = _06(R, d)
+        if ctl is None:
+            return False, "06 falló: " + r.stderr.strip()[-120:]
+    p = np.array(ctl["pan"])
+    sin = np.array([x["area"] < 0.01 for x in R["rasgos"]])
+    ok = bool(np.all(np.abs(p[sin]) < 1e-9) and np.abs(p[~sin]).max() > 0.5 and abs(p[10]) > 1e-3 and sin.sum() == 14)
+    return ok, f"{sin.sum()} fotogramas con area < 0,01: |pan| máx. {np.abs(p[sin]).max():.2g}; con zona caliente: |pan| máx. {np.abs(p[~sin]).max():.2f}; area = 0,01: pan {p[10]:+.2f}"
+
+
+def j2():
+    """06: el volumen normaliza el área entre su mínimo y su máximo (SST: 0,43-0,49 recorre -6..0 dB); casos sin variación."""
+    def velocidades(areas):
+        R = _serie(len(areas))
+        for r, a in zip(R["rasgos"], areas):
+            r["area"], r["media"] = a, 0.5                                # media fija: sin eventos fuertes
+        R.update(ligar=False, densidad=False, humanizar=False)            # un ataque por fotograma, velocidad exacta
+        with tempfile.TemporaryDirectory() as d:
+            ctl, r = _06(R, d)
+            if ctl is None:
+                raise RuntimeError("06 falló: " + r.stderr.strip()[-120:])
+            ons, _, _, _ = leer_mid(os.path.join(d, "salidas", "rocola.mid"))
+        return [o[2] for o in ons]
+    estrecho = velocidades(list(np.linspace(0.43, 0.49, 20)))
+    constante_caliente = velocidades([0.3] * 10)
+    constante_cero = velocidades([0.0] * 10)
+    ok = (min(estrecho) == 64 and max(estrecho) == 127 and sorted(estrecho) == estrecho
+          and set(constante_caliente) == {127} and set(constante_cero) == {64})
+    return ok, (f"area 0,43-0,49: velocidad {min(estrecho)}..{max(estrecho)} (antes 116..127); area constante 0,3: {set(constante_caliente)}; "
+                f"area constante 0: {set(constante_cero)}")
+
+
+def j3():
+    """06: el arpegio sube si caben las notas y baja desde la nota base en lo más alto de la escala (la primera nota es siempre la base)."""
+    R = _serie(8)
+    for r, m in zip(R["rasgos"], [0.75, 0.75, 1.0, 1.1, 1.2, 1.2, 1.2, 0.2]):
+        r["media"] = m
+    R.update(vmin_sonido=-0.6, vmax_sonido=1.2, referencia=0.0, densidad_umbrales=[0.3, 0.7], suavizado=0, octava=0)
+    with tempfile.TemporaryDirectory() as d:
+        ctl, r = _06(R, d)
+        if ctl is None:
+            return False, "06 falló: " + r.stderr.strip()[-120:]
+    nf = ctl["notas"]
+    esc = list(escala(48, 3))
+    suben, bajan = nf[0], nf[4]
+    ok = (suben == sorted(suben) and len(suben) == 4 and suben == esc[11:15]                 # base 11: caben 4 hacia arriba
+          and bajan == esc[15:11:-1] and nf[4][0] == ctl["midi"][4]                          # base 15 (tope): baja 4
+          and all(len(set(x)) == len(x) for x in nf))                                        # nunca se repite la nota más alta
+    return ok, f"base 11: {suben}; base 15 (tope): {bajan}; sin notas repetidas en ningún fotograma: {all(len(set(x)) == len(x) for x in nf)}"
+
+
+def j4():
+    """web/preparar_datos.py aborta si salidas/rasgos.json no es del video de la pista que va a generar."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("preparar_datos", os.path.join("web", "preparar_datos.py"))
+    pd = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pd)
+    video = os.path.join("datos", "2023GISTEMP_Map_SOS.mp4")
+    res = {}
+    with tempfile.TemporaryDirectory() as d:
+        for nombre, fuente in (("sintético", "04_video_sintetico.mp4"), ("otro video", "datos/ecco2_sst_flow.mp4"), ("el mismo", "datos/2023GISTEMP_Map_SOS.mp4")):
+            ruta = os.path.join(d, "r.json")
+            json.dump({"fuente": fuente, "rasgos": []}, open(ruta, "w"))
+            try:
+                pd.comprobar_fuente(ruta, video)
+                res[nombre] = "pasa"
+            except SystemExit as e:
+                res[nombre] = "aborta" if fuente.split("/")[-1] in str(e) else "aborta (mensaje sin la fuente)"
+        try:
+            pd.comprobar_fuente(os.path.join(d, "no_existe.json"), video)
+            res["sin rasgos.json"] = "pasa"
+        except SystemExit as e:
+            res["sin rasgos.json"] = "aborta" if "Falta" in str(e) else "aborta (mensaje raro)"
+    ok = res == {"sintético": "aborta", "otro video": "aborta", "el mismo": "pasa", "sin rasgos.json": "aborta"}
+    return ok, "; ".join(f"{k}: {v}" for k, v in res.items())
 
 
 EVALUACIONES = [
@@ -940,6 +1087,12 @@ EVALUACIONES = [
     ("H1", "calibrar: orientación de la barra", "horizontal detectada; vertical (también con mesetas) igual que antes", h1),
     ("H2", "05: modo_color 'matiz'", "barra horizontal + color atenuado: error < 0,5 °C, validos > 0,95; 'lab' < 0,5", h2),
     ("H3", "fechas ISO: 'mar 2007'", "mes con fechas_formato 'mes', año por defecto, time.txt intacto, error claro", h3),
+    ("H4", "calibrar: modo matiz", "dist_max 4, borde_px 0, mascara_estatica false; sin mezclar claves de Lab", h4),
+    ("H5", "05: avisos en modo matiz", "aviso de media fuera de vmin_sonido..vmax_sonido y de validos (umbral propio)", h5),
+    ("J1", "06: area < 0,01 -> pan al centro", "pan = 0 donde area < 0,01; con area = 0,01 sigue al centroide", j1),
+    ("J2", "06: volumen min-max", "area 0,43-0,49 -> velocidad 64..127; area constante: 127 (hay zona) o 64", j2),
+    ("J3", "06: arpegio en lo alto de la escala", "sube si caben las notas, baja desde la base si no; sin notas repetidas", j3),
+    ("J4", "preparar_datos: protección de la fuente", "aborta si rasgos.json no es del video de la pista; pasa si coincide", j4),
     ("I1", "especificación modo en vivo", "fórmulas de la ESPEC = control.json: notas exactas, pan ± 0,02 (3 casos sintéticos + 2 pistas)", i1),
     ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]

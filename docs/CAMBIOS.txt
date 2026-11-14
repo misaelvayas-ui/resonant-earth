@@ -768,3 +768,29 @@ Antes: commit c816180 (master). No se modificó ningún script del pipeline ni n
 3. evaluar.py: prueba I1 (fórmulas de la ESPEC = control.json en 3 series sintéticas por 06 real: eje x amplia, eje y estrecha, eje y amplia sin densidad;
    y = _esperado.json de las 2 pistas con su _mapeo.json). 37 PASA, 0 FALLA. Con vmin/vmax_sonido = -2..2, con centroide_x o con dron 53 la comprobación FALLA (122, 61 y 61 discrepancias).
 Hallazgos: SST casi no varía de volumen (ganancia 0,912-1,0 con area/area_max); el pan de SST solo recorre -0,525..+0,495 (rama estrecha); GISTEMP usa rama amplia.
+
+RONDA 27 - auditoría 3 (docs/AUDITORIA_3.md): parche 1-4 y 12a, arpegio, volumen min-max, paneo al centro y protección en preparar_datos (rama misael/auditoria3)   (2026-11-14)
+Antes: commit 0505d9d (master, con los PR #3, #4 y #5). La ronda 26 es la de Juan (tono por hemisferios, PR #6, no tocado). Decisiones de Misael: 1-4, 5, 6 y 13 sí; 7 no se calibra.
+1. Hallazgo 1 (calibrar): con modo matiz escribe dist_max 4 (unidades de matiz), borde_px 0 y mascara_estatica false; sin --modo-color se mantiene el modo del config
+   que ya exista; al volver a Lab no se heredan las claves de matiz. Antes: validos 0,067 y media 25,2 °C con el config generado; ahora 0,26 y 21,97 como config_sst.json.
+2. Hallazgo 2 (05): "validos_min" (0,5; 0,1 en matiz) en vez de la alarma falsa con SST; aviso si más del 2 % de la barra no se puede leer por matiz.
+3. Hallazgo 3 (05): AVISO si más del 20 % de las medias cae fuera de vmin_sonido..vmax_sonido (escala 0,25 con config_sst: 39 de 61).
+4. Hallazgo 4 (fechas.py): segundos, mes/día de 1 cifra y zona; mes imposible = texto crudo sin traza; 2.ª columna solo si es ISO. 12a: _mapeo.json sin la ruta local de "fuente".
+5. Hallazgo 5 (06): arpegio descendente desde la nota base si arriba no caben las k notas. GISTEMP: 4 fotogramas cambian (2021, 2023 x3), ataques 69 -> 75; SST: 5 fotogramas
+   (mar 2007 x2, abr 2007 x2, jun 2007), ataques 110 -> 117. La nota base no cambia en ninguno. 07 sigue en PASA (2,7 y 2,8 cents).
+6. Hallazgo 6 (06): el volumen normaliza el área entre su mínimo y su máximo (sin variación: 0 dB si hay zona caliente, -6 dB si no). SST: de -0,8..0 a -6..0 dB (velocidad
+   mínima 116 -> 64). GISTEMP: idéntico (su área mínima es 0). También en el respaldo numpy.
+7. Hallazgo 13 (06): con area < 0,01 (AREA_CENTRO) el paneo va al centro (pan = 0; el suavizado de 0,15 s del WAV no cambia). GISTEMP: 16 de 60 fotogramas pasan a pan 0
+   (antes de -1,0 a +0,19); rango de pan sigue en -1,00..+1,00; los fotogramas con |pan| > 0,7 bajan de 21 a 14 y desaparece el único salto > 1. SST no cambia (área mínima 0,43).
+   Efecto en el sintético: su área es 0 en 18 de 40 fotogramas, así que el barrido empieza en el centro. 07 mide el paneo solo donde area >= 0,01 y exige que el balance suba
+   hacia la derecha (> 6 dB, Spearman > 0,9) en vez de empezar a la izquierda; G3 usa area 0,1.
+8. Hallazgo 7: no se calibra. La descripción de SST (docs/catalogo_propuesto.json) dice que es un índice relativo y que el ciclo sale amplificado ~1,7 veces. web/catalogo.json no tiene
+   entrada de SST (solo el ejemplo sintético): no se tocó. En la de GISTEMP, "60 años" -> "60 momentos" (hay 58 años distintos).
+9. web/preparar_datos.py: comprobar_fuente() aborta (sin tocar web/assets/) si salidas/rasgos.json no es del video de GISTEMP o no existe. Nada más de web/ cambió, salvo los
+   archivos regenerados de web/assets/.
+10. Regeneración (orden de la auditoría): salidas_gistemp y salidas_sst (05 -> 06 -> 07 -> 08; rasgos.json idéntico), exportar_mapeo (_mapeo.json con area_min, rango_minimo y
+   area_centro; _esperado.json con las notas, el pan y la ganancia nuevos), MP4 de web/assets (1024x512, CRF 28: GISTEMP 4,2 MB, SST 10,1 MB; _rasgos.json idénticos),
+   docs/ESPEC_MODO_EN_VIVO.md (reglas nuevas y citas de línea de 06 actualizadas) y README.
+11. evaluar.py: 43 PASA, 0 FALLA. Nuevas: H4 (calibrar matiz), H5 (avisos de 05), J1 (pan al centro), J2 (volumen min-max), J3 (arpegio), J4 (protección de preparar_datos);
+   ampliada H3 (formatos de fecha raros); E2 e I1 actualizadas a las reglas nuevas. Las nuevas FALLAN con el código anterior (comprobado en una copia).
+Pendiente: hallazgos 8 (PR #6), 9 (resto), 10, 11 y 14 de AUDITORIA_3.md.

@@ -20,14 +20,15 @@ import math
 import os
 import sys
 
-SEG_POR_FOTOGRAMA = 0.5            # 06:58
-TPB, BPM = 480, 120                # 06:59
-TICKS_F = int(SEG_POR_FOTOGRAMA * TPB * BPM / 60)          # 06:60
-TONICA, OCTAVAS, GRADOS = 48, 3, (0, 2, 4, 7, 9)           # 06:104 + sintesis.py:73,77-80
+SEG_POR_FOTOGRAMA = 0.5            # 06:61
+TPB, BPM = 480, 120                # 06:63
+TICKS_F = int(SEG_POR_FOTOGRAMA * TPB * BPM / 60)          # 06:64
+TONICA, OCTAVAS, GRADOS = 48, 3, (0, 2, 4, 7, 9)           # 06:108 + sintesis.py:73,77-80
 DEFECTOS = {"ligar": True, "suavizado": 3, "densidad": True, "octava": 1, "humanizar": True,
             "instrumento_melodia": 13, "dron_programa": 89, "dron_octava": 0, "dron_nivel": 0.048,
-            "reverb": 50, "paneo": "x", "regolpe_ligado": 2, "regolpe_vel": 0.4, "umbral_evento": None}   # 06:64-66
-VEL_FUERTE = 100                   # 06:162
+            "reverb": 50, "paneo": "x", "regolpe_ligado": 2, "regolpe_vel": 0.4, "umbral_evento": None}   # 06:68-70
+VEL_FUERTE = 100                   # 06:174
+AREA_CENTRO = 0.01                 # 06:62,139: con area < 0,01 el paneo va al centro
 PISTAS = {"gistemp_1880_2023": "gistemp", "sst_ecco2_2007_2008": "sst"}
 
 
@@ -42,7 +43,7 @@ def limitar(x, lo, hi):
 
 
 def rellenar(v, defecto):
-    """None/NaN -> último valor válido (o 'defecto' al inicio). 06:80-89."""
+    """None/NaN -> último valor válido (o 'defecto' al inicio). 06:84-93."""
     salida, ultimo = [], defecto
     for x in v:
         if x is None or (isinstance(x, float) and math.isnan(x)):
@@ -54,7 +55,7 @@ def rellenar(v, defecto):
 
 
 def media_movil(x, n):
-    """Media móvil centrada de n fotogramas; en los bordes la ventana se acorta. 06:92-95."""
+    """Media móvil centrada de n fotogramas; en los bordes la ventana se acorta. 06:96-99."""
     h = (int(n) | 1) // 2
     out = []
     for i in range(len(x)):
@@ -91,21 +92,21 @@ def db_a_lineal(db):
 def construir_mapeo(doc, id_="pista"):
     """Todos los parámetros que el JS necesita, a partir del rasgos.json (doc) de la pista."""
     R = doc["rasgos"]
-    cfg = {**DEFECTOS, **{k: doc[k] for k in DEFECTOS if doc.get(k) is not None}}      # 06:77
+    cfg = {**DEFECTOS, **{k: doc[k] for k in DEFECTOS if doc.get(k) is not None}}      # 06:81
     notas = escala_notas()
-    v0, v1 = doc.get("vmin_sonido", doc["vmin"]), doc.get("vmax_sonido", doc["vmax"])  # 06:105
+    v0, v1 = doc.get("vmin_sonido", doc["vmin"]), doc.get("vmax_sonido", doc["vmax"])  # 06:109
     relleno = (doc["vmin"] + doc["vmax"]) / 2
-    media = rellenar([r.get("media") for r in R], relleno)                              # 06:98
-    area = rellenar([r.get("area") for r in R], 0.0)                                    # 06:99
-    media_s = media_movil(media, cfg["suavizado"]) if int(cfg["suavizado"]) > 1 else media   # 06:101
+    media = rellenar([r.get("media") for r in R], relleno)                              # 06:102
+    area = rellenar([r.get("area") for r in R], 0.0)                                    # 06:103
+    media_s = media_movil(media, cfg["suavizado"]) if int(cfg["suavizado"]) > 1 else media   # 06:105
     octava = int(cfg["octava"])
     ref = doc.get("referencia")
     idx_ref = indice_nota(ref, v0, v1, len(notas)) if ref is not None else indice_nota(media_s[0], v0, v1, len(notas))
-    nota_ref = notas[idx_ref]                                                           # 06:111
-    nota_dron = int(limitar(nota_ref + 12 * octava - 12 + 12 * int(cfg["dron_octava"]), 0, 127))   # 06:114
-    umbral_evento = cfg["umbral_evento"] if cfg["umbral_evento"] is not None else (v1 - v0) / 12     # 06:107-108
-    u1, u2 = doc.get("densidad_umbrales") or (v0 + 0.5 * (v1 - v0), v0 + 13 / 18 * (v1 - v0))      # 06:140
-    # paneo (06:120-129)
+    nota_ref = notas[idx_ref]                                                           # 06:115
+    nota_dron = int(limitar(nota_ref + 12 * octava - 12 + 12 * int(cfg["dron_octava"]), 0, 127))   # 06:118
+    umbral_evento = cfg["umbral_evento"] if cfg["umbral_evento"] is not None else (v1 - v0) / 12     # 06:111-112
+    u1, u2 = doc.get("densidad_umbrales") or (v0 + 0.5 * (v1 - v0), v0 + 13 / 18 * (v1 - v0))      # 06:151
+    # paneo (06:129-140)
     eje = cfg["paneo"]
     if eje == "y" and not any("centroide_y" in r for r in R):
         eje = "x"
@@ -115,7 +116,7 @@ def construir_mapeo(doc, id_="pista"):
     p5, p95 = percentil(c_suave, 5), percentil(c_suave, 95)
     return {
         "id": id_,
-        "fuente": doc.get("fuente"),
+        "fuente": os.path.basename(doc.get("fuente") or ""),     # sin rutas locales (va a web/assets)
         "n_fotogramas": len(R),
         "seg_por_fotograma": SEG_POR_FOTOGRAMA,
         "relleno_media": relleno,                      # valor si el primer fotograma no trae media
@@ -127,11 +128,11 @@ def construir_mapeo(doc, id_="pista"):
         "referencia": ref, "nota_referencia_base": nota_ref,
         "dron": {"nota_midi": nota_dron, "hz": 440.0 * 2 ** ((nota_dron - 69) / 12), "dron_octava": int(cfg["dron_octava"]),
                  "velocidad": int(limitar(round(45 * cfg["dron_nivel"] / 0.08), 1, 127)), "nivel": cfg["dron_nivel"]},
-        "volumen": {"db_min": -6.0, "db_max": 0.0, "area_max": max(area), "area_max_minimo": 1e-6,
+        "volumen": {"db_min": -6.0, "db_max": 0.0, "area_min": min(area), "area_max": max(area), "rango_minimo": 1e-6,
                     "ganancia_min": db_a_lineal(-6.0), "ganancia_max": 1.0, "velocidad_max": 127,
                     "velocidad_fuerte": VEL_FUERTE},
         "densidad": {"activa": bool(cfg["densidad"]), "umbrales": [u1, u2], "notas_por_fotograma": [1, 2, 4]},
-        "paneo": {"eje": eje, "campo": campo, "suavizado_fotogramas": 3, "p5": p5, "p95": p95,
+        "paneo": {"eje": eje, "campo": campo, "suavizado_fotogramas": 3, "area_centro": AREA_CENTRO, "p5": p5, "p95": p95,
                   "centro": (p5 + p95) / 2, "umbral_rama": 0.1, "ancho_rama_estrecha": 0.1,
                   "rama": "amplia" if p95 - p5 >= 0.1 else "estrecha", "suavizado_s": 0.15, "ley": "potencia_constante"},
         "articulacion": {"umbral_evento": umbral_evento, "ligar": bool(cfg["ligar"]),
@@ -154,18 +155,25 @@ def aplicar_mapeo(rasgos, m):
     media_s = media_movil(media, m["suavizado_fotogramas"]) if m["suavizado_fotogramas"] > 1 else media
     c_suave = media_movil(c_eje, m["paneo"]["suavizado_fotogramas"])
     u1, u2 = m["densidad"]["umbrales"]
-    a_max = max(m["volumen"]["area_max"], m["volumen"]["area_max_minimo"])
+    v = m["volumen"]
+    rango_area = v["area_max"] - v["area_min"]
     p = m["paneo"]
     salida = []
     for i in range(len(rasgos)):
         idx = indice_nota(media_s[i], v0, v1, len(esc))
         k = (1 if media_s[i] < u1 else (2 if media_s[i] <= u2 else 4)) if m["densidad"]["activa"] else 1
-        arp = [esc[min(idx + j, len(esc) - 1)] + oct12 for j in range(k)]
+        paso = 1 if idx + k <= len(esc) else -1               # sin sitio hacia arriba, el arpegio baja desde la nota base
+        arp = [esc[idx + paso * j] + oct12 for j in range(k)]
         if p["rama"] == "amplia":
             c_pan = limitar((c_suave[i] - p["p5"]) / (p["p95"] - p["p5"]), 0.0, 1.0)
         else:
             c_pan = limitar(0.5 + (c_suave[i] - p["centro"]) / p["ancho_rama_estrecha"], 0.0, 1.0)
-        a_n = limitar(area[i] / a_max, 0.0, 1.0)
+        if area[i] < p["area_centro"]:
+            c_pan = 0.5                                       # sin zona caliente apreciable: al centro
+        if rango_area >= v["rango_minimo"]:
+            a_n = limitar((area[i] - v["area_min"]) / rango_area, 0.0, 1.0)
+        else:
+            a_n = 1.0 if v["area_max"] >= v["rango_minimo"] else 0.0
         ganancia = db_a_lineal(m["volumen"]["db_min"] + (m["volumen"]["db_max"] - m["volumen"]["db_min"]) * a_n)
         salida.append({
             "nota": esc[idx] + oct12, "notas": arp, "dron": m["dron"]["nota_midi"], "pan": 2 * c_pan - 1,
@@ -237,7 +245,7 @@ def exportar(id_, carpeta, destino):
         sys.exit(f"{id_}: el mapeo NO reproduce el resultado de 06 ({len(fallas)} discrepancias); primeras:\n  "
                  + "\n  ".join(fallas[:8]) + "\nNo se escribió nada. ¿Cambió 06 o los rasgos.json no son los de control.json?")
     esperado = {"id": id_, "seg_por_fotograma": SEG_POR_FOTOGRAMA, "tolerancia_pan": 0.02,
-                "nota": "nota/notas/dron/pan salen de control.json (lo que sonó); ganancia = 10^((-6 + 6*area/area_max)/20) "
+                "nota": "nota/notas/dron/pan salen de control.json (lo que sonó); ganancia = 10^((-6 + 6*areaN)/20), areaN = (area - area_min)/(area_max - area_min) "
                         "(velocidad MIDI nominal = round(127*ganancia)); t = inicio del fotograma en el audio (s)",
                 "fotogramas": [{"i": i, "t": round(i * SEG_POR_FOTOGRAMA, 3), "nota": ctl["midi"][i], "notas": ctl["notas"][i],
                                 "dron": ctl["dron"], "pan": round(ctl["pan"][i], 6), "ganancia": round(c["ganancia"], 6),

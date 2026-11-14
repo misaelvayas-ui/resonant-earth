@@ -1,6 +1,6 @@
 {
  "id": "sst_ecco2_2007_2008",
- "fuente": "datos/ecco2_sst_flow.mp4",
+ "fuente": "ecco2_sst_flow.mp4",
  "n_fotogramas": 61,
  "seg_por_fotograma": 0.5,
  "relleno_media": 16.0,
@@ -69,8 +69,9 @@
  "volumen": {
   "db_min": -6.0,
   "db_max": 0.0,
+  "area_min": 0.4282,
   "area_max": 0.4939,
-  "area_max_minimo": 1e-06,
+  "rango_minimo": 1e-06,
   "ganancia_min": 0.5011872336272722,
   "ganancia_max": 1.0,
   "velocidad_max": 127,
@@ -92,6 +93,7 @@
   "eje": "y",
   "campo": "centroide_y",
   "suavizado_fotogramas": 3,
+  "area_centro": 0.01,
   "p5": 0.4889333333333334,
   "p95": 0.5381333333333332,
   "centro": 0.5135333333333333,
