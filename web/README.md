@@ -8,10 +8,10 @@ Página única para presentar el proyecto al jurado del NASA Space Apps Challeng
 
 ```bash
 cd web
-python -m http.server 8000
+python -m http.server 8001
 ```
 
-Abre <http://localhost:8000>. Con doble clic (`file://`) no carga: necesita un servidor.
+Abre <http://localhost:8001>. Con doble clic (`file://`) no carga: necesita un servidor.
 
 ## Qué tiene
 

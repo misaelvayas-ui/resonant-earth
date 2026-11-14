@@ -16,7 +16,7 @@ export async function cargarPistas() {
   try {
     doc = await leerJson("pistas.json");
   } catch (e) {
-    throw new Error("No pude leer la lista de pistas. Abre la página con un servidor: en la carpeta web/ ejecuta «python -m http.server 8000» y entra a http://localhost:8000");
+    throw new Error("No pude leer la lista de pistas. Abre la página con un servidor: en la carpeta web/ ejecuta «python -m http.server 8001» y entra a http://localhost:8001");
   }
   const lista = doc && doc.pistas;
   if (!Array.isArray(lista) || lista.length !== 2 || lista.some((p) => CLAVES_PISTA.some((k) => !(k in p)))) {

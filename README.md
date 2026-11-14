@@ -160,5 +160,5 @@ El detalle de cada cambio y de cada medición está en [docs/CAMBIOS.txt](docs/C
 ## Web
 
 La web del proyecto vive en `web/` y muestra solo las dos pistas reales (GISTEMP y SST/ECCO2). Para abrirla:
-`cd web && python -m http.server 8000` y entra a <http://localhost:8000>. Sus medios se regeneran desde el pipeline con
+`cd web && python -m http.server 8001` y entra a <http://localhost:8001>. Sus medios se regeneran desde el pipeline con
 `python -m herramientas.exportar_web` y `python -m herramientas.exportar_mapeo`. Detalles en `web/README.md`.
