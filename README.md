@@ -51,7 +51,7 @@ Todos los comandos se ejecutan **desde la raíz del proyecto**; si no, el script
 ## Uso rápido
 
 ```bash
-python evaluar.py                                  # 36 pruebas PASA/FALLA en ~50 s (no toca salidas/)
+python evaluar.py                                  # 37 pruebas PASA/FALLA en ~50 s (no toca salidas/)
 python 04_video_sintetico.py && python 05_video_a_rasgos.py && python 06_rasgos_a_audio.py && python 07_validar.py
 python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 ```
@@ -136,6 +136,7 @@ config/        configuraciones de 05
 datos/         videos y barras descargados (ignorado por git)
 salidas/       todo lo generado (WAV, MP4, PNG, JSON); salidas_sst/ = el de ECCO2 (ROCOLA_SALIDAS=salidas_sst)
 herramientas/  calibrar.py   →  python -m herramientas.calibrar (barra vertical u horizontal; --mapa, --modo-color)
+               exportar_mapeo.py → python -m herramientas.exportar_mapeo (mapeo rasgo→sonido para el modo en vivo; ver docs/ESPEC_MODO_EN_VIVO.md)
 web/           rocola web accesible (la mantiene Juan; ver web/README.md)
 docs/          CAMBIOS.txt (historial de cambios), AUDITORIA.md y AUDITORIA_2.md (auditorías)
 archivo/       ejercicios 01–03, verificar_01/graficar_01, PLAN.md y sus salidas (nada se borró;

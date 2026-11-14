@@ -757,7 +757,19 @@ Antes: commit d7390f0. Cierra el pendiente 13 de docs/AUDITORIA_2.md (licencia y
 2. requirements.txt: versiones fijas (== las del .venv): numpy 2.5.4, scipy 1.18.1, opencv-python-headless 5.0.0.93, matplotlib 3.11.2, sounddevice 0.5.6, mido 1.3.3.
 3. LICENSE (MIT, 2026). El titular queda como marcador: "Resonant Earth [COMPLETAR: titular]".
 
-RONDA 26 - tono por diferencia entre hemisferios: "hemisferios" (05) y "rasgo_tono" (06), rama juan/tono-hemisferios   (2026-11-14)
+RONDA 26 - especificación del modo en vivo (rama misael/espec-en-vivo)   (2026-11-14)
+Antes: commit c816180 (master). No se modificó ningún script del pipeline ni nada existente en web/ (solo se añaden 4 JSON en web/assets/).
+1. docs/ESPEC_MODO_EN_VIVO.md: mapeo REAL rasgo -> sonido de 06 con archivo:línea (nota, dron, volumen, paneo, articulación), fórmulas listas para JS,
+   valores por pista, diferencias con el audio.js del compañero (panea con centroide_x, vmin/vmax -2..2, otra escala, dron fijo 174,61 Hz; reales: eje "y",
+   vmin/vmax_sonido, pentatónica 60-96, dron 60 = 261,63 Hz en GISTEMP y 67 = 392,00 Hz en SST) y reglas difíciles en Web Audio.
+2. herramientas/exportar_mapeo.py: escribe web/assets/<id>_mapeo.json (todos los parámetros) y <id>_esperado.json (por fotograma: t, nota, arpegio, dron, pan,
+   ganancia) para gistemp_1880_2023 y sst_ecco2_2007_2008. Antes de escribir comprueba que sus fórmulas reproducen control.json (notas exactas, pan < 1e-6)
+   y el .mid (CC10 y velocidades); si no, aborta.
+3. evaluar.py: prueba I1 (fórmulas de la ESPEC = control.json en 3 series sintéticas por 06 real: eje x amplia, eje y estrecha, eje y amplia sin densidad;
+   y = _esperado.json de las 2 pistas con su _mapeo.json). 37 PASA, 0 FALLA. Con vmin/vmax_sonido = -2..2, con centroide_x o con dron 53 la comprobación FALLA (122, 61 y 61 discrepancias).
+Hallazgos: SST casi no varía de volumen (ganancia 0,912-1,0 con area/area_max); el pan de SST solo recorre -0,525..+0,495 (rama estrecha); GISTEMP usa rama amplia.
+
+RONDA 28 - tono por diferencia entre hemisferios: "hemisferios" (05) y "rasgo_tono" (06), rama juan/tono-hemisferios   (2026-11-14)
 Hecho con ayuda de IA (Claude, de Anthropic) en el código; revisado y probado por Juan.
 Antes: commit 575023f (misael/sst, ya en master). Solo se tocaron 05, 06 y este archivo.
 Problema: en el video del mar (SVS 3912, ECCO2) la media global casi no cambia en el año: varía menos de 1 °C (ronda 24:
