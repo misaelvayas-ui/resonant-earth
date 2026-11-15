@@ -93,10 +93,13 @@ function aplicarPista() {
   aplicarCasillas();
 }
 
+/* La melodía se calla solo si las tres casillas que la modulan están apagadas */
+const melodiaSuena = () => rasgos.tono || rasgos.volumen || rasgos.paneo;
+
 function aplicarCasillas() {
   const { ctx, gDron, gMelodia } = nodos;
   gDron.gain.setTargetAtTime(rasgos.dron ? ampDron : 0, ctx.currentTime, TAU_PUERTA);
-  gMelodia.gain.setTargetAtTime(rasgos.tono || rasgos.volumen || rasgos.paneo ? 1 : 0, ctx.currentTime, TAU_PUERTA);
+  gMelodia.gain.setTargetAtTime(melodiaSuena() ? 1 : 0, ctx.currentTime, TAU_PUERTA);
 }
 
 function puerta(abrir, fundido = false) {
@@ -149,7 +152,7 @@ function tick() {
   while (sig < ev.length && ev[sig].t < pos + horizonte) {
     const e = ev[sig++];
     if (e.t < pos - 0.05) continue;                                   // quedó atrás
-    golpe(e, ahora + Math.max(0, (e.t - pos) / vel));
+    if (melodiaSuena()) golpe(e, ahora + Math.max(0, (e.t - pos) / vel));      // con la melodía apagada no hay nada que programar
   }
   gVoz.gain.setTargetAtTime(NIVEL_VOZ * valorEn(serie, "ganancia", pos, T), ahora, TAU_GANANCIA);
   if (paneador) paneador.pan.setTargetAtTime(valorEn(serie, "pan", pos, T), ahora, mapeo.paneo.suavizado_s);
@@ -204,6 +207,16 @@ export function activar(si) {
   activo = si;
   if (si && !medio.paused && !medio.ended) arrancar(); else parar();
   return true;
+}
+
+/* Casillas de la interfaz: qué rasgos modulan el sonido. Lo apagado queda fijo (tono, volumen, paneo) o en silencio (dron) */
+export function fijarRasgos(nuevos) {
+  rasgos = { ...rasgos, ...nuevos };
+  if (!mapeo) return;
+  recalcular();
+  if (!nodos) return;
+  aplicarCasillas();
+  if (activo && intervalo) { resincronizar(); tick(); }          // los golpes ya programados eran de la serie anterior
 }
 
 export function estado() {
