@@ -51,7 +51,7 @@ Todos los comandos se ejecutan **desde la raíz del proyecto**; si no, el script
 ## Uso rápido
 
 ```bash
-python evaluar.py                                  # 44 pruebas PASA/FALLA en ~50 s (no toca salidas/)
+python evaluar.py                                  # 45 pruebas PASA/FALLA en ~50 s (no toca salidas/)
 python 04_video_sintetico.py && python 05_video_a_rasgos.py && python 06_rasgos_a_audio.py && python 07_validar.py
 python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 ```

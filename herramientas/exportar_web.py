@@ -3,7 +3,8 @@
 Uso (desde la raíz):  python -m herramientas.exportar_web [--gistemp DIR] [--sst DIR] [--destino web/assets]
 Por pista escribe <id>.mp4 (video original sin texto, 1024x512, estirado al largo de rocola.wav), <id>_rasgos.json
 (con "t_video") y <id>_procedencia.json (sha256 de lo que se usó). Aborta si el audio del MP4 no es el de rocola.wav
-(RMS y balance L/R por ventana de 0,5 s).
+(RMS y balance L/R por ventana de 0,5 s). Aborta sin escribir nada en el destino si rasgos.json no es del video de la
+pista, si rocola.wav no es de ese rasgos.json o si el audio no coincide: todo se arma en una carpeta temporal y se publica al final.
 """
 import argparse
 import hashlib
@@ -19,6 +20,7 @@ from scipy.io import wavfile
 
 SEG_POR_FOTOGRAMA = 0.5            # igual que en 06_rasgos_a_audio.py
 PISTAS = {"gistemp_1880_2023": "gistemp", "sst_ecco2_2007_2008": "sst"}
+VIDEOS = {"gistemp_1880_2023": "2023GISTEMP_Map_SOS.mp4", "sst_ecco2_2007_2008": "ecco2_sst_flow.mp4"}   # video original de cada pista
 MAX_MB = 25
 VENTANA = 0.5                      # s
 PISO_DB = -45.0                    # solo se comparan las ventanas con más señal que esto (en las casi mudas el AAC dominaría)
@@ -97,7 +99,8 @@ def crear_mp4(video, wav, salida, ancho=1024, alto=512):
     sys.exit(f"{salida}: no logré bajar de {MAX_MB} MB.")
 
 
-def exportar(id_, carpeta, destino):
+def exportar(id_, carpeta, destino, video_esperado=None):
+    video_esperado = video_esperado or VIDEOS[id_]
     ruta_rasgos, wav = os.path.join(carpeta, "rasgos.json"), os.path.join(carpeta, "rocola.wav")
     for r in (ruta_rasgos, wav):
         if not os.path.exists(r):
@@ -105,6 +108,9 @@ def exportar(id_, carpeta, destino):
     with open(ruta_rasgos, encoding="utf-8") as fh:
         doc = json.load(fh)
     fuente = doc.get("fuente", "")
+    if os.path.basename(fuente) != video_esperado:
+        sys.exit(f"{id_}: {ruta_rasgos} es del video '{fuente}', no de '{video_esperado}', el de esta pista. "
+                 f"Corre 05 con el config de la pista y ROCOLA_SALIDAS={carpeta}.")
     video = next((p for p in (fuente, os.path.join("datos", os.path.basename(fuente))) if os.path.exists(p)), None)
     if video is None:
         sys.exit(f"{id_}: no encuentro el video original '{fuente}' (rasgos.json['fuente']).")
@@ -112,27 +118,30 @@ def exportar(id_, carpeta, destino):
     if abs(len(doc["rasgos"]) * SEG_POR_FOTOGRAMA - dur_wav) > 0.6:
         sys.exit(f"{id_}: {len(doc['rasgos'])} rasgos x {SEG_POR_FOTOGRAMA} s = {len(doc['rasgos']) * SEG_POR_FOTOGRAMA:.1f} s, "
                  f"pero {wav} dura {dur_wav:.1f} s: el WAV no es de este rasgos.json.")
-    os.makedirs(destino, exist_ok=True)
-    mp4 = os.path.join(destino, f"{id_}.mp4")
-    mb, crf = crear_mp4(video, wav, mp4)
-    web = dict(doc, fuente=os.path.basename(fuente), seg_por_fotograma=SEG_POR_FOTOGRAMA)
-    web["rasgos"] = [dict(r, t_video=round(i * SEG_POR_FOTOGRAMA, 3)) for i, r in enumerate(doc["rasgos"])]
-    with open(os.path.join(destino, f"{id_}_rasgos.json"), "w", encoding="utf-8") as fh:
-        json.dump(web, fh, ensure_ascii=False, indent=1)
-    demos = sorted(f for f in os.listdir(carpeta) if f.startswith("demo_") and f.endswith(".mp4"))
-    print(f"{id_}: {mp4}  {mb:.1f} MB (crf {crf}), {duracion(mp4):.2f} s, de {wav} (sha256 {sha256(wav)[:12]})")
-    for etiqueta, ruta in [("rocola.wav", wav)] + [(d, os.path.join(carpeta, d)) for d in demos]:
-        # el MP4 web contra el WAV; y cada demo contra el WAV: así web y demo quedan probados con el mismo audio
-        ok, texto = comparar_audio(wav, mp4 if etiqueta == "rocola.wav" else ruta)
-        print(f"  [{'PASA' if ok else 'FALLA'}] audio {'del MP4 web' if etiqueta == 'rocola.wav' else 'de ' + etiqueta} = rocola.wav: {texto}")
-        if not ok:
-            sys.exit(f"{id_}: el audio no coincide con {wav}. No hay que publicar este MP4.")
-    with open(os.path.join(destino, f"{id_}_procedencia.json"), "w", encoding="utf-8") as fh:
-        json.dump({"id": id_, "carpeta": carpeta, "video_original": os.path.basename(video), "rocola_wav_sha256": sha256(wav),
-                   "rasgos_sha256": sha256(ruta_rasgos), "mp4_sha256": sha256(mp4), "demos_comprobados": demos,
-                   "tolerancias": {"rms_db": TOL_RMS_DB, "balance_db": TOL_BALANCE_DB, "piso_db": PISO_DB}},
-                  fh, ensure_ascii=False, indent=1)
-        fh.write("\n")
+    with tempfile.TemporaryDirectory() as tmp:               # nada llega al destino hasta que todo está comprobado
+        mp4 = os.path.join(tmp, f"{id_}.mp4")
+        mb, crf = crear_mp4(video, wav, mp4)
+        demos = sorted(f for f in os.listdir(carpeta) if f.startswith("demo_") and f.endswith(".mp4"))
+        print(f"{id_}: {os.path.join(destino, id_ + '.mp4')}  {mb:.1f} MB (crf {crf}), {duracion(mp4):.2f} s, de {wav} (sha256 {sha256(wav)[:12]})")
+        for etiqueta, ruta in [("rocola.wav", wav)] + [(d, os.path.join(carpeta, d)) for d in demos]:
+            # el MP4 web contra el WAV; y cada demo contra el WAV: así web y demo quedan probados con el mismo audio
+            ok, texto = comparar_audio(wav, mp4 if etiqueta == "rocola.wav" else ruta)
+            print(f"  [{'PASA' if ok else 'FALLA'}] audio {'del MP4 web' if etiqueta == 'rocola.wav' else 'de ' + etiqueta} = rocola.wav: {texto}")
+            if not ok:
+                sys.exit(f"{id_}: el audio no coincide con {wav}. No se escribió nada en {destino}.")
+        web = dict(doc, fuente=os.path.basename(fuente), seg_por_fotograma=SEG_POR_FOTOGRAMA)
+        web["rasgos"] = [dict(r, t_video=round(i * SEG_POR_FOTOGRAMA, 3)) for i, r in enumerate(doc["rasgos"])]
+        with open(os.path.join(tmp, f"{id_}_rasgos.json"), "w", encoding="utf-8") as fh:
+            json.dump(web, fh, ensure_ascii=False, indent=1)
+        with open(os.path.join(tmp, f"{id_}_procedencia.json"), "w", encoding="utf-8") as fh:
+            json.dump({"id": id_, "carpeta": carpeta, "video_original": os.path.basename(video), "rocola_wav_sha256": sha256(wav),
+                       "rasgos_sha256": sha256(ruta_rasgos), "mp4_sha256": sha256(mp4), "demos_comprobados": demos,
+                       "tolerancias": {"rms_db": TOL_RMS_DB, "balance_db": TOL_BALANCE_DB, "piso_db": PISO_DB}},
+                      fh, ensure_ascii=False, indent=1)
+            fh.write("\n")
+        os.makedirs(destino, exist_ok=True)
+        for nombre in sorted(os.listdir(tmp)):
+            shutil.move(os.path.join(tmp, nombre), os.path.join(destino, nombre))
 
 
 def main():

@@ -1037,6 +1037,53 @@ def j3():
     return ok, f"base 11: {suben}; base 15 (tope): {bajan}; sin notas repetidas en ningún fotograma: {all(len(set(x)) == len(x) for x in nf)}"
 
 
+def j4():
+    """exportar_web: aborta SIN escribir nada si rasgos.json no es del video de la pista, si rocola.wav no es de ese rasgos.json
+    o si el audio de un demo de la carpeta no coincide con rocola.wav; con todo en regla escribe el MP4, los rasgos y la procedencia."""
+    if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
+        return None, "ffmpeg/ffprobe no instalados"
+    import contextlib
+    import io
+    from herramientas.exportar_web import crear_mp4, exportar
+    base = os.path.join(pipeline()["dir"], "salidas")
+    video = os.path.abspath(os.path.join(base, "04_video_sintetico.mp4"))
+    with open(os.path.join(base, "rasgos.json")) as fh:
+        doc = json.load(fh)
+    doc["fuente"] = video
+    fs, x = wavfile.read(os.path.join(base, "rocola.wav"))
+    res, mensajes = {}, {}
+    with tempfile.TemporaryDirectory() as d:
+        def carpeta(nombre, audio):
+            c = os.path.join(d, nombre)
+            os.makedirs(c)
+            json.dump(doc, open(os.path.join(c, "rasgos.json"), "w"))
+            wavfile.write(os.path.join(c, "rocola.wav"), fs, audio)
+            return c
+
+        malo = carpeta("c", x)                       # rocola.wav correcto, pero un demo_*.mp4 con los canales invertidos
+        wav_inv = os.path.join(d, "invertido.wav")
+        wavfile.write(wav_inv, fs, x[:, ::-1].copy())
+        crear_mp4(video, wav_inv, os.path.join(malo, "demo_malo.mp4"))
+        casos = (("otro video", carpeta("a", x), "ecco2_sst_flow.mp4"),
+                 ("wav más corto", carpeta("b", x[: len(x) // 2]), "04_video_sintetico.mp4"),
+                 ("demo con otro audio", malo, "04_video_sintetico.mp4"),
+                 ("todo en regla", carpeta("d", x), "04_video_sintetico.mp4"))
+        for nombre, c, esperado in casos:
+            destino = os.path.join(d, "dest_" + nombre.replace(" ", "_"))
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    exportar("pista", c, destino, esperado)
+                resultado = "pasa"
+            except SystemExit as e:
+                resultado, mensajes[nombre] = "aborta", str(e)
+            archivos = sorted(os.listdir(destino)) if os.path.isdir(destino) else []
+            res[nombre] = (resultado, len(archivos))
+    ok = (all(res[n] == ("aborta", 0) for n in ("otro video", "wav más corto", "demo con otro audio")) and res["todo en regla"] == ("pasa", 3)
+          and "ecco2_sst_flow.mp4" in mensajes.get("otro video", "") and "no es de este rasgos.json" in mensajes.get("wav más corto", "")
+          and "no coincide" in mensajes.get("demo con otro audio", ""))
+    return ok, "; ".join(f"{n}: {r} ({k} archivos escritos)" for n, (r, k) in res.items())
+
+
 def k1():
     """06 con FluidSynth: el dron suena continuo (sin ventanas de 0,5 s casi mudas ni caídas de más de 12 dB aunque la nota se repita y se ligue)."""
     if not (shutil.which("fluidsynth") and any(os.path.exists(p) for p in ("/usr/share/sounds/sf2/FluidR3_GM.sf2", "/usr/share/sounds/sf2/default-GM.sf2"))):
@@ -1119,6 +1166,7 @@ EVALUACIONES = [
     ("J1", "06: area < 0,01 -> pan al centro", "pan = 0 donde area < 0,01; con area = 0,01 sigue al centroide", j1),
     ("J2", "06: volumen min-max", "area 0,43-0,49 -> velocidad 64..127; area constante: 127 (hay zona) o 64", j2),
     ("J3", "06: arpegio en lo alto de la escala", "sube si caben las notas, baja desde la base si no; sin notas repetidas", j3),
+    ("J4", "exportar_web: protección de la fuente", "aborta sin escribir nada si el rasgos.json o el wav no son de la pista; con todo en regla escribe 3 archivos", j4),
     ("K1", "06: dron continuo (FluidSynth)", "ninguna ventana de 0,5 s < -40 dB ni caída > 12 dB con notas ligadas", k1),
     ("K2", "exportar_web: audio web = rocola.wav", "acepta el MP4 de ese WAV; rechaza canales invertidos y 10 dB menos", k2),
     ("I1", "especificación modo en vivo", "fórmulas de la ESPEC = control.json: notas exactas, pan ± 0,02 (4 casos sintéticos + 2 pistas)", i1),
