@@ -165,6 +165,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 6px; border: 1px solid
 .grupo-sonido:disabled label { cursor: not-allowed; }
 .grupo-sonido:disabled { opacity: .55; }
 #modo-ayuda, #rasgos-ayuda { margin-top: calc(-1 * var(--e-2)); }
+#modo-ayuda { min-height: 3.2em; }   /* alto de 2 líneas reservado: al cambiar de modo el texto cambia de largo y las casillas no deben moverse */
 .volumen { font-size: var(--t-chico); color: var(--tinta-2); }
 input[type="range"], input[type="checkbox"] { accent-color: var(--acento); }
 #volumen { width: 120px; }
@@ -272,6 +273,9 @@ html.js .revelar { opacity: 0; }
 }
 @media (max-width: 799px) {
   .porque-rejilla, .pie-rejilla { grid-template-columns: 1fr; gap: var(--e-6); }
+}
+@media (max-width: 480px) {
+  #modo-ayuda { min-height: 4.8em; }          /* 3 líneas: el texto de «Sonido en vivo» ocupa 3 a 390 px */
 }
 @media (max-width: 599px) {
   #tarjeta-temperatura { display: none; }

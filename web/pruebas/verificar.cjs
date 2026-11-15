@@ -503,8 +503,17 @@ async function desplazarTodo(page) {
   await esperar(2000);
   await mv.page.tap("button.pista >> nth=0");
   await mv.page.waitForFunction(() => window.__web.audio.estado().sonando, null, { timeout: 15000 });
+  const alto = () => mv.page.evaluate(() => ["rasgos-vivo", "grafico-pista"].map((id) => Math.round(document.getElementById(id).getBoundingClientRect().top + window.scrollY)));
+  await esperar(1500);                                                           // que termine de asentarse el layout tras elegir la pista
+  const antesVivo27 = await alto();
   await mv.page.tap("#modo-sonido input[value=vivo]");
   await esperar(600);
+  const trasVivo27 = await alto();
+  await mv.page.tap("#modo-sonido input[value=original]");
+  await esperar(400);
+  const trasOriginal27 = await alto();
+  await mv.page.tap("#modo-sonido input[value=vivo]");
+  await esperar(400);
   const mov27 = await mv.page.evaluate(() => ({ ancho: document.documentElement.scrollWidth, ventana: window.innerWidth, modo: window.__web.audio.modo(), rasgos: !document.getElementById("rasgos-vivo").disabled }));
   await mv.page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await esperar(800);
@@ -513,8 +522,9 @@ async function desplazarTodo(page) {
   await mv.ctx.close();
   const resumen27 = (r) => r.violations.map((v) => `${v.id}(${v.nodes.length}): ${v.nodes[0].target.join(" ")}`).join("; ");
   comprobar("V27", sst27.marcado === "original" && sst27.modo === "original" && sst27.rasgos === true && gis27.marcado === "vivo" && gis27.modo === "vivo" && gis27.activo && gis27.rasgos === false
-    && axe27.violations.length === 0 && axeM27.violations.length === 0 && mov27.ancho <= mov27.ventana && mov27.modo === "vivo" && mov27.rasgos,
-    `SST: «${sst27.marcado}»; GISTEMP al volver: «${gis27.marcado}» (modo ${gis27.modo}); axe 1440 ${axe27.violations.length} ${resumen27(axe27)}, 390 ${axeM27.violations.length} ${resumen27(axeM27)}; 390 px: ancho ${mov27.ancho}/${mov27.ventana}`);
+    && axe27.violations.length === 0 && axeM27.violations.length === 0 && mov27.ancho <= mov27.ventana && mov27.modo === "vivo" && mov27.rasgos
+    && antesVivo27.join() === trasVivo27.join() && antesVivo27.join() === trasOriginal27.join(),
+    `SST: «${sst27.marcado}»; GISTEMP al volver: «${gis27.marcado}» (modo ${gis27.modo}); axe 1440 ${axe27.violations.length} ${resumen27(axe27)}, 390 ${axeM27.violations.length} ${resumen27(axeM27)}; 390 px: ancho ${mov27.ancho}/${mov27.ventana}; posición de las casillas y del gráfico (original / vivo / original): ${antesVivo27.join("+")} / ${trasVivo27.join("+")} / ${trasOriginal27.join("+")}`);
   await vi.ctx.close();
 
   await browser.close();
