@@ -1,13 +1,10 @@
 """
-04 — Genera un video de PRUEBA con verdad conocida (tu "señal patrón").
+04 — Video de prueba con verdad conocida: mapa 'viridis', barra vertical a la derecha y un título que hay que recortar.
 
-Imita una visualización del EIC: mapa de calor con colormap 'viridis', barra de
-colores vertical a la derecha y un título de texto (para practicar recortarlo).
-
-Verdad conocida (lo que el audio DEBE contar):
-  - el valor medio sube de ~0.12 a ~0.64 (fondo + tormenta) -> el tono debe SUBIR
-  - una "tormenta" (mancha caliente) cruza de izq. a der. -> el sonido debe ir de L a R
-  - el área caliente crece con el tiempo                   -> el volumen debe SUBIR
+Lo que el audio debe contar:
+  - la media sube de ~0,12 a ~0,64            -> el tono sube
+  - una mancha caliente cruza de izq. a der.  -> el sonido va de L a R
+  - el área caliente crece                    -> el volumen sube
 """
 import json
 import sys

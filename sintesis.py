@@ -1,13 +1,14 @@
 """
 sintesis.py — Bloque A: fundamentos de síntesis de audio (motor de la rocola).
 
-Todo es numpy puro. Cada función es pequeña a propósito: léela, cámbiala y escucha qué pasa.
+Numpy y scipy. Cada función es pequeña a propósito: léela, cámbiala y escucha qué pasa.
 Convención: señales float en [-1, 1], frecuencia de muestreo FS.
 """
 import os
 
 import numpy as np
 from scipy.io import wavfile
+from scipy.signal import lfilter
 
 FS = 44100  # Hz
 
@@ -25,8 +26,8 @@ def hz_a_midi(f):
 
 # ---------------------------------------------------------------------------
 # 2) Oscilador con FASE CONTINUA
-#    Si la frecuencia cambia, NO se calcula sin(2*pi*f*t) (eso da saltos de fase
-#    = clics). Se integra la frecuencia instantánea: phi[n] = sum(2*pi*f[k]/FS).
+#    sin(2*pi*f*t) con f variable da saltos de fase (clics): se integra la frecuencia
+#    instantánea, phi[n] = sum(2*pi*f[k]/FS).
 # ---------------------------------------------------------------------------
 def oscilador(f_inst, forma="seno"):
     """f_inst: array de frecuencia por muestra (Hz). Devuelve la señal."""
@@ -48,7 +49,7 @@ def tono(f, dur, forma="seno"):
 
 # ---------------------------------------------------------------------------
 # 3) Envolvente ADSR (Attack, Decay, Sustain, Release)
-#    Evita clics al inicio/fin y da "carácter" a cada nota.
+#    Evita clics al inicio y al final, y da carácter a cada nota.
 # ---------------------------------------------------------------------------
 def adsr(n_muestras, a=0.01, d=0.08, s=0.7, r=0.12):
     """a, d, r en segundos; s = nivel de sostenido (0..1). Longitud total = n_muestras."""
@@ -68,7 +69,7 @@ def adsr(n_muestras, a=0.01, d=0.08, s=0.7, r=0.12):
 
 
 # ---------------------------------------------------------------------------
-# 4) Cuantizar a escala (pentatónica mayor: suena bien sin importar el orden)
+# 4) Cuantizar a escala (la pentatónica suena bien en cualquier orden)
 # ---------------------------------------------------------------------------
 PENTATONICA_MAYOR = [0, 2, 4, 7, 9]  # grados en semitonos respecto a la tónica
 PENTATONICA_MENOR = [0, 3, 5, 7, 10]
@@ -91,20 +92,7 @@ def valor_a_nota(x, vmin, vmax, notas):
 # 5) Utilidades: suavizado, paneo, dB, guardar WAV, reproducir
 # ---------------------------------------------------------------------------
 def suavizar(x, tau_s):
-    """Filtro IIR de 1 polo (glide/portamento). tau_s = constante de tiempo en s."""
-    if tau_s <= 0:
-        return np.asarray(x, dtype=float)
-    alfa = 1 - np.exp(-1 / (tau_s * FS))
-    y = np.empty(len(x))
-    acc = x[0]
-    for i, v in enumerate(x):  # bucle simple; para señales largas usar scipy.signal.lfilter
-        acc += alfa * (v - acc)
-        y[i] = acc
-    return y
-
-
-def suavizar_rapido(x, tau_s):
-    from scipy.signal import lfilter
+    """Filtro IIR de 1 polo (glide/portamento); tau_s = constante de tiempo en s."""
     alfa = 1 - np.exp(-1 / (tau_s * FS))
     y, _ = lfilter([alfa], [1, alfa - 1], x, zi=[x[0] * (1 - alfa)])
     return y

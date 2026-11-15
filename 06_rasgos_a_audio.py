@@ -1,55 +1,19 @@
 """
-06 — rasgos.json -> rocola.mid -> rocola.wav (estéreo, instrumentos reales) + control.json
+06 — rasgos.json -> rocola.mid -> rocola.wav (estéreo) + control.json (lo leen 07 y evaluar.py)
 
-Mapeo (el "contrato" sonoro, explícalo así en el pitch):
-  media        -> NOTA de la melodía (pentatónica de 3 octavas; antes se suaviza con una media móvil)
-  area         -> VOLUMEN: velocidad MIDI 64...127 (= -6 dB ... 0 dB); el área se normaliza entre SU mínimo y SU máximo
-                  (SST: 0,43-0,49 recorre los 6 dB); sin variación: 0 dB si hay zona caliente, -6 dB si no
-  centroide_x  -> PANEO izquierda/derecha = dónde está lo "caliente" en el mapa (CC10 en el .mid; en el
-                  WAV se aplica tras el render, porque las muestras estéreo de la SoundFont ignoran CC10); con area < 0,01
-                  (AREA_CENTRO) el paneo va al centro: sin zona caliente apreciable el centroide no significa nada
-  densidad     -> notas por fotograma según la anomalía: < u1 -> 1; u1-u2 -> 2; > u2 -> 4 (0,3 y 0,7 en GISTEMP)
-                  (arpegio ascendente por la escala desde la nota del fotograma; si arriba no caben todas las notas,
-                  desciende desde la nota base: así no se repite la más alta y el ligado no se come golpes)
-  referencia   -> DRON sostenido una octava bajo la nota que la melodía toca con el valor 'referencia'
-                  (p. ej. 0 = sin anomalía) o, si no existe, bajo la del primer fotograma: se oye si el presente está por encima o por debajo
+  media (o 'rasgo_tono')  -> nota: pentatónica de 3 octavas, tras una media móvil
+  area                    -> volumen: de -6 a 0 dB entre el área mínima y la máxima de la pista
+  centroide_x o _y        -> paneo ('paneo'); con area < 0,01 va al centro
+  anomalía alta           -> 1, 2 o 4 notas por fotograma (arpegio)
+  referencia              -> dron sostenido una octava bajo la nota que la melodía toca con ese valor
 
-Salida: canal 1 = marimba (GM 13), canal 2 = dron en pad SOSTENIDO (GM 90; el 89 decae a silencio en ~6 s en FluidR3), reverb CC91. Se escribe
-salidas/rocola.mid y se renderiza con FluidSynth a 44,1 kHz estéreo -> salidas/rocola.wav, más
-salidas/control.json (lo leen 07 y evaluar.py).
-
-Respaldo: sin fluidsynth o sin SoundFont (o con --sintetico) se usa la síntesis numpy de siempre,
-dirigida por las MISMAS notas: mismo .mid, misma duración, otro timbre.
-    sudo apt install fluidsynth fluid-soundfont-gm
-
-Claves opcionales (van en el config de 05 y se copian a rasgos.json); entre paréntesis, el valor por defecto:
-  "ligar" (true)           misma nota que la anterior -> se extiende en vez de re-atacar
-  "suavizado" (3)          media móvil centrada de N fotogramas sobre la media (0 o 1 = sin suavizar)
-  "densidad" (true)        notas por fotograma según la anomalía; false = una nota por fotograma
-  "regolpe_ligado" (1)     en una nota ligada, la vuelve a tocar cada N fotogramas (0 = nunca)
-  "regolpe_vel" (0.7)      velocidad del re-golpe como fracción de la de la nota (0,4 dejaba la marimba casi muda en las notas ligadas)
-  "umbral_evento" (1/12 del rango de sonido; 0,15 en GISTEMP)   si la media CRUDA cambia más que esto entre fotogramas, ataque fuerte (vel >= 100)
-                           aunque la nota no cambie
-  "octava" (1)             desplaza melodía y dron (+1 = una octava arriba)
-  "humanizar" (true)       velocidad ±10 %, tiempo ±10 ms, semilla fija (12345)
-  "instrumento_melodia" (13), "dron_programa" (90)   programas GM, numerados desde 1
-  "dron_octava" (0)        octavas extra del dron; 0 = melodía(referencia) - 12 semitonos
-  "dron_nivel" (0.048)     volumen del dron: amplitud del seno en el respaldo; con FluidSynth el RMS del dron se lleva a
-                           DRON_FLUID (0,35) de ese seno, ~7 dB bajo la marimba (el .mid lleva velocidad 45 * dron_nivel / 0,08)
-  "reverb" (50)            CC91, 0..127
-  "paneo" ("x")            eje del paneo: "x" = izquierda-derecha del mapa, "y" = sur (izq.) - norte (der.);
-                           el centroide se suaviza y se normaliza (percentiles 5-95, si recorren >= 0,1 del mapa) antes de panear
-  "vmin_sonido"/"vmax_sonido" (vmin/vmax)   rango de la media que se reparte entre las notas
-  "densidad_umbrales" ([u1, u2])   media por debajo de u1 -> 1 nota; hasta u2 -> 2; más -> 4 (por defecto
-                           el 50 % y el 72 % del rango de sonido; GISTEMP usa [0.3, 0.7])
-  "rasgo_tono" ("media")   rasgo que se convierte en nota. Con otro (p. ej. "dif_hemisferios", que 05 calcula con
-                           "hemisferios": true), ese rasgo ocupa el lugar de la media en TODO lo de arriba:
-                           vmin_sonido/vmax_sonido, referencia (dron), densidad_umbrales y umbral_evento van en sus
-                           unidades. Sirve cuando la media casi no cambia y otro rasgo sí
-Para el sonido sin adornos: ligar false, suavizado 0, densidad false, octava 0, humanizar false.
+Marimba (GM 13) y pad (GM 90) con FluidSynth; sin fluidsynth o con --sintetico, síntesis numpy con las
+mismas notas (mismo .mid, otro timbre). En el WAV el paneo se aplica después del render, porque las
+muestras estéreo de la SoundFont ignoran el CC10.
 
 Uso:  python 06_rasgos_a_audio.py [rasgos.json] [--sintetico]
-Variable de entorno ROCOLA_SF2 = otra SoundFont. Con ROCOLA_SIN_AUDIO=1 no reproduce el resultado.
+Claves opcionales (vienen del config de 05; por defecto, DEFECTOS): README, "Configuración de 05".
+Entorno: ROCOLA_SF2 = otra SoundFont; ROCOLA_SIN_AUDIO=1 = no reproducir.
 """
 import json
 import os
@@ -61,7 +25,7 @@ import numpy as np
 from scipy.io import wavfile
 from rutas import sal
 from sintesis import (FS, escala, valor_a_nota, midi_a_hz, oscilador, adsr, paneo, db_a_lineal,
-                      suavizar_rapido, limitar, guardar_wav, reproducir)
+                      suavizar, limitar, guardar_wav, reproducir)
 
 SEG_POR_FOTOGRAMA = 0.5          # tempo: cuánto dura cada fotograma en el audio
 AREA_CENTRO = 0.01               # con area < 1 % del mapa el paneo va al centro (pan = 0)
@@ -214,7 +178,7 @@ ataque_en_fotograma = [False] * n_f
 for f, tipo, ini in meta:
     if tipo != "regolpe" and ini == f * TICKS_F:
         ataque_en_fotograma[f] = True
-regolpe_en_fotograma = [any(t == "regolpe" and f == i for f, t, _ in meta) for i in range(n_f)]
+regolpe_en_fotograma = list(map({f for f, t, _ in meta if t == "regolpe"}.__contains__, range(n_f)))
 if cfg["humanizar"]:                              # semilla fija: mismo resultado en cada ejecución
     rng = np.random.default_rng(12345)
     ms = round(0.010 * TPB * BPM / 60)            # 10 ms en ticks
@@ -302,7 +266,7 @@ def renderizar_fluidsynth():
         print(f"AVISO: fluidsynth falló ({err1 or err2}); uso la síntesis numpy de respaldo.")
         return None
     spf = int(SEG_POR_FOTOGRAMA * FS)
-    p = suavizar_rapido(np.interp(np.arange(N), (np.arange(n_f) + 0.5) * spf, 2 * c_pan - 1), 0.15)
+    p = suavizar(np.interp(np.arange(N), (np.arange(n_f) + 0.5) * spf, 2 * c_pan - 1), 0.15)
     # la melodía se pasa a mono y se panea por muestra: así el paneo es exacto aunque la imagen
     # estéreo propia de cada muestra de la SoundFont cambie de una nota a otra
     # el dron es un pad SOSTENIDO (GM 90) y su nivel no depende de la velocidad MIDI ni de la SoundFont: el RMS de su
@@ -326,8 +290,8 @@ def sintetizar_numpy():
     nota_m = np.full(N, float(mel[0][2]))
     for k, ini in enumerate(inicios):
         nota_m[ini: (inicios[k + 1] if k + 1 < len(inicios) else N)] = mel[k][2]
-    f_lead = suavizar_rapido(midi_a_hz(nota_m), 0.01)           # glide 10 ms
-    amp = suavizar_rapido(lineal(db_a_lineal(-6 + 6 * area_n)), 0.08)
+    f_lead = suavizar(midi_a_hz(nota_m), 0.01)           # glide 10 ms
+    amp = suavizar(lineal(db_a_lineal(-6 + 6 * area_n)), 0.08)
     lead = 0.5 * amp * oscilador(f_lead, "suave")
     plucks = np.zeros(N)                                       # un golpe en cada ataque
     n_pl = int(0.35 * FS)
@@ -337,7 +301,7 @@ def sintetizar_numpy():
         fin = min(ini + n_pl, N)
         plucks[ini:fin] += 0.35 * (vl / 90) * seg[: fin - ini]
     dron = cfg["dron_nivel"] * oscilador(np.full(N, midi_a_hz(nota_dron)), "seno")
-    p = suavizar_rapido(lineal(2 * c_pan - 1), 0.15)
+    p = suavizar(lineal(2 * c_pan - 1), 0.15)
     return limitar(paneo(lead + plucks, p) + paneo(dron, 0.0))
 
 

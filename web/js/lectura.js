@@ -20,12 +20,14 @@ function sinSigno(n, dec) {
   return (n < 0 && Number(coma(n, dec).replace(",", ".")) !== 0 ? MENOS : "") + coma(n, dec);
 }
 
+/* Índice del último rasgo con t_video <= t (rasgos ordenados por t_video): búsqueda binaria. */
 export function indiceEn(rasgos, t) {
-  let i = 0;
-  for (let k = 0; k < rasgos.length; k++) {
-    if (rasgos[k].t_video <= t + 1e-6) i = k; else break;
+  let lo = 0, hi = rasgos.length - 1;
+  while (lo < hi) {
+    const m = (lo + hi + 1) >> 1;
+    if (rasgos[m].t_video <= t + 1e-6) lo = m; else hi = m - 1;
   }
-  return i;
+  return lo;
 }
 
 function etiquetaFecha(r, i) {

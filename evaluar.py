@@ -1,12 +1,8 @@
-"""evaluar.py — mini evaluaciones (~50 s) con tabla PASA/FALLA.
+"""evaluar.py — pruebas del proyecto con tabla PASA/FALLA (~50 s).
 
-Uso (desde la raíz del proyecto):
-    python evaluar.py            # todas
-    python evaluar.py --rapido   # solo el motor de síntesis (grupo A, < 1 s)
-
-Los grupos B-D ejecutan los scripts reales con ROCOLA_SALIDAS/ROCOLA_CONFIG apuntando a una
-carpeta temporal y ROCOLA_SIN_AUDIO=1: salidas/ y config/ del proyecto no se tocan.
-Código de salida: 0 si no hay FALLA, 1 si hay alguna.
+Uso:  python evaluar.py [--rapido]        (--rapido: solo el motor de síntesis, < 1 s)
+Corre en una carpeta temporal (ROCOLA_SALIDAS, ROCOLA_CONFIG, ROCOLA_SIN_AUDIO=1): no toca salidas/ ni config/.
+Sale con código 1 si alguna prueba FALLA.
 """
 import os
 import sys

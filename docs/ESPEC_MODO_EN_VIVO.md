@@ -14,9 +14,9 @@ Referencias: `06` = `06_rasgos_a_audio.py`, `sin` = `sintesis.py`. Las fórmulas
 
 | Regla | Fuente |
 |---|---|
-| Cada fotograma de `rasgos.json` dura **0,5 s** de audio: `t_inicio[i] = i * 0.5` | `06:66` |
-| Tempo MIDI 120 BPM, 480 ticks por negra (1 s = 960 ticks; 1 fotograma = 480 ticks) | `06:69-70` |
-| El `t` de `rasgos.json` es del video original; el audio **no** lo usa (la web usa `t_video`) | `06:66` |
+| Cada fotograma de `rasgos.json` dura **0,5 s** de audio: `t_inicio[i] = i * 0.5` | `06:30` |
+| Tempo MIDI 120 BPM, 480 ticks por negra (1 s = 960 ticks; 1 fotograma = 480 ticks) | `06:33-34` |
+| El `t` de `rasgos.json` es del video original; el audio **no** lo usa (la web usa `t_video`) | `06:30` |
 
 ## 2. Lo esencial: lo que el modo en vivo DEBE replicar
 
@@ -33,12 +33,12 @@ nota[i] = notas_base[idx] + 12 * octava                           // octava = 1
 
 | Regla | Valor | Fuente |
 |---|---|---|
-| Escala: pentatónica mayor `[0,2,4,7,9]`, tónica MIDI 48 (Do3), 3 octavas, más la tónica 3 octavas arriba: 16 notas `48,50,52,55,57,60,62,64,67,69,72,74,76,79,81,84` | `mapeo.escala.notas_base` | `06:124`, `sin:73,77-80` |
-| Cuantización: índice = `round(x * 15)`, `x` en 0..1 con `clip` | | `sin:83-87` |
-| **Redondeo al par en empates** (`np.round`): `0.5 → 0`, `1.5 → 2`, `2.5 → 2`. `Math.round` de JS redondea hacia arriba y no coincide en los empates | | `sin:86` |
-| Rango de sonido propio (NO `vmin`/`vmax` de la paleta): `vmin_sonido`, `vmax_sonido` (si faltan, `vmin`/`vmax`) | `mapeo.vmin_sonido/vmax_sonido` | `06:125` |
-| Suavizado: media móvil centrada de 3 fotogramas sobre `media` (con `suavizado` ≤ 1, sin suavizar) | `mapeo.suavizado_fotogramas` | `06:121`, `06:102-105` |
-| Desplazamiento de octava: `+12` semitonos a la melodía (clip a 0..127) | `mapeo.escala.octava` | `06:129`, `06:227` |
+| Escala: pentatónica mayor `[0,2,4,7,9]`, tónica MIDI 48 (Do3), 3 octavas, más la tónica 3 octavas arriba: 16 notas `48,50,52,55,57,60,62,64,67,69,72,74,76,79,81,84` | `mapeo.escala.notas_base` | `06:88`, `sin:74,78-81` |
+| Cuantización: índice = `round(x * 15)`, `x` en 0..1 con `clip` | | `sin:84-88` |
+| **Redondeo al par en empates** (`np.round`): `0.5 → 0`, `1.5 → 2`, `2.5 → 2`. `Math.round` de JS redondea hacia arriba y no coincide en los empates | | `sin:87` |
+| Rango de sonido propio (NO `vmin`/`vmax` de la paleta): `vmin_sonido`, `vmax_sonido` (si faltan, `vmin`/`vmax`) | `mapeo.vmin_sonido/vmax_sonido` | `06:89` |
+| Suavizado: media móvil centrada de 3 fotogramas sobre `media` (con `suavizado` ≤ 1, sin suavizar) | `mapeo.suavizado_fotogramas` | `06:85`, `06:66-69` |
+| Desplazamiento de octava: `+12` semitonos a la melodía (clip a 0..127) | `mapeo.escala.octava` | `06:93`, `06:191` |
 | Rango resultante: MIDI 60 a 96 (Do4 a Do7) | `mapeo.escala.nota_min/nota_max` | |
 
 ```
@@ -58,11 +58,11 @@ hz       = 440 * 2 ** ((dron - 69) / 12)
 
 | Regla | Fuente |
 |---|---|
-| El dron es la nota que la **melodía** toca con el valor `referencia`, una octava abajo, **constante** en toda la pista (no depende de ningún rasgo) | `06:130-134` |
-| `dron_octava` (por defecto 0) lo desplaza más octavas | `06:134`, `06:74` |
-| **Dron continuo (ronda 29):** suena de forma ininterrumpida desde el tick 0 hasta el final, canal 2, y su nivel es **constante**: el RMS de un seno de amplitud `dron_nivel × factor_fluidsynth` = 0,048 × 0,35 (RMS 0,012, −38,5 dB), unos **~7 dB por debajo de la melodía** en el WAV. Nunca debe ser una nota golpeada que decae (antes, GM 89 se apagaba en ~6 s y en las notas ligadas la mezcla quedaba muda) | `06:68`, `06:308-314`, `06:240-241` |
-| Instrumento: programa GM **90** (Pad 2 warm), que no decae (el 89 sí); en Web Audio basta un seno o un pad sostenido a ese nivel | `06:75`, `06:159` |
-| La velocidad MIDI del dron (`round(45 * dron_nivel / 0.08)` = 27) solo queda en el `.mid`: con FluidSynth se renormaliza el RMS, así que no decide el volumen | `06:157` |
+| El dron es la nota que la **melodía** toca con el valor `referencia`, una octava abajo, **constante** en toda la pista (no depende de ningún rasgo) | `06:94-98` |
+| `dron_octava` (por defecto 0) lo desplaza más octavas | `06:98`, `06:38` |
+| **Dron continuo (ronda 29):** suena de forma ininterrumpida desde el tick 0 hasta el final, canal 2, y su nivel es **constante**: el RMS de un seno de amplitud `dron_nivel × factor_fluidsynth` = 0,048 × 0,35 (RMS 0,012, −38,5 dB), unos **~7 dB por debajo de la melodía** en el WAV. Nunca debe ser una nota golpeada que decae (antes, GM 89 se apagaba en ~6 s y en las notas ligadas la mezcla quedaba muda) | `06:32`, `06:272-278`, `06:204-205` |
+| Instrumento: programa GM **90** (Pad 2 warm), que no decae (el 89 sí); en Web Audio basta un seno o un pad sostenido a ese nivel | `06:39`, `06:123` |
+| La velocidad MIDI del dron (`round(45 * dron_nivel / 0.08)` = 27) solo queda en el `.mid`: con FluidSynth se renormaliza el RMS, así que no decide el volumen | `06:121` |
 
 Valores por pista (los trae el `_mapeo.json`):
 
@@ -83,10 +83,10 @@ velocidad[i] = redondearPar(127 * ganancia[i])                // velocidad MIDI 
 
 | Regla | Fuente |
 |---|---|
-| `area` → velocidad MIDI del golpe de la melodía: −6 dB (el área mínima de la pista) a 0 dB (el área máxima) | `06:138-141` |
-| `area` se normaliza **entre su mínimo y su máximo** (ronda 28; antes, por el máximo: SST solo recorría 0,8 dB) | `06:138-141` |
-| En el respaldo numpy, la ganancia es la misma curva interpolada linealmente entre centros de fotograma y suavizada 80 ms | `06:330` |
-| Un evento fuerte (sección 2.5) sube la velocidad a `max(v, 100)` | `06:190,196-197` |
+| `area` → velocidad MIDI del golpe de la melodía: −6 dB (el área mínima de la pista) a 0 dB (el área máxima) | `06:102-105` |
+| `area` se normaliza **entre su mínimo y su máximo** (ronda 28; antes, por el máximo: SST solo recorría 0,8 dB) | `06:102-105` |
+| En el respaldo numpy, la ganancia es la misma curva interpolada linealmente entre centros de fotograma y suavizada 80 ms | `06:294` |
+| Un evento fuerte (sección 2.5) sube la velocidad a `max(v, 100)` | `06:154,160-161` |
 
 Valores por pista: GISTEMP `area_min` 0,0 y `area_max` 0,5708; SST `area_min` 0,4282 y `area_max` 0,4939. Las dos recorren ahora de 0,501 (−6 dB) a 1,0 (0 dB), es decir, velocidades MIDI de 64 a 127. (Con la regla anterior SST solo iba de 0,912 a 1,0.)
 
@@ -106,15 +106,15 @@ pan[i] = 2 * cPan - 1                                      // -1 (izquierda) .. 
 
 | Regla | Fuente |
 |---|---|
-| Eje: `"x"` (izquierda-derecha del mapa, `centroide_x`) o `"y"` (sur = izquierda, norte = derecha, `centroide_y`); viene en `rasgos.json["paneo"]`, por defecto `"x"`. **GISTEMP y SST usan `"y"`.** Si falta `centroide_y`, 06 vuelve a `"x"` | `06:145-149`, `06:75` |
-| Suavizado: media móvil de 3 fotogramas | `06:150` |
-| Normalización con percentiles 5 y 95 de la serie suavizada (interpolación lineal como `numpy.percentile`) | `06:151-152` |
-| **Rama estrecha**: si el recorrido p95 − p5 es menor que 0,1, no se estira; se mide contra el punto medio con ancho 0,1 | `06:152-153` |
-| **Sin zona caliente (ronda 28):** con `area < area_centro` (0,01) el centroide no significa nada y `cPan = 0,5` (pan 0); `area` es la cruda (no la normalizada), y la interpolación y el suavizado de 0,15 s siguientes no cambian | `06:67`, `06:154-155` |
-| `pan = 2 * cPan - 1`; el MIDI guarda `CC10 = round(64 + 63 * pan)` por fotograma | `06:156`, `06:236`, `06:361` |
-| En el WAV: el pan por fotograma se interpola linealmente entre los **centros** de fotograma (`(i + 0.5) * 0.5 s`) y se suaviza con un polo de 0,15 s | `06:305` |
-| Ley de potencia constante: `th = (pan + 1) * π/4`, `L = cos(th)`, `R = sin(th)` (en Web Audio, `StereoPannerNode` usa la misma ley) | `sin:117-120` |
-| Solo se panea la **melodía** (mezclada a mono y multiplicada por √2); el **dron queda con su imagen propia, sin paneo** | `06:314` |
+| Eje: `"x"` (izquierda-derecha del mapa, `centroide_x`) o `"y"` (sur = izquierda, norte = derecha, `centroide_y`); viene en `rasgos.json["paneo"]`, por defecto `"x"`. **GISTEMP y SST usan `"y"`.** Si falta `centroide_y`, 06 vuelve a `"x"` | `06:109-113`, `06:39` |
+| Suavizado: media móvil de 3 fotogramas | `06:114` |
+| Normalización con percentiles 5 y 95 de la serie suavizada (interpolación lineal como `numpy.percentile`) | `06:115-116` |
+| **Rama estrecha**: si el recorrido p95 − p5 es menor que 0,1, no se estira; se mide contra el punto medio con ancho 0,1 | `06:116-117` |
+| **Sin zona caliente (ronda 28):** con `area < area_centro` (0,01) el centroide no significa nada y `cPan = 0,5` (pan 0); `area` es la cruda (no la normalizada), y la interpolación y el suavizado de 0,15 s siguientes no cambian | `06:31`, `06:118-119` |
+| `pan = 2 * cPan - 1`; el MIDI guarda `CC10 = round(64 + 63 * pan)` por fotograma | `06:120`, `06:200`, `06:325` |
+| En el WAV: el pan por fotograma se interpola linealmente entre los **centros** de fotograma (`(i + 0.5) * 0.5 s`) y se suaviza con un polo de 0,15 s | `06:269` |
+| Ley de potencia constante: `th = (pan + 1) * π/4`, `L = cos(th)`, `R = sin(th)` (en Web Audio, `StereoPannerNode` usa la misma ley) | `sin:105-108` |
+| Solo se panea la **melodía** (mezclada a mono y multiplicada por √2); el **dron queda con su imagen propia, sin paneo** | `06:278` |
 
 Valores por pista: GISTEMP rama **amplia** (p5 0,359; p95 0,855; pan de −1,0 a +1,0; 16 de los 60 fotogramas tienen `area < 0,01` y van al centro). SST rama **estrecha** (p5 0,4889; p95 0,5381; centro 0,5135): el pan solo recorre **−0,525 a +0,495**, y su cero es la posición media de la zona caliente durante los 344 días, no el ecuador.
 
@@ -133,14 +133,14 @@ fuerte[i] = i > 0 && Math.abs(media[i] - media[i-1]) > umbral_evento
 
 | Regla | Fuente |
 |---|---|
-| Umbrales de densidad `[u1, u2]`: `densidad_umbrales` del config; si faltan, `vmin_sonido + 0.5*rango` y `vmin_sonido + 13/18*rango` | `06:167` |
-| Notas por fotograma: 1 si `mediaS < u1`; 2 si `u1 ≤ mediaS ≤ u2`; 4 si `> u2` | `06:170-171` |
-| Arpegio por la escala desde la nota del fotograma: **ascendente** si caben las `k` notas (`idx + k ≤ 16`); si no (lo más alto de la escala), **descendente** desde la nota base. La primera nota es siempre la base (ronda 27; antes se repetía la nota más alta y el ligado se comía golpes) | `06:178-181` |
-| Cada nota dura el 95 % de su tramo | `06:183-186` |
-| `umbral_evento`: del config; si falta, `(vmax_sonido − vmin_sonido) / 12` (GISTEMP y SST: 0,15) | `06:127-128`, `06:75` |
-| Evento fuerte = ataque aunque la nota no cambie, con velocidad ≥ 100 (solo la primera nota del fotograma) | `06:189-197` |
-| **Ligar**: si la nota es igual a la del ataque anterior y no es evento fuerte, no se vuelve a atacar; la nota se extiende | `06:198-206`, `06:74` |
-| **Re-golpe**: una nota ligada se vuelve a tocar suave (`velocidad × 0,7`; antes 0,4, que dejaba la marimba casi muda) en **cada** fotograma (`regolpe_ligado` 1; antes cada 2, ronda 30) | `06:199-203`, `06:75` |
+| Umbrales de densidad `[u1, u2]`: `densidad_umbrales` del config; si faltan, `vmin_sonido + 0.5*rango` y `vmin_sonido + 13/18*rango` | `06:131` |
+| Notas por fotograma: 1 si `mediaS < u1`; 2 si `u1 ≤ mediaS ≤ u2`; 4 si `> u2` | `06:134-135` |
+| Arpegio por la escala desde la nota del fotograma: **ascendente** si caben las `k` notas (`idx + k ≤ 16`); si no (lo más alto de la escala), **descendente** desde la nota base. La primera nota es siempre la base (ronda 27; antes se repetía la nota más alta y el ligado se comía golpes) | `06:142-145` |
+| Cada nota dura el 95 % de su tramo | `06:147-150` |
+| `umbral_evento`: del config; si falta, `(vmax_sonido − vmin_sonido) / 12` (GISTEMP y SST: 0,15) | `06:91-92`, `06:39` |
+| Evento fuerte = ataque aunque la nota no cambie, con velocidad ≥ 100 (solo la primera nota del fotograma) | `06:153-161` |
+| **Ligar**: si la nota es igual a la del ataque anterior y no es evento fuerte, no se vuelve a atacar; la nota se extiende | `06:162-170`, `06:38` |
+| **Re-golpe**: una nota ligada se vuelve a tocar suave (`velocidad × 0,7`; antes 0,4, que dejaba la marimba casi muda) en **cada** fotograma (`regolpe_ligado` 1; antes cada 2, ronda 30) | `06:163-167`, `06:39` |
 
 Valores por pista: GISTEMP `densidad_umbrales` [0,3; 0,7] (45 fotogramas con 1 nota, 8 con 2, 7 con 4; 19 eventos fuertes). SST usa los de defecto [21,96; 22,18] (25 con 1 nota, 22 con 2, 14 con 4; 7 eventos fuertes).
 
@@ -156,12 +156,12 @@ media     = rellenar(rasgos.map(r => r[campoTono]), mapeo.relleno_media)
 
 | Regla | Fuente |
 |---|---|
-| `rasgo_tono` viene en `rasgos.json` y en `_mapeo.json` **solo si no es `"media"`**. Sin la clave, el tono sale de `media` (así los `_mapeo.json` de GISTEMP y SST no cambian) | `06:108` |
-| Ese rasgo sustituye a `media` en la **nota** (§2.1), la **densidad** y el **evento fuerte** (§2.5), y la `referencia` del **dron** (§2.2) va en sus unidades | `06:108-118` |
-| `vmin_sonido` y `vmax_sonido` son **obligatorios** y van en las unidades del rasgo (en `dif_hemisferios`, °C de diferencia); `vmin`/`vmax` de la paleta no sirven | `06:115-117` |
-| Dato ausente (`null`, p. ej. un hemisferio sin píxeles válidos): el último valor válido; al inicio, `relleno_media` = `(vmin_sonido + vmax_sonido) / 2` (con `media` es `(vmin + vmax) / 2`) | `06:110,118` |
-| `densidad_umbrales` y `umbral_evento`, si se dan, van en las unidades del rasgo; si faltan, salen del rango de sonido como siempre | `06:127-128`, `06:167` |
-| **No cambian**: el volumen (sigue saliendo de `area`, §2.3) y el paneo (sigue saliendo del centroide, §2.4) | `06:119`, `06:145-156` |
+| `rasgo_tono` viene en `rasgos.json` y en `_mapeo.json` **solo si no es `"media"`**. Sin la clave, el tono sale de `media` (así los `_mapeo.json` de GISTEMP y SST no cambian) | `06:72` |
+| Ese rasgo sustituye a `media` en la **nota** (§2.1), la **densidad** y el **evento fuerte** (§2.5), y la `referencia` del **dron** (§2.2) va en sus unidades | `06:72-82` |
+| `vmin_sonido` y `vmax_sonido` son **obligatorios** y van en las unidades del rasgo (en `dif_hemisferios`, °C de diferencia); `vmin`/`vmax` de la paleta no sirven | `06:79-81` |
+| Dato ausente (`null`, p. ej. un hemisferio sin píxeles válidos): el último valor válido; al inicio, `relleno_media` = `(vmin_sonido + vmax_sonido) / 2` (con `media` es `(vmin + vmax) / 2`) | `06:74,82` |
+| `densidad_umbrales` y `umbral_evento`, si se dan, van en las unidades del rasgo; si faltan, salen del rango de sonido como siempre | `06:91-92`, `06:131` |
+| **No cambian**: el volumen (sigue saliendo de `area`, §2.3) y el paneo (sigue saliendo del centroide, §2.4) | `06:83`, `06:109-120` |
 | El JS debe leer el rasgo del `<id>_rasgos.json` de la web: `exportar_web` copia todos los campos de cada rasgo, así que `dif_hemisferios`, `media_norte` y `media_sur` llegan si 05 los escribió | |
 
 Hoy ninguna pista del catálogo lo usa. Ejemplo para el mar (decisión pendiente del equipo): `"rasgo_tono": "dif_hemisferios"`, `"vmin_sonido": 1.5`, `"vmax_sonido": 8.3`, `"referencia": 5.08`.
@@ -170,11 +170,11 @@ Hoy ninguna pista del catálogo lo usa. Ejemplo para el mar (decisión pendiente
 
 | Regla | Valor | Fuente |
 |---|---|---|
-| Melodía = GM 13 (marimba); dron = GM 90 (pad sostenido). Con muestras de SoundFont; Web Audio no las tiene (ver §6) | `instrumento_melodia` 13, `dron_programa` 90 | `06:159`, `06:74-76` |
-| Reverb: CC91 = 50 (≈ 39 % de envío) en los dos canales | `reverb` 50 | `06:158`, `06:231-234` |
-| Humanizar: ±10 ms en el inicio y ±10 % en la velocidad, con `numpy.random.default_rng(12345)` | `humanizar` true | `06:218-226` |
-| Fundido final de 50 ms y limitador `tanh(1,5·x)` normalizado a pico 0,85 | | `06:315-316`, `sin:123-126` |
-| Respaldo numpy (el timbre reproducible con osciladores): melodía = oscilador `suave` (seno + 0,35·2.º + 0,15·3.er armónico, ÷1,5) con glide de 10 ms, `0.5 * ganancia`; golpe = triangular de 0,35 s con ADSR (a 3 ms, d 120 ms, s 0, r 50 ms), `0.35 * vel/90`; dron = seno | | `06:329-341`, `sin:31-41,53-67` |
+| Melodía = GM 13 (marimba); dron = GM 90 (pad sostenido). Con muestras de SoundFont; Web Audio no las tiene (ver §6) | `instrumento_melodia` 13, `dron_programa` 90 | `06:123`, `06:38-40` |
+| Reverb: CC91 = 50 (≈ 39 % de envío) en los dos canales | `reverb` 50 | `06:122`, `06:195-198` |
+| Humanizar: ±10 ms en el inicio y ±10 % en la velocidad, con `numpy.random.default_rng(12345)` | `humanizar` true | `06:182-190` |
+| Fundido final de 50 ms y limitador `tanh(1,5·x)` normalizado a pico 0,85 | | `06:279-280`, `sin:111-114` |
+| Respaldo numpy (el timbre reproducible con osciladores): melodía = oscilador `suave` (seno + 0,35·2.º + 0,15·3.er armónico, ÷1,5) con glide de 10 ms, `0.5 * ganancia`; golpe = triangular de 0,35 s con ADSR (a 3 ms, d 120 ms, s 0, r 50 ms), `0.35 * vel/90`; dron = seno | | `06:293-305`, `sin:32-42,54-68` |
 
 ## 4. Valores por pista (resumen; la fuente es `_mapeo.json`)
 

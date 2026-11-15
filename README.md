@@ -91,7 +91,7 @@ Obligatorias: `video`, `mapa` y `barra` (rectángulos `[x0, y0, x1, y1]` en píx
 | Clave opcional | Por defecto | Para qué |
 |---|---|---|
 | `barra_imagen` | — | leer la barra de un PNG aparte |
-| `escala` | 1.0 | reducir el mapa antes de procesar (0.25 para 4096×2048) |
+| `escala` | 1.0 | reducir el mapa antes de procesar (0.25 para 4096×2048); los rectángulos siguen en píxeles del video original |
 | `ponderar_latitud` | false | media ponderada por cos(latitud) en mapas equirectangulares completos |
 | `fechas` | — | `time.txt` (un año por línea) o un archivo `ID  AAAA-MM-DDTHH:MMZ` (2.ª columna) → añade `fecha` a cada rasgo |
 | `fechas_formato` | `"anio"` | `"mes"` → `"mar 2007"` (solo con fechas ISO; con `time.txt` siempre es el año) |
@@ -102,11 +102,25 @@ Obligatorias: `video`, `mapa` y `barra` (rectángulos `[x0, y0, x1, y1]` en píx
 | `densidad_umbrales` | 50 % y 72 % del rango de sonido | `[u1, u2]`: media bajo u1 → 1 nota; hasta u2 → 2; más → 4 |
 | `paneo` | `"x"` | eje del paneo: `"x"` izquierda–derecha del mapa, `"y"` sur–norte (si el centroide recorre menos del 10 % del mapa, el paneo se reduce) |
 | `dron_octava` | 0 | octavas extra del dron (0 = una octava bajo la melodía) |
-| `ligar`, `suavizado`, `densidad`, `regolpe_ligado`, `regolpe_vel`, `umbral_evento`, `octava`, `humanizar`, `dron_nivel`, `dron_programa`, `instrumento_melodia`, `reverb` | ver cabecera de 06 | musicalidad de 06 (por defecto: ligar, suavizado 3, densidad, octava +1, humanizar, re-golpe suave de las notas ligadas en cada fotograma, ataque fuerte si la media cruda cambia más de 1/12 del rango de sonido (0,15 en GISTEMP; clave `umbral_evento`), dron pad 90, marimba 13); `ligar: false, suavizado: 0, densidad: false, octava: 0, humanizar: false` = sonido simple |
+| `rasgo_tono` | `"media"` | rasgo que 06 convierte en nota (p. ej. `"dif_hemisferios"`); entonces `vmin_sonido`/`vmax_sonido` son obligatorios y, con `referencia`, `densidad_umbrales` y `umbral_evento`, van en las unidades de ese rasgo |
+| `hemisferios` | false | añade `media_norte`, `media_sur` y `dif_hemisferios` a cada rasgo (supone un mapa de +90 a −90) |
+| `ligar` | true | misma nota que la anterior → se extiende en vez de volver a atacar |
+| `suavizado` | 3 | media móvil centrada de N fotogramas sobre la media (0 o 1 = sin suavizar) |
+| `densidad` | true | false = una nota por fotograma |
+| `regolpe_ligado`, `regolpe_vel` | 1, 0.7 | una nota ligada se vuelve a tocar cada N fotogramas (0 = nunca), a esa fracción de su velocidad |
+| `umbral_evento` | 1/12 del rango de sonido | si la media cruda cambia más que esto entre fotogramas, ataque fuerte (velocidad ≥ 100) aunque la nota no cambie |
+| `octava` | 1 | desplaza melodía y dron (+1 = una octava arriba) |
+| `humanizar` | true | velocidad ±10 % y tiempo ±10 ms, con semilla fija |
+| `instrumento_melodia`, `dron_programa` | 13, 90 | programas GM numerados desde 1 (marimba y pad; el pad 89 se apaga en ~6 s en FluidR3) |
+| `dron_nivel` | 0.048 | volumen del dron (con FluidSynth queda ~7 dB bajo la marimba) |
+| `reverb` | 50 | CC91, 0–127 |
 | `validos_min` | 0.5 (0.1 con `matiz`) | aviso si la mediana de `validos` queda por debajo |
 | `dist_max` | 8.0 | distancia de color (Lab) máxima para aceptar un píxel |
-| `mascara_estatica`, `umbral_estatico`, `frac_estatico` | true, 3.0, 0.7 | descartar tierra, costas y logos que no cambian |
+| `mascara_estatica`, `umbral_estatico`, `frac_estatico` | true, 3.0, 0.7 | descartar tierra, costas y logos: un píxel es estático si en el 70 % de los fotogramas queda a ≤ 3 niveles de su mediana |
 | `mascara_imagen` | — | máscara a mano (PNG, negro = descartar) |
+| `borde_px` | 1 | píxeles descartados alrededor de lo no válido (antialias de costas y texto; 0 con líneas finas) |
+
+Para el sonido sin adornos: `ligar: false, suavizado: 0, densidad: false, octava: 0, humanizar: false`.
 
 ## Contrato de datos (`rasgos.json`)
 

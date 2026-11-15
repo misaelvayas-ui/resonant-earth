@@ -1,13 +1,9 @@
-"""exportar_web.py — MP4 y rasgos de la web (web/assets/) hechos con la MISMA salida que el demo, con comprobación de audio.
+"""exportar_web.py — MP4 y rasgos de web/assets hechos con la misma salida que el demo.
 
-Uso (desde la raíz):  python -m herramientas.exportar_web [--gistemp salidas_gistemp] [--sst salidas_sst] [--destino web/assets]
-Por pista (ids del catálogo propuesto) toma la carpeta de salidas (05 + 06 + 08 con ROCOLA_SALIDAS) y escribe
-  <destino>/<id>.mp4               1024x512, libx264 CRF 28 (más alto si pasa de 25 MB), AAC 128 k, video ORIGINAL sin texto
-                                   (rasgos.json["fuente"], en datos/) estirado al largo de <carpeta>/rocola.wav
-  <destino>/<id>_rasgos.json       rasgos.json con "t_video" (como web/preparar_datos.py)
-  <destino>/<id>_procedencia.json  sha256 de rocola.wav, rasgos.json y del MP4: de qué audio salió
-y comprueba que el audio del MP4 ES el de rocola.wav (RMS y balance L/R por ventana de 0,5 s en las ventanas con señal) y, si
-la carpeta tiene demo_*.mp4, también el de ese demo. Si no coincide, aborta con el detalle.
+Uso (desde la raíz):  python -m herramientas.exportar_web [--gistemp DIR] [--sst DIR] [--destino web/assets]
+Por pista escribe <id>.mp4 (video original sin texto, 1024x512, estirado al largo de rocola.wav), <id>_rasgos.json
+(con "t_video") y <id>_procedencia.json (sha256 de lo que se usó). Aborta si el audio del MP4 no es el de rocola.wav
+(RMS y balance L/R por ventana de 0,5 s).
 """
 import argparse
 import hashlib
@@ -21,7 +17,7 @@ import tempfile
 import numpy as np
 from scipy.io import wavfile
 
-SEG_POR_FOTOGRAMA = 0.5            # 06_rasgos_a_audio.py: igual que en web/preparar_datos.py
+SEG_POR_FOTOGRAMA = 0.5            # igual que en 06_rasgos_a_audio.py
 PISTAS = {"gistemp_1880_2023": "gistemp", "sst_ecco2_2007_2008": "sst"}
 MAX_MB = 25
 VENTANA = 0.5                      # s

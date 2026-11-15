@@ -1,12 +1,7 @@
 /* Escucha la Tierra · Resonant Earth
-   Negro puro, la Tierra como protagonista y un solo acento frío (#86cdfa) que solo aparece en lo que suena
-   o responde: anillo y halo del globo, pista elegida, visualizador, cursor del gráfico, avance, nodos del
-   pipeline y brillo que sigue al cursor. Texto, bordes y botones en reposo son blancos y grises.
-
-   Contraste (WCAG) en el peor caso, encima de una zona blanca del globo:
-     --vidrio-globo sobre blanco (#313439): tinta 11,5 · tinta-2 7,6 · tinta-3 4,8 · acento 7,2
-     velo del titular sobre blanco (#474747): tinta 8,6 · tinta-2 5,6 (sobre el velo no se usa tinta-3)
-   Sobre negro: tinta 19,3 · tinta-2 12,7 · tinta-3 8,0 · acento 12,1 · borde de controles 5,8. */
+   Negro puro y un solo acento frío (#86cdfa), reservado a lo que suena o responde; lo demás, blancos y grises.
+   Contraste WCAG en el peor caso (texto sobre una zona blanca del globo, con --vidrio-globo): tinta 11,5 ·
+   tinta-2 7,6 · tinta-3 4,8 · acento 7,2. Sobre el velo del titular no se usa tinta-3. */
 
 /* ---------- fuentes (SIL OFL, ver assets/fonts/LICENSE-*) ---------- */
 @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-latin-300-normal.woff2") format("woff2"); font-weight: 300; font-style: normal; font-display: swap; }

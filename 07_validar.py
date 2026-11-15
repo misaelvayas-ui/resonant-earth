@@ -1,11 +1,8 @@
 """
-07 — Validación objetiva del prototipo (no solo "a oído").
+07 — Validación objetiva del audio (no solo a oído) -> validacion.png + PASA/FALLA.
 
-1. Tono de la nota base de cada fotograma (control.json) -> debe coincidir con el de rocola.wav;
-   el trazo principal sube en escalera. Los arpegios no se miden.
-2. Balance L/R por ventana      -> debe ir hacia la derecha (+R) donde hay zona caliente (area >= 0,01; antes, al centro).
-3. Comprobaciones automáticas con PASA/FALLA.
-Genera validacion.png.
+  - el tono de rocola.wav en cada fotograma coincide con la nota base de control.json (los arpegios no se miden);
+  - el balance L/R va hacia donde está la zona caliente (al centro con area < 0,01).
 """
 import json
 import os

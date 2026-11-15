@@ -1,10 +1,7 @@
-"""web/hacer_icono.py — dibuja por código el ícono de la pestaña (no sale del logo ni de ninguna IA de imágenes).
+"""web/hacer_icono.py — dibuja por código el ícono de la pestaña: un círculo oscuro con una onda de lila a turquesa.
 
-Uso (desde la raíz del proyecto):  python web/hacer_icono.py
-Resultado: web/assets/icono-64.png (pestaña, fondo transparente) e icono-180.png (acceso directo, fondo negro).
-
-Dibujo: un círculo oscuro (el color de los paneles de la web) con un borde fino y una onda de sonido
-que va del lila (#cdbfff) al turquesa (#a8ece4), los dos acentos de la web. Necesita Pillow.
+Uso (desde la raíz del proyecto):  python web/hacer_icono.py   (necesita Pillow)
+Resultado: web/assets/icono-64.png (fondo transparente) e icono-180.png (fondo negro).
 """
 import math
 import os

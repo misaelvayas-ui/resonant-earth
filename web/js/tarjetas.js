@@ -8,7 +8,9 @@ export function iniciarTarjetas() {
   document.addEventListener("pointermove", (ev) => {
     const t = ev.target.closest && ev.target.closest("[data-brillo]");
     if (!t) return;
+    const hayCuadro = pendiente !== null;     // un solo cuadro en espera: se usa la posición más reciente
     pendiente = { t, x: ev.clientX, y: ev.clientY };
+    if (hayCuadro) return;
     requestAnimationFrame(() => {
       if (!pendiente) return;
       const { t: el, x, y } = pendiente;

@@ -1,63 +1,15 @@
 """
-05 — Video -> fotogramas -> inversión de paleta -> rasgos por fotograma -> rasgos.json
+05 — Video -> salidas/rasgos.json: un registro por fotograma muestreado (media, area, centroides, cambio, validos).
 
-Pasos:
-  1. Muestrea el video a 'fps_muestreo' (no hace falta procesar los 30 fps).
-  2. Recorta la zona de datos (fuera textos, logos, barra).
-  3. INVIERTE LA PALETA: lee la barra de colores del propio video, arma una tabla
-     color -> valor y asigna a cada píxel el valor del color más cercano en espacio
-     CIE Lab (Lab es perceptual: la distancia euclídea ahí ≈ diferencia que ve el ojo).
-     No cuentan (NaN):
-       - píxeles demasiado lejos de cualquier color de la barra (texto, costas oscuras);
-       - píxeles ESTÁTICOS (tierra gris, máscaras, logos): en una paleta divergente el gris
-         claro se parece al blanco del centro y se colaría. Un píxel es estático si, en al menos
-         'frac_estatico' de los fotogramas muestreados, queda a <= 'umbral_estatico' niveles de
-         su MEDIANA temporal. La mediana ignora los fotogramas atípicos (negros, sin datos,
-         fundidos, títulos): tolera hasta un (1 - frac_estatico) de ellos sin perder la máscara;
-       - un borde de 'borde_px' alrededor de todo lo anterior (antialias de costas/texto).
-  4. Rasgos: media, fracción de área sobre umbral, centroide x de lo caliente, cambio.
+  1. Muestrea el video a 'fps_muestreo' y recorta el mapa.
+  2. Invierte la paleta: cada píxel toma el valor del color más cercano de la barra en CIE Lab (la distancia
+     ahí ≈ la diferencia que ve el ojo) o, con "modo_color": "matiz", el de matiz HSV más cercano.
+  3. Descarta (NaN) los píxeles lejos de la paleta, los estáticos (tierra, logos: casi siempre iguales a su
+     mediana temporal, que ignora los fotogramas negros o de título) y un borde de 'borde_px' a su alrededor.
+  4. Calcula los rasgos de cada fotograma.
 
-Uso:  python 05_video_a_rasgos.py [config/config_video.json]   (desde la raíz del proyecto)
-Para un video real del EIC: abre un fotograma (guardado como 'salidas/fotograma_ref.png'),
-mide los rectángulos del mapa y de la barra en píxeles y edita el config.
-
-Claves opcionales del config (valores por defecto):
-  "dist_max": 8.0           distancia Lab máxima para aceptar un color de la barra
-  "mascara_estatica": true  descartar píxeles que casi nunca cambian
-  "umbral_estatico": 3.0    distancia máxima por canal (niveles 0-255) a la mediana para 'no cambiar'
-  "frac_estatico": 0.7      fracción mínima de fotogramas cerca de la mediana para ser estático
-                            (0,7 tolera hasta 30 % de fotogramas atípicos)
-  "borde_px": 1             píxeles extra descartados alrededor de lo no válido
-  "mascara_imagen": null    PNG del tamaño del recorte: negro = descartar (máscara a mano)
-  "escala": 1.0             factor de reducción del recorte del mapa antes de procesar (0.25 para
-                            un video de 4096x2048). Los rectángulos del config SIEMPRE van en
-                            píxeles del video original. Más rápido; INTER_AREA mezcla los bordes
-                            (los absorbe borde_px y dist_max)
-  "ponderar_latitud": false true = la media pesa cada fila por cos(latitud), suponiendo que el
-                            recorte del mapa cubre de +90 a -90 (equirectangular)
-  "fechas": null            ruta a un time.txt (una línea por fotograma del video) o a un archivo
-                            "ID  AAAA-MM-DDTHH:MMZ" (se usa la 2.ª columna): añade el campo "fecha" a
-                            cada rasgo (ver fechas.py)
-  "fechas_formato": "anio"  "anio" -> 2007 | "mes" -> "mar 2007" (solo con fechas ISO; GISTEMP sigue en año)
-  "modo_color": "lab"       "lab": color más cercano en CIE Lab (paletas que el video reproduce igual que
-                            la barra). "matiz": solo cuenta el MATIZ (HSV): para videos cuyo color pierde
-                            brillo/saturación según otra variable (líneas de flujo sobre fondo oscuro, p. ej.
-                            ECCO2). Entonces 'dist_max' son unidades de matiz de OpenCV (0-179; 2 = 4°)
-  "validos_min": 0.5 (0.1 con "matiz")   AVISO si la mediana de 'validos' queda por debajo (en "matiz" solo las
-                            líneas brillantes son dato, p. ej. ~0,26 en ECCO2)
-  "brillo_min", "saturacion_min": 60, 60   (solo "matiz") V y S mínimos (0-255) para que un píxel cuente;
-                            descartan el fondo oscuro y la tierra gris
-  "hemisferios": false      true = añade a cada rasgo media_norte, media_sur (media de cada hemisferio, filas
-                            pesadas por cos(latitud)) y dif_hemisferios = media_norte - media_sur. Supone que
-                            el recorte del mapa cubre de +90 a -90. Sin la clave, rasgos.json no cambia
-  "rasgo_tono": null        rasgo que 06 convierte en nota en lugar de "media" (p. ej. "dif_hemisferios");
-                            se copia a rasgos.json (ver la cabecera de 06)
-  "referencia": null        valor que 06 usa para el dron (se copia a rasgos.json)
-  "vmin_sonido", "vmax_sonido": null   rango que 06 usa para mapear media -> nota (por defecto
-                            vmin/vmax; se copian a rasgos.json). No afectan a la paleta de 05
-  "dron_octava", "dron_nivel", "instrumento_melodia", "dron_programa", "reverb", "ligar", "suavizado",
-  "densidad", "octava", "humanizar", "densidad_umbrales", "regolpe_ligado", "regolpe_vel", "umbral_evento", "paneo": null   ajustes musicales de 06 (ver su cabecera; valores por defecto
-                            allí); se copian a rasgos.json
+Uso:  python 05_video_a_rasgos.py [config/config_video.json]
+Claves del config: README, sección "Configuración de 05". Las musicales pasan tal cual a rasgos.json para 06.
 """
 import json
 import sys
@@ -80,7 +32,7 @@ except json.JSONDecodeError as e:
 _faltan = [k for k in ("video", "mapa", "barra", "vmin", "vmax", "umbral", "fps_muestreo", "barra_vertical")
            + (("barra_arriba_es_max",) if cfg.get("barra_vertical") else ()) if k not in cfg]
 if _faltan:
-    sys.exit(f"Faltan claves obligatorias en '{_ruta_cfg}': {', '.join(_faltan)} (ver la cabecera de 05 y el README).")
+    sys.exit(f"Faltan claves obligatorias en '{_ruta_cfg}': {', '.join(_faltan)} (ver el README, «Configuración de 05»).")
 DIST_MAX = cfg.get("dist_max", 8.0)
 ESC = cfg.get("escala", 1.0)
 MODO = cfg.get("modo_color", "lab")
@@ -110,7 +62,7 @@ class TablaMatiz:
         self.h = h[self.orden]
         self.s_min, self.v_min = s_min, v_min
 
-    def query(self, bgr):
+    def query(self, bgr, workers=None):          # 'workers' solo iguala la firma de cKDTree.query
         hsv = cv2.cvtColor(np.ascontiguousarray(bgr, np.uint8).reshape(-1, 1, 3), cv2.COLOR_BGR2HSV).reshape(-1, 3)
         mejor, idx = np.full(len(hsv), np.inf), np.zeros(len(hsv), int)
         for vuelta in (-180, 0, 180):                       # el matiz es circular: se prueba cada vuelta
@@ -212,7 +164,7 @@ def mascara_fija(paso):
 
 def invertir(frame, arbol, vals, fija):
     zona = recortar(frame)
-    d, idx = arbol.query(zona.reshape(-1, 3) if MODO == "matiz" else a_lab(zona))
+    d, idx = arbol.query(zona.reshape(-1, 3) if MODO == "matiz" else a_lab(zona), workers=-1)
     campo = vals[idx].astype(float).reshape(zona.shape[:2])
     malo = (d.reshape(zona.shape[:2]) > DIST_MAX) | fija    # no pertenece a la paleta
     b = cfg.get("borde_px", 1)
