@@ -366,7 +366,7 @@ Además, V1 a V23 deben seguir en PASA sin tocar sus condiciones.
 
 1. Cargar la página y **no tocar nada** 10 s: no hay avisos de autoplay en la consola ni `AudioContext` creado.
 2. Elegir GISTEMP, pasar a «Sonido en vivo» y reproducir: la melodía sube a lo largo de la pista y la nota grave no se interrumpe nunca.
-3. Con auriculares, en GISTEMP hacia 2000 a 2023: el sonido se va a la derecha (norte), igual que en la pista original.
+3. Con auriculares, en GISTEMP: el sonido se inclina a la derecha hacia 1918–1953 (el calor más al norte de lo habitual) y vuelve hacia el centro en 1993–2023; igual que en la pista original. (Corregido: antes decía «derecha hacia 2000–2023», que no es lo que dan los datos.)
 4. Alternar original y vivo mientras suena: no hay clics, el tiempo no salta y la nota que suena es la misma altura en los dos modos.
 5. Pausar, reanudar, arrastrar la barra, clic en el gráfico, ← →, Espacio: el sonido en vivo sigue al video en menos de medio segundo.
 6. Dejar terminar la pista: el sonido se apaga, el estado dice «Terminó» y Reproducir vuelve a empezar con sonido.
