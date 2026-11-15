@@ -8,6 +8,7 @@ const NS = "http://www.w3.org/2000/svg";
 const AN = 600, AL = 140, MARGEN = 12;
 let serie = null;      // {puntos: [[x, y]], dur}
 let linea = null, punto = null, seleccion = null;
+let ariaVivo = null;   // (fraccion) → pone al día aria-valuenow/valuetext con la posición del video, o null si el gráfico no es interactivo
 
 function el(nombre, atrib, padre) {
   const e = document.createElementNS(NS, nombre);
@@ -27,7 +28,7 @@ export function dibujarGraficoPista(contenedor, pista, doc, alElegir) {
   contenedor.textContent = "";
   for (const a of ["role", "tabindex", "aria-label", "aria-describedby", "aria-valuemin", "aria-valuemax", "aria-valuenow", "aria-valuetext"]) contenedor.removeAttribute(a);
   contenedor.classList.remove("grafico-activo");
-  serie = null; linea = punto = seleccion = null;
+  serie = null; linea = punto = seleccion = null; ariaVivo = null;
   const R = (doc ? doc.rasgos : []).map((r, i) => ({ r, i })).filter((x) => x.r.media != null);
   if (R.length < 2) {
     contenedor.textContent = "Sin datos para el gráfico";
@@ -64,21 +65,32 @@ export function dibujarGraficoPista(contenedor, pista, doc, alElegir) {
 function hacerInteractivo(contenedor, svg, pista, doc, R, alElegir) {
   if (!alElegir) return;
   let k = 0;                                             // posición elegida dentro de R
-  let ultimaTecla = 0;                                   // mientras se navega con flechas, k no sigue al video
+  let ultimaTecla = -Infinity;                                   // mientras se navega con flechas, k no sigue al video
   const texto = () => frase(pista, doc, R[k].i, true);
   const mostrar = () => {
     seleccion.setAttribute("x1", serie.puntos[k][0]); seleccion.setAttribute("x2", serie.puntos[k][0]);
     contenedor.setAttribute("aria-valuenow", String(k));
     contenedor.setAttribute("aria-valuetext", texto());
   };
-  const masCercano = () => {
-    const x = serie.fraccion * AN;
+  const masCercano = (x = serie.fraccion * AN) => {
     let mejor = 0;
     serie.puntos.forEach((p, n) => { if (Math.abs(p[0] - x) < Math.abs(serie.puntos[mejor][0] - x)) mejor = n; });
     return mejor;
   };
   const sincronizar = () => { k = masCercano(); mostrar(); };
-  const ir = (seg) => { alElegir(Math.max(0, Math.min(pista.duracion_s, seg))); ultimaTecla = 0; };
+  const ir = (seg) => { alElegir(Math.max(0, Math.min(pista.duracion_s, seg))); ultimaTecla = -Infinity; };
+  let ultimoAria = 0;                                    // instante de la última actualización por reproducción
+  // Mientras suena, el valor del slider sigue al video: solo al cambiar de fotograma y, como mucho, una vez por segundo
+  // (un lector de pantalla anuncia cada cambio de un slider enfocado). No pisa lo que el usuario elige con las flechas.
+  ariaVivo = () => {
+    const ahora = performance.now();
+    if (ahora - ultimaTecla <= 4000 || ahora - ultimoAria < 1000) return;
+    const nuevo = masCercano();
+    if (nuevo === k) return;
+    k = nuevo;
+    ultimoAria = ahora;
+    mostrar();
+  };
   contenedor.setAttribute("role", "slider");
   contenedor.setAttribute("tabindex", "0");
   contenedor.setAttribute("aria-label", "Gráfico de la pista. Flechas izquierda y derecha eligen un momento; Enter salta hasta él");
@@ -104,7 +116,11 @@ function hacerInteractivo(contenedor, svg, pista, doc, R, alElegir) {
   contenedor.addEventListener("click", (ev) => {
     const caja = svg.getBoundingClientRect();
     if (caja.width <= 0) return;
-    ir(Math.max(0, Math.min(1, (ev.clientX - caja.left) / caja.width)) * pista.duracion_s);
+    const f = Math.max(0, Math.min(1, (ev.clientX - caja.left) / caja.width));
+    ir(f * pista.duracion_s);
+    k = masCercano(f * AN);                              // el valor del slider cambia ya, sin esperar al siguiente cuadro
+    ultimoAria = performance.now();
+    mostrar();
   });
 }
 
@@ -112,6 +128,7 @@ export function moverCursor(fraccion) {
   if (!serie || !linea) return;
   const f = Math.max(0, Math.min(1, fraccion));
   serie.fraccion = f;
+  if (ariaVivo) ariaVivo();
   const x = f * AN;
   const P = serie.puntos;
   let y = P[0][1];

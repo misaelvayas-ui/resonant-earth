@@ -1,4 +1,4 @@
-/* Pruebas de la web con Playwright y axe-core (V1 a V28).
+/* Pruebas de la web con Playwright y axe-core (V1 a V29).
    Uso:  NODE_PATH=<carpeta con node_modules> node web/pruebas/verificar.cjs <url> <carpeta de capturas>
    Imprime [PASA], [FALLA] u [OMITIDA] por comprobación y sale con código 1 si hay alguna [FALLA].
 
@@ -357,7 +357,7 @@ async function desplazarTodo(page) {
     `menú cerrado: nav ${cerrado.nav}; abierto: ${abierto.enlaces.join(", ")}; Esc -> aria-expanded ${trasEsc.exp}, foco en #${trasEsc.foco}; al elegir -> ${trasElegir.exp}, sección a ${trasElegir.y} px; carrusel de cifras enfocable: ${cifras390}`);
   await m3.ctx.close();
 
-  // ---- Sonido en vivo (V24 a V28) ----
+  // ---- Sonido en vivo y gráfico (V24 a V29) ----
   const vi = await nuevaPagina(browser);
   const vp = vi.page;
   await vp.goto(url, { waitUntil: "load" });
@@ -459,6 +459,28 @@ async function desplazarTodo(page) {
   });
   comprobar("V28", r28.length === 2 && r28.every((r) => r.dif >= 5.5 && r.dif <= 8.5 && r.minimo > -40 && r.caida <= 12),
     r28.map((r) => `${r.id}: dron ${r.dif.toFixed(2)} dB bajo la melodía (5,5 a 8,5), ventana más baja ${r.minimo.toFixed(1)} dB (> −40), mayor caída ${r.caida.toFixed(1)} dB (≤ 12)`).join("; "));
+
+
+  // V29: aria-valuenow/valuetext del gráfico siguen al video sin saturar al lector (máx. 1 por segundo) y cambian al instante con el clic
+  const g29 = await nuevaPagina(browser);
+  const gp = g29.page;
+  await gp.goto(url, { waitUntil: "load" });
+  await esperar(2000);
+  await gp.click("button.pista >> nth=0");
+  await gp.waitForFunction(() => window.__web.audio.estado().sonando, null, { timeout: 15000 });
+  await gp.evaluate(() => { window.__aria = []; new MutationObserver((ms) => ms.forEach((m) => { if (m.attributeName === "aria-valuetext") window.__aria.push(performance.now()); }))
+    .observe(document.getElementById("grafico-pista"), { attributes: true }); });
+  await esperar(6000);
+  const marcas = await gp.evaluate(() => window.__aria.slice());
+  const hueco29 = marcas.slice(1).map((t, i) => t - marcas[i]);
+  await gp.evaluate(() => document.getElementById("grafico-pista").scrollIntoView({ block: "center", behavior: "instant" }));
+  const c29 = await gp.$eval("#grafico-pista svg", (e) => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  await gp.mouse.click(c29.x + c29.w * 0.75, c29.y + c29.h / 2);
+  await esperar(150);
+  const clic29 = await gp.$eval("#grafico-pista", (e) => ({ now: e.getAttribute("aria-valuenow"), texto: e.getAttribute("aria-valuetext") }));
+  comprobar("V29", marcas.length >= 3 && marcas.length <= 7 && hueco29.every((h) => h >= 950) && clic29.now === "45" && /^1993:/.test(clic29.texto),
+    `en 6 s de reproducción: ${marcas.length} cambios de aria-valuetext (3 a 7), separación mínima ${Math.round(Math.min(...hueco29))} ms (≥ 950); clic al 75 %: valuenow ${clic29.now}, valuetext «${clic29.texto}»`);
+  await g29.ctx.close();
 
   // V27: modo recordado por pista, axe con los controles habilitados, y 390 px
   await vp.click("#modo-sonido input[value=vivo]");
