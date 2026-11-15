@@ -1,4 +1,4 @@
-/* Pruebas de la web con Playwright y axe-core (V1 a V23).
+/* Pruebas de la web con Playwright y axe-core (V1 a V25).
    Uso:  NODE_PATH=<carpeta con node_modules> node web/pruebas/verificar.cjs <url> <carpeta de capturas>
    Imprime [PASA], [FALLA] u [OMITIDA] por comprobación y sale con código 1 si hay alguna [FALLA].
 
@@ -356,6 +356,63 @@ async function desplazarTodo(page) {
     && JSON.stringify(abierto.enlaces) === JSON.stringify(esperados) && trasEsc.exp === "false" && trasEsc.foco === "btn-menu" && trasElegir.exp === "false" && Math.abs(trasElegir.y) < 120 && cifras390 === "0",
     `menú cerrado: nav ${cerrado.nav}; abierto: ${abierto.enlaces.join(", ")}; Esc -> aria-expanded ${trasEsc.exp}, foco en #${trasEsc.foco}; al elegir -> ${trasElegir.exp}, sección a ${trasElegir.y} px; carrusel de cifras enfocable: ${cifras390}`);
   await m3.ctx.close();
+
+  // ---- Sonido en vivo (V24 a V25) ----
+  const vi = await nuevaPagina(browser);
+  const vp = vi.page;
+  await vp.goto(url, { waitUntil: "load" });
+  await esperar(2000);
+  // V24: el AudioContext no existe hasta un gesto; el modo por defecto es la pista original
+  const antes24 = await vp.evaluate(() => ({ ctx: window.__web.audio.contexto(), modo: window.__web.audio.modo(), selector: document.getElementById("modo-sonido").disabled }));
+  await vp.click("button.pista >> nth=0");
+  await vp.waitForFunction(() => window.__web.audio.estado().sonando, null, { timeout: 15000 });
+  await esperar(500);
+  const des24 = await vp.evaluate(() => ({ ctx: window.__web.audio.contexto() && window.__web.audio.contexto().state, modo: window.__web.audio.modo(), selector: document.getElementById("modo-sonido").disabled,
+    marcado: document.querySelector('input[name="modo-sonido"]:checked').value, ayuda: document.getElementById("modo-ayuda").textContent }));
+  comprobar("V24", antes24.ctx === null && antes24.modo === "original" && antes24.selector === true && des24.ctx === "running" && des24.modo === "original" && des24.selector === false && des24.marcado === "original" && /Pista original/.test(des24.ayuda),
+    `antes de tocar nada: AudioContext ${antes24.ctx}, selector deshabilitado ${antes24.selector}; tras elegir pista: contexto ${des24.ctx}, modo ${des24.modo}, marcado «${des24.marcado}», selector habilitado ${!des24.selector}`);
+
+  // V25: sonido en vivo con teclado; pausa, búsqueda, velocidad y final
+  await vp.click("#btn-reproducir");                                             // pausa la pista original
+  await vp.focus('input[name="modo-sonido"][value="original"]');
+  await vp.keyboard.press("ArrowRight");                                         // → «Sonido en vivo»
+  await esperar(300);
+  const modo25 = await vp.evaluate(() => ({ modo: window.__web.audio.modo(), activo: window.__web.vivo.estado().activo, estado: document.getElementById("estado-rocola").textContent }));
+  await vp.evaluate(() => window.__web.audio.buscar(0));
+  await vp.click("#btn-reproducir");
+  let fuertes25 = 0, maxAmp25 = 0;
+  for (let i = 0; i < 20; i++) { const a = await vp.evaluate(() => window.__web.audio.amplitud()); if (a > 0.02) fuertes25++; maxAmp25 = Math.max(maxAmp25, a); await esperar(150); }
+  const sonando25 = await vp.evaluate(() => ({ ...window.__web.vivo.estado(), t: window.__web.audio.estado().tiempo }));
+  // pausa
+  await vp.click("#btn-reproducir");
+  const calla = await vp.waitForFunction(() => window.__web.audio.amplitud() < 0.02, null, { timeout: 1000 }).then(() => true).catch(() => false);
+  const p1 = await vp.evaluate(() => window.__web.vivo.estado().programados); await esperar(600);
+  const p2 = await vp.evaluate(() => window.__web.vivo.estado().programados);
+  // búsqueda
+  await vp.click("#btn-reproducir");
+  await esperar(400);
+  await vp.evaluate(() => { window.__web.audio.buscar(20); });
+  const salto = await vp.waitForFunction(() => { const u = window.__web.vivo.estado().ultimo; return u && u.t >= 19.9; }, null, { polling: 20, timeout: 3000 }).then(() => true).catch(() => false);
+  const ult20 = await vp.evaluate(() => window.__web.vivo.estado().ultimo);
+  // velocidad ×2
+  await vp.evaluate(() => window.__web.audio.buscar(8)); await esperar(700);
+  const v0 = await vp.evaluate(() => ({ p: window.__web.vivo.estado().programados, t: window.__web.audio.estado().tiempo }));
+  await vp.evaluate(() => { document.getElementById("medio").playbackRate = 2; });
+  await esperar(2000);
+  const v1 = await vp.evaluate(() => ({ p: window.__web.vivo.estado().programados, t: window.__web.audio.estado().tiempo }));
+  await vp.evaluate(() => { document.getElementById("medio").playbackRate = 1; });
+  const golpesTramo = await vp.evaluate(async ([a, b]) => { const M = await import("/js/mapeo.js"); const D = await import("/js/datos.js"); const pi = (await D.cargarPistas())[0]; const m = await D.cargarMapeo(pi);
+    return M.eventos(m, M.calcularSerie(m, (await D.cargarRasgos(pi)).rasgos)).filter((x) => x.t >= a && x.t < b).length; }, [v0.t, v1.t]);
+  // final
+  await vp.evaluate(() => window.__web.audio.buscar(29));
+  await vp.waitForFunction(() => window.__web.audio.estado().terminado, null, { timeout: 15000 }).catch(() => {});
+  await esperar(400);
+  const fin25 = await vp.evaluate(() => ({ sonando: window.__web.vivo.estado().sonando, estado: document.getElementById("estado-rocola").textContent, boton: document.getElementById("btn-reproducir").textContent }));
+  comprobar("V25", modo25.modo === "vivo" && modo25.activo && /Sonido en vivo/.test(modo25.estado) && fuertes25 >= 5 && sonando25.programados > 3 && Math.abs(sonando25.ultimo.t - sonando25.t) < 0.3
+    && calla && p2 === p1 && salto && ult20.t >= 19.9 && ult20.t <= 20.6 && Math.abs((v1.p - v0.p) - golpesTramo) <= 2 && v1.t - v0.t > 3.5
+    && fin25.sonando === false && fin25.estado === "Terminó: Temperatura del planeta" && fin25.boton === "Reproducir",
+    `teclado → modo ${modo25.modo}; amplitud > 0,02 en ${fuertes25} de 20 (máx ${maxAmp25.toFixed(2)}), ${sonando25.programados} golpes, último a ${Math.abs(sonando25.ultimo.t - sonando25.t).toFixed(2)} s del video; pausa: calla ${calla}, golpes ${p1} -> ${p2}; buscar(20): último golpe ${ult20 && ult20.t}; ×2: ${(v1.t - v0.t).toFixed(1)} s de pista en 2 s, ${v1.p - v0.p} golpes de ${golpesTramo}; final: sonando ${fin25.sonando}, «${fin25.estado}»`);
+  await vi.ctx.close();
 
   await browser.close();
   console.log(fallas ? `\n${fallas} FALLA` : "\nTodo PASA (o está OMITIDA)");
