@@ -986,3 +986,14 @@ La web publicada es la carpeta web/ (.github/workflows/pages.yml sube "path: web
    porque entre 600 y 899 px la barra ya no mostraba ningún menú. La lista de pistas muestra "Cargando las pistas…" hasta que llega pistas.json.
 Pruebas: web/pruebas/verificar.cjs pasa a V1-V23 (V16 a V23 nuevas; V9 ahora usa segundos). Todo PASA con Chromium + axe, escritorio 1440, 1118 y 390 px (axe: 0 violaciones). evaluar.py: 44 PASA, 0 FALLA.
 No se hizo: Lighthouse, prueba con lector de pantalla real ni en un teléfono; los nombres de equipo.json siguen pendientes.
+
+RONDA 36 - exportar_web: protección de la fuente, prueba J4 de nuevo (rama misael/pulido-web)   (2026-11-15)
+La ronda 32 borró J4 junto con web/preparar_datos.py (evaluar.py pasó de 45 a 44 pruebas); su función la heredó herramientas/exportar_web.py, pero sin prueba y con dos huecos.
+1. Hueco 1: no comprobaba que rasgos.json fuera del video de la pista (pasar salidas_sst como --gistemp exportaba el mar como si fuera GISTEMP). Ahora VIDEOS fija el video original de
+   cada pista (2023GISTEMP_Map_SOS.mp4, ecco2_sst_flow.mp4) y exportar() aborta con el nombre de los dos videos si rasgos.json["fuente"] no coincide.
+2. Hueco 2: escribía el MP4 y los rasgos en web/assets ANTES de comparar el audio; si el audio de un demo_*.mp4 no coincidía, abortaba dejando archivos a medias. Ahora todo se arma en una
+   carpeta temporal y solo se mueve al destino cuando todo está comprobado. Sigue abortando antes de crear nada si el WAV no es de ese rasgos.json (rasgos x 0,5 s frente a la duración del WAV).
+3. evaluar.py, prueba J4 "exportar_web: protección de la fuente" (45 pruebas otra vez): con el video sintético y copias de la salida de 04-06, comprueba que (a) un rasgos.json de otro video aborta,
+   (b) un rocola.wav de la mitad de duración aborta, (c) un demo_*.mp4 con los canales invertidos aborta y (d) el caso en regla pasa; en los tres abortos el destino queda con 0 archivos y en (d) con 3.
+   Se probó contra el exportar_web.py anterior: falla (aceptaba (a) y dejaba 2 archivos en (c)). Se omite si no hay ffmpeg.
+evaluar.py: 45 PASA, 0 FALLA, 0 OMITIDA. Los MP4 de web/assets no se regeneraron.
