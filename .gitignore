@@ -6,3 +6,7 @@ datos/
 /salidas/
 /salidas_sst/
 /salidas_gistemp/
+.DS_Store
+.claude/
+node_modules/
+capturas/

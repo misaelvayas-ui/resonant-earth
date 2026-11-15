@@ -1013,3 +1013,37 @@ Plan: docs/PLAN_MODO_EN_VIVO.md (decisiones de Misael en la sección 1b, desviac
 Comprobado: node --test 13 PASA; evaluar.py 46 PASA, 0 FALLA; verificar.cjs completo PASA (Chromium + axe, webm en lugar de mp4); alternar original/vivo sonando mantiene el tiempo del video (Δ pista = Δ reloj) y no deja golpes en el original.
 NO comprobado (lista manual del plan, 5.4): Firefox de escritorio, Safari de macOS e iOS (los prueba otra persona del equipo; incluye el interruptor de silencio, el bloqueo de pantalla y que resume() funcione dentro del gesto),
 escucha con auriculares del paneo hacia la derecha, lector de pantalla real (Orca o NVDA) y pestaña oculta 10 s. Sin PR todavía.
+
+RONDA 38 - mejoras de docs/REVISION_Y_MEJORAS.md: macOS, informes que no se cortan, validación oficial, web de entrega (rama mejoras/ronda-38)   (2026-11-15)
+Base: master (ronda 36) + fusión de misael/en-vivo (ronda 37, modo de sonido en vivo). Máquina: macOS Intel, Python 3.13.4, ffmpeg 8.0.1 de Homebrew, Node 24, sin FluidSynth.
+1. Video en macOS (fallo 1 del PROMPT_SIGUIENTE_AGENTE y hallazgo H2). video_io.py nuevo: abrir_escritor() prueba cada método con un video diminuto que se vuelve a leer y usa el primero que sirve
+   (opencv mp4v -> ffmpeg mpeg4 -> ffmpeg h264 sin pérdida -> ffmpeg h264 -> opencv avc1); aborta con mensaje si ninguno. En esta Mac elige "ffmpeg mpeg4" (el mismo códec que mp4v en Linux).
+   Lo usan 04 y los 4 escritores de evaluar.py. 04 sale con error si el video no se puede releer. Medido: antes 04 no creaba archivo y evaluar.py moría sin tabla; con "opencv avc1" C1 fallaba (error 0,0130 > 0,01);
+   con "ffmpeg mpeg4" C1 pasa sin tocar el umbral.
+2. 08 sin drawtext (H2): el ffmpeg de Homebrew no trae ese filtro. 08 lo detecta (ffmpeg -filters) y dibuja cada rótulo en un PNG con Pillow (DejaVuSans de matplotlib) que superpone con overlay y un
+   ffconcat de duraciones; con drawtext sigue igual que antes. Además, al estirar el video se fija la cadencia del original (fps=...): con ffmpeg >= 7 el retardo de los B-frames pasaba de 0,1 a 0,2 s
+   (D1 fallaba; es lo que Juan vio en Windows, hallazgo 14 de la auditoría 3). Ahora D1 mide 0,100 s. No se tocó ningún umbral.
+3. evaluar.py: main() atrapa SystemExit (un sys.exit dentro de una prueba es un FALLA y la tabla se imprime) y Ctrl+C; si B1 falló, las que dependen de sus archivos salen OMITIDA con el motivo.
+   L1 lee el resumen de node --test de Node 22+ ("ℹ pass") además del de Node 18-20 ("# pass"): en Node 24 daba FALLA con las 13 pruebas pasando.
+   05: claves numéricas escritas como texto ("fps_muestreo": "4") dan un mensaje claro en vez de una traza (H15).
+4. Validación reproducible (H6): herramientas/validar_gistemp.py compara la media por año con la tabla oficial GISTEMP v4 (docs/datos_oficiales/GLB.Ts+dSST.csv, descargada el 15-nov-2026; --descargar la refresca).
+   Medido: 58 años, r = 0,9918, sesgo -0,09 °C, RMSE 0,11 °C, pendiente 1980-2023 0,196 (video) vs 0,183 °C/década (oficial), año más frío 1911 en los dos. Prueba nueva M1 (47 pruebas).
+5. Web:
+   - equipo.json: 4 integrantes (se añade Sebastian Valverde, Ingeniería de Software); se quitaron "Nombre Apellido 4/5" y los "Aporte al proyecto (editar)". Si "aporte" está vacío no se muestra.
+     El texto dice "Estudiantes de la UDLA" (antes "Cinco estudiantes"). FALTA: el quinto nombre, si lo hay, y el aporte de cada persona.
+   - Honestidad (H5): la tarjeta de la portada y el resumen del gráfico dicen "leído del mapa"; "El porqué" añade la comparación con la serie oficial (0,99; -0,09 y +1,17 °C).
+   - Créditos (H9) con el texto que piden las páginas de SVS 5207 y 3912. Vista previa al compartir (H11): Open Graph, canonical y assets/compartir.jpg (1200x630, 101 KB).
+   - Pista del mar (H7): 10,1 -> 4,4 MB recodificando solo el video (libx264 crf 33) con el audio copiado (-c:a copy, mismo MD5 del flujo); _procedencia.json lo anota. exportar_web: MAX_MB 25 -> 5.
+   - Más de dos pistas (H10): datos.js ya no exige exactamente 2 y "Cambiar de pista" recorre la lista en ciclo.
+   - Medidor (H13): la caída del nivel en pausa depende del tiempo y no de los cuadros por segundo (V11 fallaba en equipos lentos). Controles táctiles (H14): casillas de 24 px y barras de 24 px de alto.
+   - Botón "Antes y después": suenan los primeros 5 s y enseguida los últimos 5 s de la pista; se cancela al pausar o cambiar de pista.
+   - La cifra de pruebas de la portada pasa a 47 y V29 la compara con evaluar.py.
+6. Pruebas de la web: verificar.cjs pasa a V1-V30. Las capturas que fallan son [AVISO] (antes cortaban el informe en la línea 184 y escondían V2 y V14-V23); un error inesperado informa dónde se cortó.
+   V29: sin textos de relleno en equipo.json, cifra de pruebas = evaluar.py y og:image. V30: "Antes y después" con teclado. web/pruebas/package.json fija playwright 1.65.1 y @axe-core/playwright 4.14.0.
+7. CI: .github/workflows/pruebas.yml (evaluar.py en ubuntu-latest y macos-latest; verificar.cjs en Ubuntu) en cada PR y en master. NO se ha ejecutado en GitHub todavía (no se hizo push).
+   .gitignore: .DS_Store, .claude/, node_modules/, capturas/. README: guía de 5 minutos para el jurado, macOS, validar_gistemp. web/README: pruebas en una línea.
+Comprobado en esta Mac: evaluar.py 46 PASA, 0 FALLA, 1 OMITIDA (K1, sin FluidSynth); verificar.cjs V1-V30 todo PASA (Chromium de Playwright + axe, webm), con un AVISO de captura (pagina-768.png);
+node --test 13 PASA; camino real GISTEMP 05 -> 06 -> 07 -> 08 de punta a punta con el año sobre el video.
+NO comprobado: Linux y Windows (la ruta "opencv mp4v" no cambia, pero no se ejecutó); FluidSynth (K1); el CI en GitHub; Safari, iOS y Firefox para el modo en vivo; lector de pantalla y teléfono reales; escucha humana.
+NO hecho (queda en docs/REVISION_Y_MEJORAS.md): versión en inglés, "Adivina el año", descarga MIDI, tercera pista, CSP, cargar el 3D solo en equipos capaces, partir evaluar.py, limpieza de ramas e historial,
+la guía por voz (rama juan/guia-voz-ia-v2) y la decisión sobre el paneo de GISTEMP. No se publicó la web ni se hizo push.

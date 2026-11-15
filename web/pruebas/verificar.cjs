@@ -500,6 +500,24 @@ async function desplazarTodo(page) {
     `SST: «${sst27.marcado}»; GISTEMP al volver: «${gis27.marcado}» (modo ${gis27.modo}); axe 1440 ${axe27.violations.length} ${resumen27(axe27)}, 390 ${axeM27.violations.length} ${resumen27(axeM27)}; 390 px: ancho ${mov27.ancho}/${mov27.ventana}`);
   await vi.ctx.close();
 
+  // V30: «Antes y después»: suena el principio y salta solo al final (con teclado)
+  const ad = await nuevaPagina(browser, {});
+  await ad.page.goto(url, { waitUntil: "load" });
+  await esperar(1500);
+  const desactivado30 = await ad.page.$eval("#btn-comparar", (b) => b.disabled);
+  await ad.page.click("button.pista >> nth=0");
+  await ad.page.waitForFunction(() => window.__web.audio.estado().sonando, null, { timeout: 15000 }).catch(() => {});
+  await ad.page.focus("#btn-comparar");
+  await ad.page.keyboard.press("Enter");
+  await esperar(1500);
+  const fase1 = await ad.page.evaluate(() => ({ t: window.__web.audio.estado().tiempo, estado: document.getElementById("estado-rocola").textContent }));
+  const salto30 = await ad.page.waitForFunction(() => window.__web.audio.estado().tiempo >= 24.9, null, { timeout: 9000 }).then(() => true).catch(() => false);
+  await esperar(400);
+  const fase2 = await ad.page.evaluate(() => ({ t: window.__web.audio.estado().tiempo, sonando: window.__web.audio.estado().sonando, estado: document.getElementById("estado-rocola").textContent }));
+  await ad.ctx.close();
+  comprobar("V30", desactivado30 && fase1.t < 4 && fase1.estado.startsWith("Antes") && salto30 && fase2.t >= 24.9 && fase2.t < 28 && fase2.sonando && fase2.estado.startsWith("Después"),
+    `sin pista: deshabilitado ${desactivado30}; fase 1 a ${fase1.t.toFixed(1)} s «${fase1.estado}»; salto al final: ${salto30}; fase 2 a ${fase2.t.toFixed(1)} s «${fase2.estado}»`);
+
   // V29: contenido de entrega (sin navegador): nada de textos de relleno y la cifra de pruebas al día
   const raiz = path.join(__dirname, "..");
   const equipo = fs.readFileSync(path.join(raiz, "equipo.json"), "utf8");

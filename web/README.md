@@ -26,7 +26,7 @@ Abre <http://localhost:8001>. Con doble clic (`file://`) no carga: necesita un s
 |---|---|
 | `index.html`, `estilos.css` | estructura, textos fijos, tokens de diseño y componentes |
 | `pistas.json` | las 2 pistas: textos, rutas, plantilla de la lectura en vivo, resumen del gráfico |
-| `equipo.json` | los 5 integrantes (nombres de ejemplo: edítalos) |
+| `equipo.json` | integrantes: nombre, carrera y aporte (si `aporte` está vacío, no se muestra) |
 | `js/principal.js` | arranque y bucle único de animación |
 | `js/audio.js` | cargar, reproducir, volumen, amplitud y espectro; dos buses (audio del mp4 y sonido en vivo) y `desbloquear()` |
 | `js/mapeo.js` | cálculo puro del sonido en vivo (notas, dron, volumen, paneo, golpes) a partir de `_mapeo.json`; sin DOM ni Web Audio |
@@ -71,15 +71,18 @@ Los textos de cada pista están en `pistas.json`. La frase de la lectura en vivo
 
 ## Pruebas
 
-Necesitan Node 18 y Playwright, fuera del repositorio:
+Necesitan Node 18 o más. Las dependencias están fijadas en `web/pruebas/package.json`:
 
 ```bash
-mkdir /tmp/verif && cd /tmp/verif && npm init -y && npm i playwright @axe-core/playwright && npx playwright install chromium
-cd web && python -m http.server 8137 &
-NODE_PATH=/tmp/verif/node_modules node web/pruebas/verificar.cjs http://localhost:8137/ /tmp/capturas
+cd web/pruebas && npm install && npx playwright install chromium && cd ../..
+mkdir -p /tmp/webm && for id in gistemp_1880_2023 sst_ecco2_2007_2008; do ffmpeg -y -v error -i web/assets/$id.mp4 -c:v libvpx -b:v 400k -c:a libopus /tmp/webm/$id.webm; done
+(cd web && python -m http.server 8137 &)
+WEBM_DIR=/tmp/webm node web/pruebas/verificar.cjs http://localhost:8137/ /tmp/capturas
 ```
 
-El Chromium de Playwright no trae H.264 ni AAC. Para que reproduzca las pistas, convierte los mp4 a webm y pasa `WEBM_DIR` (ver la cabecera de `verificar.cjs`). Lighthouse se corre con `--preset=desktop`.
+El Chromium de Playwright no trae H.264 ni AAC: por eso las pruebas usan copias webm (`WEBM_DIR`). Son 30 comprobaciones (V1 a V30).
+Una captura que falla es un `[AVISO]` y no corta el informe. V29 falla si `equipo.json` tiene textos de relleno o si la cifra de
+pruebas de la portada no coincide con `evaluar.py`. V30 prueba el botón «Antes y después». Lighthouse se corre con `--preset=desktop`.
 
 ## Accesibilidad
 

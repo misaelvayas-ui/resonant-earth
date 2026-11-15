@@ -153,6 +153,8 @@ export async function elegir(id, opciones = {}) {
   $("leyenda-pista").textContent = p.leyenda;
   $("btn-reproducir").disabled = false;
   $("btn-cambiar").disabled = false;
+  $("btn-comparar").disabled = false;
+  comparacion = null;
   $("avance").disabled = false;
   $("avance").max = String(p.duracion_s);
   $("avance").value = 0;
@@ -196,6 +198,33 @@ function saltarA(seg) {
   if (actual && doc) lectura.actualizar(actual, doc, seg, false, true);
 }
 
+/* «Antes y después»: suenan los primeros TRAMO s de la pista y, enseguida, los últimos. Así se oye el cambio sin esperar. */
+const TRAMO = 5;
+let comparacion = null;             // null, o { fase: 1 | 2, inicio2 }
+async function comparar() {
+  if (!actual) return;
+  audio.desbloquear();                      // primero y sin await: es un gesto del usuario
+  const dur = audio.estado().duracion || actual.duracion_s;
+  if (dur < 2 * TRAMO + 1) return;
+  comparacion = null;
+  saltarA(0);
+  const ok = await audio.reproducir();
+  if (!ok) { decir("Pulsa Reproducir para escuchar."); return; }
+  comparacion = { fase: 1, inicio2: dur - TRAMO };
+  decir(`Antes: los primeros ${TRAMO} segundos de «${actual.titulo}».`);
+}
+function seguirComparacion(e) {
+  if (!comparacion) return;
+  if (!e.sonando) { comparacion = null; return; }           // pausa, final o cambio de pista: se cancela
+  if (comparacion.fase === 1 && e.tiempo >= TRAMO) {
+    comparacion.fase = 2;
+    saltarA(comparacion.inicio2);
+    decir(`Después: los últimos ${TRAMO} segundos.`);
+  } else if (comparacion.fase === 1 && e.tiempo > TRAMO + 1) {
+    comparacion = null;                                      // el usuario movió la pista a mano
+  }
+}
+
 async function alternar() {
   audio.desbloquear();                      // primero y sin await: el gesto del usuario tiene que seguir activo
   if (audio.estado().sonando) {
@@ -235,6 +264,8 @@ export function iniciarRocola(lista) {
   $("btn-reproducir").addEventListener("click", alternar);
   document.addEventListener("keydown", atajos);
   $("btn-cambiar").addEventListener("click", cambiar);
+  $("btn-comparar").addEventListener("click", comparar);
+  audio.alCambiar(seguirComparacion);
   $("volumen").addEventListener("input", (ev) => {
     audio.fijarVolumen(ev.target.value / 100);
     ev.target.setAttribute("aria-valuetext", `${ev.target.value} %`);

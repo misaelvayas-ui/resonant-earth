@@ -169,6 +169,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 6px; border: 1px solid
 input[type="range"], input[type="checkbox"] { accent-color: var(--acento); }
 input[type="checkbox"] { width: 1.5rem; height: 1.5rem; flex: none; }
 input[type="range"] { min-height: 1.5rem; }
+.grupo-volumen { display: inline-flex; align-items: center; gap: .6rem; }   /* la etiqueta y su barra no se separan al saltar de línea */
 #volumen { width: 120px; }
 #avance { width: 100%; margin: 0; }
 .grafico-pista { border: 1px solid var(--linea); border-radius: var(--r-control); padding: var(--e-3); }
