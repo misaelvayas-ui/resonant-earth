@@ -3,10 +3,10 @@
 
 const MENOS = "−";
 let el = null;
-let ultimo = { id: null, i: -1 };
+let ultimo = { id: null, i: -1 };       // lo que muestra el panel
+let anunciado = { id: null, i: -1 };    // lo último que se envió al lector de pantalla
 let ultimoAnuncio = 0;
-let pendiente = null;
-let temporizador = null;
+let espera = 0;                         // ms mínimos hasta el próximo anuncio
 
 function coma(n, dec) {
   return Math.abs(n).toFixed(dec).replace(".", ",");
@@ -34,7 +34,8 @@ function etiquetaFecha(r, i) {
   return r.fecha != null ? String(r.fecha) : `Momento ${i + 1}`;
 }
 
-export function frase(pista, doc, i) {
+/* corta=true: la versión breve para el lector de pantalla (plantilla_viva), que se pronuncia en ~2 s */
+export function frase(pista, doc, i, corta = false) {
   const r = doc.rasgos[i];
   const fecha = etiquetaFecha(r, i);
   if (r.media == null) return `${fecha}: sin dato en este momento.`;
@@ -47,49 +48,51 @@ export function frase(pista, doc, i) {
     dif_ref_signo: conSigno(r.media - ref, dec),
     area: String(Math.round((r.area ?? 0) * 100)),
   };
-  return pista.lectura.plantilla.replace(/\{(\w+)\}/g, (m, k) => (k in mapa ? mapa[k] : m));
+  const plantilla = (corta && pista.lectura.plantilla_viva) || pista.lectura.plantilla;
+  return plantilla.replace(/\{(\w+)\}/g, (m, k) => (k in mapa ? mapa[k] : m));
 }
 
 export function iniciarLectura(elementos) {
   el = elementos;
 }
 
-function anunciar(texto) {
-  if (!el || !el.casilla.checked) return;
+/* Anuncia el fotograma ACTUAL (se calcula aquí, no se guarda): así nunca se dice algo que ya pasó. */
+function anunciar(pista, doc, i, sonando) {
+  anunciado = { id: pista.id, i };
+  ultimoAnuncio = performance.now();
+  const texto = frase(pista, doc, i, true);
+  // el lector tarda en pronunciar el texto; no se envía otro hasta que haya terminado (~70 ms por carácter)
+  espera = sonando ? Math.max(3000, texto.length * 70 + 800) : 700;
   el.viva.textContent = "";
   requestAnimationFrame(() => { el.viva.textContent = texto; });
-  ultimoAnuncio = performance.now();
+}
+
+function vaciarFechas(texto) {
+  el.fecha.innerHTML = "&nbsp;";
+  el.texto.textContent = texto;
+  if (el.fechaVideo) { el.fechaVideo.textContent = ""; el.fechaVideo.hidden = true; }
 }
 
 export function limpiar() {
-  ultimo = { id: null, i: -1 };
-  pendiente = null;
-  if (el) { el.fecha.innerHTML = "&nbsp;"; el.texto.textContent = "Sin lectura todavía."; }
+  ultimo = anunciado = { id: null, i: -1 };
+  if (el) vaciarFechas("Sin lectura todavía.");
 }
 
 export function sinLectura() {
-  ultimo = { id: null, i: -1 };
-  if (el) { el.fecha.innerHTML = "&nbsp;"; el.texto.textContent = "Sin lectura disponible."; }
+  ultimo = anunciado = { id: null, i: -1 };
+  if (el) vaciarFechas("Sin lectura disponible.");
 }
 
 export function actualizar(pista, doc, t, sonando, forzar = false) {
   if (!el || !pista || !doc) return;
   const i = indiceEn(doc.rasgos, t);
-  const cambio = ultimo.id !== pista.id || ultimo.i !== i;
-  if (cambio) {
+  if (ultimo.id !== pista.id || ultimo.i !== i) {
     ultimo = { id: pista.id, i };
-    el.fecha.textContent = etiquetaFecha(doc.rasgos[i], i);
-    const texto = frase(pista, doc, i);
-    el.texto.textContent = texto;
-    pendiente = texto;
+    const fecha = etiquetaFecha(doc.rasgos[i], i);
+    el.fecha.textContent = fecha;
+    el.texto.textContent = frase(pista, doc, i);
+    if (el.fechaVideo) { el.fechaVideo.textContent = fecha; el.fechaVideo.hidden = false; }
   }
-  if (!pendiente) return;
-  const ahora = performance.now();
-  if (forzar || !sonando) {
-    anunciar(pendiente);
-    pendiente = null;
-  } else if (ahora - ultimoAnuncio >= 4000) {
-    anunciar(pendiente);
-    pendiente = null;
-  }
+  if (!el.casilla.checked || (anunciado.id === pista.id && anunciado.i === i)) return;
+  if (forzar || performance.now() - ultimoAnuncio >= espera) anunciar(pista, doc, i, sonando);
 }

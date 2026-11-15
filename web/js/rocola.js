@@ -12,7 +12,27 @@ let actual = null;
 let doc = null;
 let arrastrando = false;
 
-const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const SALTO = 5;                    // segundos que mueven las flechas izquierda y derecha
+
+/* m:ss, o m:ss,d si la pista dura una fracción (30,5 s): el contador y el total se redondean igual */
+function reloj(seg, decimales) {
+  const f = decimales ? 10 : 1;
+  const v = Math.floor(seg * f + 1e-6) / f;
+  const m = Math.floor(v / 60), r = v - m * 60;
+  return `${m}:${decimales ? r.toFixed(1).replace(".", ",").padStart(4, "0") : String(r).padStart(2, "0")}`;
+}
+const durTotal = (d) => Math.round(d * 10) / 10;
+function tiempoTexto(t, dur) {
+  const total = durTotal(dur);
+  const dec = !Number.isInteger(total);
+  return `${reloj(Math.min(t, total), dec)} / ${reloj(total, dec)}`;
+}
+
+/* #estado-rocola es un role="status": solo se reescribe si el texto cambia, para no repetirlo al lector */
+function decir(texto) {
+  const e = $("estado-rocola");
+  if (e.textContent !== texto) e.textContent = texto;
+}
 
 export const pistaActual = () => actual;
 export const documentoActual = () => doc;
@@ -51,18 +71,19 @@ function marcarFichas(sonando) {
 }
 
 function alAudio(e) {
-  const btn = $("btn-reproducir");
-  btn.textContent = e.sonando ? "Pausar" : "Reproducir";
-  $("tiempo").textContent = `${mmss(e.tiempo)} / ${mmss(e.duracion || (actual ? actual.duracion_s : 0))}`;
-  if (!arrastrando && e.duracion) {
-    const v = Math.round((e.tiempo / e.duracion) * 1000);
-    $("avance").value = v;
-    $("avance").setAttribute("aria-valuetext", `${mmss(e.tiempo)} de ${mmss(e.duracion)}`);
+  const dur = e.duracion || (actual ? actual.duracion_s : 0);
+  $("btn-reproducir").textContent = e.sonando ? "Pausar" : "Reproducir";
+  $("tiempo").textContent = tiempoTexto(e.tiempo, dur);
+  const av = $("avance");
+  if (dur && Number(av.max) !== dur) av.max = String(dur);
+  if (!arrastrando && dur) {
+    av.value = String(Math.min(e.tiempo, dur));
+    av.setAttribute("aria-valuetext", tiempoTexto(e.tiempo, dur).replace(" / ", " de "));
   }
   marcarFichas(e.sonando);
   $("sonando-titulo").textContent = e.sonando && actual ? actual.titulo : "Nada suena todavía";
-  const muestra = $("btn-muestra");
-  muestra.textContent = e.sonando ? "Pausar" : "Escuchar una muestra";
+  $("btn-muestra").textContent = e.sonando ? "Pausar" : "Escuchar una muestra";
+  if (e.terminado && actual) decir(`Terminó: ${actual.titulo}`);
 }
 
 export async function elegir(id, opciones = {}) {
@@ -83,29 +104,29 @@ export async function elegir(id, opciones = {}) {
   $("btn-reproducir").disabled = false;
   $("btn-cambiar").disabled = false;
   $("avance").disabled = false;
+  $("avance").max = String(p.duracion_s);
   $("avance").value = 0;
-  const estado = $("estado-rocola");
-  estado.textContent = `Cargando «${p.titulo}»… 0 %`;
+  decir(`Cargando «${p.titulo}»… 0 %`);
   lectura.limpiar();
   const rasgos = cargarRasgos(p).then((d) => {
     if (actual !== p) return;
     doc = d;
-    dibujarGraficoPista($("grafico-pista"), p, d);
+    dibujarGraficoPista($("grafico-pista"), p, d, saltarA);
     if (d) lectura.actualizar(p, d, 0, false, true); else lectura.sinLectura();
   });
-  const ok = await audio.cargar(p, (fr) => { if (actual === p) estado.textContent = `Cargando «${p.titulo}»… ${Math.round(fr * 100)} %`; });
+  const ok = await audio.cargar(p, (fr) => { if (actual === p) decir(`Cargando «${p.titulo}»… ${Math.round(fr * 100)} %`); });
   await rasgos;
   if (actual !== p) return;
   if (!ok) {
-    estado.textContent = `No pude cargar «${p.titulo}». Revisa que exista el archivo ${p.video}.`;
+    decir(`No pude cargar «${p.titulo}». Revisa que exista el archivo ${p.video}.`);
     $("btn-reproducir").disabled = true;
     $("btn-cambiar").disabled = false;
     return;
   }
-  estado.textContent = "Listo. Pulsa Reproducir.";
+  decir("Listo. Pulsa Reproducir.");
   if (opciones.reproducir) {
     const sono = await audio.reproducir();
-    if (actual === p) estado.textContent = sono ? `Suena: ${p.titulo}` : "Pulsa Reproducir para escuchar.";
+    if (actual === p) decir(sono ? `Suena: ${p.titulo}` : "Pulsa Reproducir para escuchar.");
   }
 }
 
@@ -115,21 +136,49 @@ export async function cambiar() {
   await elegir(otra.id, { reproducir: sonaba });
 }
 
+/* Mueve el video a 'seg' (gráfico, flechas) y deja la lectura en ese momento */
+function saltarA(seg) {
+  audio.buscar(seg);
+  if (actual && doc) lectura.actualizar(actual, doc, seg, false, true);
+}
+
+async function alternar() {
+  if (audio.estado().sonando) {
+    audio.pausar();
+    if (actual && doc) lectura.actualizar(actual, doc, audio.estado().tiempo, false, true);
+    decir(`En pausa: ${actual.titulo}`);
+  } else {
+    const ok = await audio.reproducir();
+    decir(ok ? `Suena: ${actual.titulo}` : "Pulsa Reproducir para escuchar.");
+  }
+}
+
+/* Atajos globales: Espacio y flechas, salvo en campos de texto, controles que ya usan esas teclas, botones y enlaces */
+function atajos(ev) {
+  if (ev.defaultPrevented || ev.ctrlKey || ev.metaKey || ev.altKey || ev.shiftKey || !actual) return;
+  const t = ev.target instanceof Element ? ev.target : document.body;
+  if (t.closest("input, textarea, select, [contenteditable], [role='slider'], [role='textbox'], [role='spinbutton']")) return;
+  if (ev.key === " ") {
+    if (t.closest("button, a[href], summary, [role='button']") || $("btn-reproducir").disabled) return;
+    ev.preventDefault();
+    alternar();
+  } else if (ev.key === "ArrowLeft" || ev.key === "ArrowRight") {
+    const e = audio.estado();
+    if (!e.duracion) return;
+    ev.preventDefault();
+    const adelante = ev.key === "ArrowRight";
+    const destino = Math.max(0, Math.min(e.duracion, e.tiempo + (adelante ? SALTO : -SALTO)));
+    saltarA(destino);
+    decir(`${adelante ? "Adelantado" : "Retrocedido"} a ${reloj(destino, false)}`);
+  }
+}
+
 export function iniciarRocola(lista) {
   pistas = lista;
   pintarTarjetas();
   audio.alCambiar(alAudio);
-  $("btn-reproducir").addEventListener("click", async () => {
-    const e = audio.estado();
-    if (e.sonando) {
-      audio.pausar();
-      if (actual && doc) lectura.actualizar(actual, doc, audio.estado().tiempo, false, true);
-      $("estado-rocola").textContent = `En pausa: ${actual.titulo}`;
-    } else {
-      const ok = await audio.reproducir();
-      $("estado-rocola").textContent = ok ? `Suena: ${actual.titulo}` : "Pulsa Reproducir para escuchar.";
-    }
-  });
+  $("btn-reproducir").addEventListener("click", alternar);
+  document.addEventListener("keydown", atajos);
   $("btn-cambiar").addEventListener("click", cambiar);
   $("volumen").addEventListener("input", (ev) => {
     audio.fijarVolumen(ev.target.value / 100);
@@ -138,17 +187,13 @@ export function iniciarRocola(lista) {
   const av = $("avance");
   av.addEventListener("pointerdown", () => { arrastrando = true; });
   av.addEventListener("pointerup", () => { arrastrando = false; });
-  av.addEventListener("input", () => {
-    const dur = audio.estado().duracion || (actual ? actual.duracion_s : 0);
-    audio.buscar((av.value / 1000) * dur);
-    if (actual && doc) lectura.actualizar(actual, doc, (av.value / 1000) * dur, false, true);
-  });
+  av.addEventListener("input", () => saltarA(Number(av.value)));
   av.addEventListener("change", () => { arrastrando = false; });
   $("btn-muestra").addEventListener("click", async () => {
     const e = audio.estado();
     if (e.sonando) { audio.pausar(); return; }
     if (!actual) await elegir(pistas[0].id, { reproducir: true });
-    else { const ok = await audio.reproducir(); if (ok) $("estado-rocola").textContent = `Suena: ${actual.titulo}`; }
+    else { const ok = await audio.reproducir(); if (ok) decir(`Suena: ${actual.titulo}`); }
   });
-  audio.alCambiar((e) => { if (e.sonando && actual) $("estado-rocola").textContent = `Suena: ${actual.titulo}`; });
+  audio.alCambiar((e) => { if (e.sonando && actual) decir(`Suena: ${actual.titulo}`); });
 }

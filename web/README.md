@@ -34,7 +34,7 @@ Abre <http://localhost:8001>. Con doble clic (`file://`) no carga: necesita un s
 | `vendor/` | three, GSAP y ScrollTrigger (ver `vendor/LICENCIAS.md`) |
 | `texturas/`, `fotogramas/` | texturas del globo (2048x1024) y fotogramas de las tarjetas |
 | `assets/` | mp4 con el audio mezclado, `_rasgos.json`, `_mapeo.json`, `_esperado.json`, `_procedencia.json`, fuentes e íconos |
-| `pruebas/verificar.cjs` | pruebas con Playwright y axe |
+| `pruebas/verificar.cjs` | pruebas con Playwright y axe (V1 a V23) |
 | `hacer_icono.py` | dibuja los íconos de la pestaña |
 
 ## Regenerar los medios desde el pipeline
@@ -69,9 +69,11 @@ El Chromium de Playwright no trae H.264 ni AAC. Para que reproduzca las pistas, 
 
 ## Accesibilidad
 
-- Todo se usa con teclado, con foco visible y un enlace «Saltar a la rocola».
-- La lectura en vivo (fecha y frase) se actualiza mientras suena y se anuncia en una región `aria-live` como mucho cada 4 s; una casilla la apaga.
+- Todo se usa con teclado, con foco visible y un enlace «Saltar a la rocola». Atajos fuera de los campos de texto: Espacio reproduce o pausa; ← y → mueven ±5 s.
+- El gráfico es un control (`role="slider"`): clic, o ← → y Enter, saltan el video a ese momento. La barra de avance se mueve de 1 s en 1 s.
+- La lectura en vivo (fecha y frase) se actualiza mientras suena. A la región `aria-live` va una frase corta ("1956: +0,31 °C", `plantilla_viva` en `pistas.json`), siempre la del fotograma actual, y no se envía otra hasta que el lector pueda haber terminado (≥ 3 s); una casilla la apaga. La fecha sobre el video es solo visual (`aria-hidden`).
 - Cada pista trae «Qué se ve y qué se oye» y «Colores del mapa»; el gráfico lleva un resumen en texto.
+- En pantallas de hasta 899 px el menú es un botón con `aria-expanded`; se cierra con Esc, al elegir una opción y al pulsar fuera.
 - Contraste AA o mejor en el peor caso (texto sobre una zona blanca del globo).
 - `prefers-reduced-motion` y alto contraste forzado de Windows están contemplados.
 

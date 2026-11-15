@@ -1,4 +1,4 @@
-/* Pruebas de la web con Playwright y axe-core (V1 a V15).
+/* Pruebas de la web con Playwright y axe-core (V1 a V23).
    Uso:  NODE_PATH=<carpeta con node_modules> node web/pruebas/verificar.cjs <url> <carpeta de capturas>
    Imprime [PASA], [FALLA] u [OMITIDA] por comprobación y sale con código 1 si hay alguna [FALLA].
 
@@ -124,7 +124,7 @@ async function desplazarTodo(page) {
   await page.screenshot({ path: path.join(carpeta, "rocola-1440.png") });
 
   // V9 avance y gráfico
-  await page.evaluate(() => { const a = document.getElementById("avance"); a.value = 900; a.dispatchEvent(new Event("input", { bubbles: true })); });
+  await page.evaluate(() => { const a = document.getElementById("avance"); a.value = 27; a.dispatchEvent(new Event("input", { bubbles: true })); });
   await esperar(800);
   const t9 = await page.evaluate(() => window.__web.audio.estado().tiempo);
   const x9 = await page.$eval(".cursor-linea", (l) => Number(l.getAttribute("x1")));
@@ -208,6 +208,154 @@ async function desplazarTodo(page) {
   comprobar("V14", rotOk && rr.revelar === 0 && rr.cifras && rr.lineas,
     `${rotTxt}; .revelar con opacidad < 1: ${rr.revelar}; cifras con su valor: ${rr.cifras}; líneas del pipeline dibujadas: ${rr.lineas}`);
   await red.ctx.close();
+
+  // ---- Pulido (V16 a V23) ----
+  const pul = await nuevaPagina(browser, { viewport: { width: 1118, height: 800 } });
+  const pg = pul.page;
+  await pg.goto(url, { waitUntil: "domcontentloaded" });
+  // V21a: la lista "Qué vas a oír" nunca se ve vacía (se mide al instante, sin esperar a las animaciones)
+  const lista0 = await pg.evaluate(() => [...document.querySelectorAll(".escucha-lista > div")].map((d) => Number(getComputedStyle(d).opacity)));
+  await esperar(2500);
+  const lista1 = await pg.evaluate(() => [...document.querySelectorAll(".escucha-lista > div")].map((d) => Number(getComputedStyle(d).opacity)));
+  comprobar("V21", lista0.length === 4 && lista0.every((o) => o === 1) && lista1.every((o) => o === 1),
+    `opacidad de "Qué vas a oír" al cargar ${lista0.join("/")} y a los 2,5 s ${lista1.join("/")}`);
+
+  // V22: 1118 px, menú en una línea, cifra 344 sin montarse, botón de ancho fijo
+  const geo = await pg.evaluate(() => {
+    const caja = (e) => e.getBoundingClientRect();
+    const enlaces = [...document.querySelectorAll(".barra nav li:not(.solo-menu) a")].map((a) => caja(a).height);
+    const f = [...document.querySelectorAll(".cifra-ficha")].map(caja);
+    const t = caja(document.getElementById("tarjeta-temperatura"));
+    const solapa = f.some((c) => c.right > t.left && c.left < t.right && c.bottom > t.top && c.top < t.bottom);
+    const colRight = caja(document.querySelector(".cifras")).right;
+    return { altos: enlaces, solapa, fuera: Math.max(...f.map((c) => c.right)) - colRight, tarjetaIzq: t.left, fichaDer: Math.max(...f.map((c) => c.right)) };
+  });
+  const unaLinea = geo.altos.every((h) => h < 40);
+  comprobar("V22", unaLinea && !geo.solapa && geo.fuera <= 1,
+    `1118 px: altos de los enlaces ${geo.altos.map((h) => Math.round(h)).join("/")} (una línea < 40); cifras ${Math.round(geo.fichaDer)} px vs tarjeta desde ${Math.round(geo.tarjetaIzq)} px; solapan: ${geo.solapa}`);
+  await pg.screenshot({ path: path.join(carpeta, "heroe-1118.png") });
+  const cifrasTab = await pg.$eval(".cifras", (e) => e.getAttribute("tabindex"));
+
+  // V16: textos y cifras
+  await pg.click("button.pista >> nth=0");
+  await pg.waitForFunction(() => window.__web.audio.estado().duracion > 0, null, { timeout: 15000 });
+  const t1 = await pg.$eval("#titulo-pista", (e) => e.textContent);
+  const fueraCredito = await pg.evaluate(() => { const c = document.querySelector("main").innerText + document.title + document.querySelector("meta[name=description]").content; return /1880/.test(c); });
+  const mar = pistasDoc[1];
+  const reloj0 = await pg.$eval("#tiempo", (e) => e.textContent);
+  await pg.click("button.pista >> nth=1");
+  await pg.waitForFunction(() => window.__web.rocola.pistaActual().id === "sst-ecco2-2007-2008" && window.__web.audio.estado().duracion > 0, null, { timeout: 15000 });
+  const relojMar = await pg.$eval("#tiempo", (e) => e.textContent);
+  const desc = await pg.$eval("#descripcion-pista", (e) => e.textContent);
+  const leyenda = await pg.$eval("#leyenda-pista", (e) => e.textContent);
+  const hero = await pg.$eval(".heroe-sub", (e) => e.textContent);
+  comprobar("V16", t1.includes("1881–2023") && !fueraCredito && reloj0.endsWith("/ 0:30") && relojMar === "0:00,0 / 0:30,5" && desc.startsWith("344 días de océano (mar 2007–mar 2008)")
+    && !/un año/i.test(desc + hero) && /índice relativo/.test(leyenda) && /colores del video original/.test(leyenda) && mar.duracion_s === 30.5,
+    `título «${t1}»; "1880" fuera del crédito: ${fueraCredito}; reloj GISTEMP «${reloj0}», mar «${relojMar}»; descripción «${desc.slice(0, 48)}…»`);
+
+  // V19: al terminar, el estado lo dice y el botón vuelve a "Reproducir" (pista del mar, 30,5 s)
+  await pg.waitForFunction(() => window.__web.audio.estado().sonando, null, { timeout: 15000 });   // elegir una pista ya la reproduce
+  await pg.evaluate(() => window.__web.audio.buscar(28.8));
+  await pg.waitForFunction(() => window.__web.audio.estado().terminado, null, { timeout: 15000 }).catch(() => {});
+  await esperar(500);
+  const fin = await pg.evaluate(() => ({ estado: document.getElementById("estado-rocola").textContent, boton: document.getElementById("btn-reproducir").textContent, tiempo: document.getElementById("tiempo").textContent }));
+  comprobar("V19", fin.estado === `Terminó: ${mar.titulo}` && fin.boton === "Reproducir" && fin.tiempo === "0:30,5 / 0:30,5", `estado «${fin.estado}»; botón «${fin.boton}»; contador «${fin.tiempo}»`);
+
+  // V17: gráfico accesible e interactivo
+  const g = await pg.$eval("#grafico-pista", (e) => ({ rol: e.getAttribute("role"), etiqueta: e.getAttribute("aria-label"), oculto: e.getAttribute("aria-hidden"), tab: e.getAttribute("tabindex"), nota: e.getAttribute("aria-valuenow"), texto: e.getAttribute("aria-valuetext") }));
+  const caja = await pg.$eval("#grafico-pista svg", (e) => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  await pg.evaluate(() => document.getElementById("grafico-pista").scrollIntoView({ block: "center", behavior: "instant" }));
+  const caja2 = await pg.$eval("#grafico-pista svg", (e) => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  await pg.mouse.click(caja2.x + caja2.w * 0.5, caja2.y + caja2.h / 2);
+  await esperar(400);
+  const tClic = await pg.evaluate(() => window.__web.audio.estado().tiempo);
+  await pg.focus("#grafico-pista");
+  for (let i = 0; i < 4; i++) await pg.keyboard.press("ArrowLeft");
+  const aria = await pg.$eval("#grafico-pista", (e) => e.getAttribute("aria-valuetext"));
+  await pg.keyboard.press("Enter");
+  await esperar(400);
+  const tEnter = await pg.evaluate(() => window.__web.audio.estado().tiempo);
+  comprobar("V17", g.rol === "slider" && !g.oculto && g.tab === "0" && /Enter/.test(g.etiqueta) && Math.abs(tClic - 15.25) < 0.8 && tEnter < tClic - 1 && /^\w+ 20\d\d: índice/.test(aria),
+    `rol ${g.rol}, aria-hidden ${g.oculto}; clic al 50 % -> ${tClic.toFixed(1)} s; 4 flechas atrás + Enter -> ${tEnter.toFixed(1)} s; valuetext «${aria}»`);
+
+  // V18: atajos globales
+  await pg.evaluate(() => { document.activeElement && document.activeElement.blur(); window.__web.audio.buscar(10); });
+  await pg.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await esperar(300);
+  await pg.keyboard.press("Space");
+  await esperar(900);
+  const suenaEsp = await pg.evaluate(() => window.__web.audio.estado().sonando);
+  await pg.keyboard.press("Space");
+  await esperar(300);
+  const pausa = await pg.evaluate(() => !window.__web.audio.estado().sonando);
+  const a0 = await pg.evaluate(() => window.__web.audio.estado().tiempo);
+  await pg.keyboard.press("ArrowRight"); await esperar(300);
+  const a1 = await pg.evaluate(() => window.__web.audio.estado().tiempo);
+  await pg.keyboard.press("ArrowLeft"); await pg.keyboard.press("ArrowLeft"); await esperar(300);
+  const a2 = await pg.evaluate(() => window.__web.audio.estado().tiempo);
+  await pg.focus("#volumen");
+  const vol0 = await pg.$eval("#volumen", (e) => e.value);
+  await pg.keyboard.press("ArrowLeft"); await esperar(300);
+  const vol1 = await pg.$eval("#volumen", (e) => e.value);
+  const a3 = await pg.evaluate(() => window.__web.audio.estado().tiempo);
+  const paso = await pg.$eval("#avance", (e) => e.step);
+  const atajoTxt = await pg.$eval("#accesibilidad", (e) => e.textContent);
+  comprobar("V18", suenaEsp && pausa && Math.abs(a1 - a0 - 5) < 0.3 && Math.abs(a2 - a1 + 10) < 0.3 && vol1 !== vol0 && Math.abs(a3 - a2) < 0.1 && paso === "1" && /Espacio/.test(atajoTxt) && /5 s/.test(atajoTxt),
+    `Espacio suena ${suenaEsp}/pausa ${pausa}; → ${(a1 - a0).toFixed(1)} s; ← ← ${(a2 - a1).toFixed(1)} s; con foco en el volumen las flechas cambian el volumen (${vol0} -> ${vol1}) y no el tiempo; paso del avance ${paso} s`);
+
+  // V20: el aria-live no va atrasado ni se atasca con frases largas
+  await pg.evaluate(() => { document.getElementById("anunciar").checked = true; window.__log = []; window.__w = 0;
+    new MutationObserver(() => { const v = document.getElementById("lectura-viva").textContent; if (v) window.__log.push({ ms: Math.round(performance.now()), viva: v, panel: document.getElementById("ahora-fecha").textContent }); })
+      .observe(document.getElementById("lectura-viva"), { childList: true, characterData: true, subtree: true }); });
+  await pg.click("button.pista >> nth=0");
+  await pg.waitForFunction(() => window.__web.rocola.pistaActual().id === "gistemp-1880-2023" && window.__web.audio.estado().duracion > 0, null, { timeout: 15000 });
+  await pg.waitForFunction(() => window.__web.audio.estado().sonando, null, { timeout: 15000 });
+  await pg.evaluate(() => { window.__log.length = 0; window.__web.audio.buscar(0); });
+  await esperar(16000);
+  const reg = await pg.evaluate(() => window.__log);
+  const iguales = reg.every((r) => r.viva.startsWith(r.panel));
+  const cortas = reg.every((r) => r.viva.length <= 40);
+  const huecos = reg.slice(1).map((r, i) => r.ms - reg[i].ms).slice(1);    // el primer hueco incluye el paso de pausa a reproducción
+  comprobar("V20", reg.length >= 3 && iguales && cortas && huecos.every((h) => h >= 2900),
+    `${reg.length} anuncios en 16 s; cada uno dice el año que muestra el panel en ese instante: ${iguales}; frases de ≤ 40 caracteres: ${cortas} («${(reg[reg.length - 1] || {}).viva}»); separación mínima ${Math.min(...huecos)} ms`);
+
+  // V21b: fecha sobre el video
+  const fv = await pg.evaluate(() => { const e = document.getElementById("fecha-video"); const c = getComputedStyle(e); const r = e.getBoundingClientRect(), m = document.querySelector(".marco").getBoundingClientRect();
+    return { oculto: e.hidden, aria: e.getAttribute("aria-hidden"), texto: e.textContent, panel: document.getElementById("ahora-fecha").textContent, fondo: c.backgroundColor, dentro: r.left >= m.left && r.right <= m.right && r.top >= m.top && r.bottom <= m.bottom }; });
+  comprobar("V21b", !fv.oculto && fv.aria === "true" && fv.texto === fv.panel && fv.dentro && /rgba\(0, 0, 0, 0\.7/.test(fv.fondo),
+    `fecha sobre el video «${fv.texto}» = panel «${fv.panel}»; aria-hidden ${fv.aria}; fondo ${fv.fondo}; dentro del video: ${fv.dentro}`);
+
+  // V22b: el botón y el gráfico no se mueven al pasar de Reproducir a Pausar
+  const antes = await pg.evaluate(() => ({ b: document.getElementById("btn-reproducir").getBoundingClientRect().width, g: document.getElementById("grafico-pista").getBoundingClientRect().top + window.scrollY, t: document.getElementById("btn-reproducir").textContent }));
+  await pg.click("#btn-reproducir");
+  await esperar(500);
+  const despues = await pg.evaluate(() => ({ b: document.getElementById("btn-reproducir").getBoundingClientRect().width, g: document.getElementById("grafico-pista").getBoundingClientRect().top + window.scrollY, t: document.getElementById("btn-reproducir").textContent }));
+  await pg.click("#btn-reproducir");
+  comprobar("V22b", antes.t !== despues.t && Math.abs(antes.b - despues.b) < 0.5 && Math.abs(antes.g - despues.g) < 0.5 && cifrasTab === null,
+    `botón «${antes.t}» ${antes.b.toFixed(0)} px -> «${despues.t}» ${despues.b.toFixed(0)} px; el gráfico se movió ${(despues.g - antes.g).toFixed(1)} px; tabindex de .cifras a 1118 px: ${cifrasTab}`);
+  await pul.ctx.close();
+
+  // V23: menú móvil a 390 px
+  const m3 = await nuevaPagina(browser, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const mp = m3.page;
+  await mp.goto(url, { waitUntil: "load" });
+  await esperar(2000);
+  const cerrado = await mp.evaluate(() => ({ boton: getComputedStyle(document.getElementById("btn-menu")).display, exp: document.getElementById("btn-menu").getAttribute("aria-expanded"), nav: getComputedStyle(document.getElementById("menu-principal")).display }));
+  await mp.tap("#btn-menu");
+  await esperar(300);
+  const abierto = await mp.evaluate(() => ({ exp: document.getElementById("btn-menu").getAttribute("aria-expanded"), nav: getComputedStyle(document.getElementById("menu-principal")).display, enlaces: [...document.querySelectorAll("#menu-principal a")].filter((a) => a.offsetParent).map((a) => a.textContent.trim()) }));
+  await mp.screenshot({ path: path.join(carpeta, "menu-390.png") });
+  await mp.keyboard.press("Escape");
+  const trasEsc = await mp.evaluate(() => ({ exp: document.getElementById("btn-menu").getAttribute("aria-expanded"), foco: document.activeElement.id }));
+  await mp.tap("#btn-menu"); await esperar(200);
+  await mp.tap("#menu-principal a[href='#accesibilidad']"); await esperar(500);
+  const trasElegir = await mp.evaluate(() => ({ exp: document.getElementById("btn-menu").getAttribute("aria-expanded"), y: Math.round(document.getElementById("accesibilidad").getBoundingClientRect().top) }));
+  const esperados = ["La rocola", "Cómo funciona", "El porqué", "Accesibilidad", "Equipo", "Repositorio"];
+  const cifras390 = await mp.$eval(".cifras", (e) => e.getAttribute("tabindex"));
+  comprobar("V23", cerrado.boton !== "none" && cerrado.exp === "false" && cerrado.nav === "none" && abierto.exp === "true" && abierto.nav !== "none"
+    && JSON.stringify(abierto.enlaces) === JSON.stringify(esperados) && trasEsc.exp === "false" && trasEsc.foco === "btn-menu" && trasElegir.exp === "false" && Math.abs(trasElegir.y) < 120 && cifras390 === "0",
+    `menú cerrado: nav ${cerrado.nav}; abierto: ${abierto.enlaces.join(", ")}; Esc -> aria-expanded ${trasEsc.exp}, foco en #${trasEsc.foco}; al elegir -> ${trasElegir.exp}, sección a ${trasElegir.y} px; carrusel de cifras enfocable: ${cifras390}`);
+  await m3.ctx.close();
 
   await browser.close();
   console.log(fallas ? `\n${fallas} FALLA` : "\nTodo PASA (o está OMITIDA)");
