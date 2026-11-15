@@ -22,7 +22,7 @@
   /* Lo único que la IA puede pedir. La misma lista está en el servicio; aquí se vuelve a comprobar. */
   const ACCIONES = ["ninguna", "reproducir", "pausar", "siguiente", "anterior", "elegir", "saltar_tiempo", "saltar_anio",
     "descripcion", "leyenda", "volumen", "repetir", "ayuda"];
-  const ESPERA_MS = 6000;             // más que esto y se usan los comandos de siempre
+  const ESPERA_MS = 9000;             // más que esto y se usan los comandos de siempre (el servicio prueba hasta ~8 s con sus modelos)
   const PAUSA_MS = 60000;             // tras un "límite" o dos fallos seguidos, no se insiste durante un minuto
   const MAX_FRASE = 300;              // el servicio no acepta frases más largas
   const MAX_CONTEXTO = 8500;          // caracteres del contexto ya serializado (el servicio corta en 9000)
@@ -236,5 +236,5 @@
     return { atender, traducir, marcar: (esIA) => { etiqueta.hidden = !esIA || !interruptor.checked; }, encendida: () => interruptor.checked, estado };
   }
 
-  return { ACCIONES, AVISO, TEXTOS, MAX_CONTEXTO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar, conectar };
+  return { ACCIONES, AVISO, TEXTOS, ESPERA_MS, MAX_CONTEXTO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar, conectar };
 });

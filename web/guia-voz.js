@@ -695,7 +695,7 @@
       nombre: "Guía por voz", hablar: "Háblame", escuchando: "Te escucho…", cerrar: "Cerrar la guía", inicial: "Pulsa la esfera y háblame.",
       saludo: "Hola, soy la guía de Resonant Earth. ¿Qué quieres escuchar?",
       pistaLector: "Atajo: tecla H. La guía responde con voz. Si usas un lector de pantalla, marca primero «Uso lector de pantalla» en Ayuda y opciones para que responda por escrito.",
-      pensando: "Un momento…", teEscucho: "Te escucho.", sigo: "Sigo escuchando unos segundos…", silencio: "(en silencio)",
+      pensando: "Un momento…", espera: "Un momento.", teEscucho: "Te escucho.", sigo: "Sigo escuchando unos segundos…", silencio: "(en silencio)",
       escribir: "Escribir", campo: "Escribe lo que quieres", enviar: "Enviar", sugeridas: "Frases sugeridas", recorrido: "Dame un recorrido", detener: "Detener el recorrido",
       opciones: "Ayuda y opciones", quePuedoDecir: "Qué puedo decir",
       ayudaLista: ["«Reproduce», «pausa», «siguiente pista», «pista dos», «qué pistas hay».", "«Año 1990», «noviembre de 2007», «segundo diez», «avanza diez segundos», «al inicio».",
@@ -727,7 +727,7 @@
       nombre: "Voice guide", hablar: "Talk to me", escuchando: "Listening…", cerrar: "Close the guide", inicial: "Press the sphere and talk to me.",
       saludo: "Hello, I am the Resonant Earth guide. What would you like to hear?",
       pistaLector: "Shortcut: H key. The guide answers with its voice. If you use a screen reader, first tick “I use a screen reader” under Help and options so it answers in writing.",
-      pensando: "One moment…", teEscucho: "I am listening.", sigo: "Still listening for a few seconds…", silencio: "(silent)",
+      pensando: "One moment…", espera: "One moment.", teEscucho: "I am listening.", sigo: "Still listening for a few seconds…", silencio: "(silent)",
       escribir: "Type", campo: "Type what you want", enviar: "Send", sugeridas: "Suggested phrases", recorrido: "Give me a tour", detener: "Stop the tour",
       opciones: "Help and options", quePuedoDecir: "What I can say",
       ayudaLista: ["“Play”, “pause”, “next track”, “track two”, “what tracks are there”.", "“Year 1990”, “November 2007”, “second ten”, “forward ten seconds”, “start over”.",
@@ -757,6 +757,7 @@
     },
   };
   const IDIOMAS_VOZ = { es: ["es-EC", "es-ES"], en: ["en-US"] };
+  const ESPERA_AVISO_MS = 1500;                       // si la IA tarda más, la guía dice «un momento»
   const ESPERA_SEGUIR_MS = 6000;                      // cuánto sigue escuchando después de una respuesta
 
   /* La tarjeta no lleva textos: los pone pintarTextos() en el idioma elegido (atributos data-t y data-t-aria). */
@@ -1028,8 +1029,14 @@
       if (accion.tipo === "lector") { fijarLector(accion.usa); return; }
       let r = null;
       if (ia) {                                       // la IA devuelve null cuando debe resolverlo el intérprete de comandos
-        guia.pensando = true; pintarEstado();
+        guia.pensando = true; pintarEstado();           // la esfera pasa a "pensando"
+        // si el servicio tarda, la guía avisa de viva voz «un momento» (una vez; con lector de pantalla basta el texto)
+        const aviso = ventana.setTimeout(() => {
+          if (turno !== guia.turnoFrase || !guia.pensando || modoLector() || !puedeHablar() || guia.hablando) return;
+          decir(u().espera);
+        }, ESPERA_AVISO_MS);
         try { r = await ia.atender(texto, accion, guia); } catch (e) { r = null; }
+        ventana.clearTimeout(aviso);
         guia.pensando = false; pintarEstado();
         if (turno !== guia.turnoFrase) return;        // mientras esperaba llegó otra frase: esta ya no cuenta
       }
@@ -1211,5 +1218,5 @@
 
   return { interpretarComando, interpretarES, interpretarEN, normalizar, normalizarEN, palabrasANumeros, palabrasANumerosEN, buscarFecha, buscarPista, leerFecha,
     fechaDicha, resumenSerie, guionRecorrido, valorDicho, elegirVozDe, ACCIONES_RECORRIDO, SUGERENCIAS, TEXTOS: L, INTERFAZ: U, TONO_VOZ, VELOCIDAD_VOZ,
-    ESPERA_SEGUIR_MS, ejecutar, montar, AYUDA, AYUDA_EN };
+    ESPERA_SEGUIR_MS, ESPERA_AVISO_MS, ejecutar, montar, AYUDA, AYUDA_EN };
 });

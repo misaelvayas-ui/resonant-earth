@@ -11,8 +11,10 @@ compatibility_date = "2026-06-01"
 # Páginas que pueden usar el servicio, separadas por comas, sin barra al final.
 # misaelvayas-ui es el usuario de GitHub donde se publica la web. localhost es para probar en tu computadora.
 ORIGENES_PERMITIDOS = "http://localhost:8000,http://localhost:8001,https://misaelvayas-ui.github.io"
-# Modelo de Gemini. Nombre vigente comprobado el 14-nov-2026 en https://aistudio.google.com/docs/models
-GEMINI_MODEL = "gemini-3.8-flash"
+# Modelos de Gemini, separados por comas y en orden de preferencia. Si el primero da 503, 429, otro 5xx, 404 o no responde
+# en ESPERA_INTENTO_MS, se prueba el siguiente (todos dentro del presupuesto ESPERA_MODELO_MS). Si todos fallan, la web
+# sigue con los comandos de siempre. Nombres vigentes: https://aistudio.google.com/docs/models  (o corre: node probar-gemini.mjs)
+GEMINI_MODELOS = "gemini-3.8-flash"
 # Cuánto razona el modelo antes de responder: low, medium o high. gemini-3.8-flash NO admite "minimal".
 GEMINI_THINKING = "low"
 # Tokens máximos de salida. Incluye los de razonamiento, por eso es más que lo que ocupa la respuesta.
@@ -25,6 +27,10 @@ MAX_POR_DIA = "200"
 # Tamaños máximos, en caracteres.
 MAX_TEXTO = "300"
 MAX_CONTEXTO = "9000"
+# Tiempo: presupuesto TOTAL para todos los intentos, y lo máximo que se espera a un modelo mientras quede otro de respaldo.
+# La web espera 9 s en total (ESPERA_MS en web/guia-voz-ia.js): deja el presupuesto por debajo.
+ESPERA_MODELO_MS = "8000"
+ESPERA_INTENTO_MS = "3500"
 
 # El contador de los límites (un Durable Object con SQLite; funciona en el plan gratuito).
 [[durable_objects.bindings]]

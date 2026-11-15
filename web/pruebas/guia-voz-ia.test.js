@@ -4,7 +4,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { interpretarComando, normalizar, resumenSerie } = require("../guia-voz.js");
-const { ACCIONES, TEXTOS, MAX_CONTEXTO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar } = require("../guia-voz-ia.js");
+const { ACCIONES, TEXTOS, ESPERA_MS, MAX_CONTEXTO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar } = require("../guia-voz-ia.js");
 
 const CTX = { pistas: [{ numero: 1 }, { numero: 2 }, { numero: 3 }], duracion_segundos: 30 };
 
@@ -151,6 +151,8 @@ test("preguntar: envía { texto, contexto } y falla limpio sin red, con límite 
   assert.equal(await falla(lenta, 80), "error");
   assert.ok(Date.now() - t0 < 1000, "el tiempo de espera corta la petición");
 });
+
+test("la web espera hasta 9 s al servicio", () => { assert.equal(ESPERA_MS, 9000); });
 
 test("lo que se ve de la IA está en los dos idiomas", () => {
   assert.equal(Object.keys(TEXTOS.es).sort().join(), Object.keys(TEXTOS.en).sort().join());

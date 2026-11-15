@@ -74,18 +74,21 @@ LÍMITES
 
 /* ---------------------------------------------------------------- configuración (variables del servicio) */
 
+const nonVacia = (lista) => (lista.length ? lista : ["gemini-3.8-flash"]);
 const numero = (v, defecto) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : defecto);
 
 export function config(env = {}) {
   return {
-    modelo: env.GEMINI_MODEL || "gemini-3.8-flash",
+    // lista de modelos separada por comas, en orden de preferencia (GEMINI_MODEL, de una sola entrada, sigue valiendo si falta la lista)
+    modelos: nonVacia(String(env.GEMINI_MODELOS || env.GEMINI_MODEL || "gemini-3.8-flash").split(",").map((m) => m.trim().replace(/^models\//, "")).filter(Boolean)),
     origenes: String(env.ORIGENES_PERMITIDOS || "").split(",").map((o) => o.trim().replace(/\/+$/, "")).filter(Boolean),
     porMinutoVisitante: numero(env.MAX_POR_MINUTO_VISITANTE, 6),   // una persona hablando rara vez pasa de 6 frases por minuto
     porMinutoGlobal: numero(env.MAX_POR_MINUTO_GLOBAL, 8),         // por debajo del límite por minuto de la capa gratuita
     porDia: numero(env.MAX_POR_DIA, 200),                          // por debajo del límite diario de la capa gratuita
     maxTexto: numero(env.MAX_TEXTO, 300),                          // caracteres de la frase
     maxContexto: numero(env.MAX_CONTEXTO, 9000),                   // caracteres del contexto ya serializado
-    esperaModeloMs: numero(env.ESPERA_MODELO_MS, 5000),            // la web espera 6 s en total
+    esperaModeloMs: numero(env.ESPERA_MODELO_MS, 8000),            // presupuesto TOTAL para todos los intentos; la web espera 9 s
+    esperaIntentoMs: numero(env.ESPERA_INTENTO_MS, 3500),          // lo máximo que se espera a un modelo si aún queda otro de respaldo
     // cuánto "piensa" el modelo antes de responder. gemini-3.8-flash admite low, medium y high (NO "minimal")
     razonamiento: ["minimal", "low", "medium", "high"].includes(env.GEMINI_THINKING) ? env.GEMINI_THINKING : "low",
     maxSalida: numero(env.MAX_TOKENS_SALIDA, 1200),                // incluye los tokens de razonamiento, no solo la respuesta
@@ -192,58 +195,103 @@ export function registrarErrorModelo(http, error, env = {}, registrar = console.
 /* Llama al modelo y devuelve el objeto JSON que respondió. Para cambiar de modelo o de proveedor se cambia
    SOLO esta función: recibe { sistema, entrada, esquema } y debe devolver un objeto o lanzar ErrorLLM.
 
-   Gemini (Google AI Studio), API de Interacciones. Documentación consultada el 15-nov-2026:
-     https://aistudio.google.com/docs/models               modelo Flash estable: gemini-3.8-flash
-     https://aistudio.google.com/docs/structured-output    response_format con esquema JSON y cabecera Api-Revision: 2026-05-20
-     https://aistudio.google.com/docs/thinking             thinking_level: gemini-3.8-flash admite low, medium y high, NO "minimal"
-                                                           (con "minimal" Google rechaza la petición); max_output_tokens
-                                                           incluye los tokens de razonamiento
+   Gemini (Google AI Studio), endpoint clásico generateContent. Documentación consultada el 15-nov-2026:
+     https://aistudio.google.com/api-reference/generate-content
+         POST /v1beta/models/<modelo>:generateContent con systemInstruction, contents y generationConfig
+         (responseMimeType "application/json", responseJsonSchema, maxOutputTokens, thinkingConfig.thinkingLevel)
+     https://aistudio.google.com/docs/thinking
+         gemini-3.8-flash admite thinkingLevel LOW, MEDIUM y HIGH (no MINIMAL); maxOutputTokens incluye el razonamiento
+   Se dejó la API de Interacciones porque con ella Gemini no respondió en 40 s, mientras que generateContent contestó en
+   unos 5 s (probar-gemini.mjs, 15-nov-2026).
+
+   Modelos de respaldo: GEMINI_MODELOS es una lista separada por comas. Se prueba el primero y, si da 503, 429, otro 5xx,
+   404 o no responde en ESPERA_INTENTO_MS (~3,5 s), se pasa al siguiente. Entre todos los intentos hay un presupuesto
+   total de ESPERA_MODELO_MS (~8 s); al último modelo le queda todo lo que sobre. Un 400 o 403 (petición o clave mal)
+   no se reintenta con otro modelo.
    Si Google responde con error, se registra (console.warn, se ve con "npx wrangler tail") SOLO el código HTTP, el código o
-   estado del error y su mensaje cortado a 300 caracteres. Nunca la clave, la frase de la persona ni el contexto.
-     https://aistudio.google.com/api-reference/interactions-api
-   La respuesta trae "steps"; el texto está en el paso de tipo "model_output", en content[].text. */
-export async function callLLM({ sistema, entrada, esquema }, env, fetchImpl = fetch) {
-  const cfg = config(env);
+   estado del error y su mensaje cortado a 300 caracteres. Nunca la clave, la frase de la persona ni el contexto. */
+const URL_MODELOS = "https://generativelanguage.googleapis.com/v1beta/models/";
+
+/* thinkingLevel existe desde Gemini 3: los modelos anteriores lo rechazan, así que a ellos no se les manda. */
+const admiteNivelDeRazonamiento = (modelo) => { const m = /^gemini-(\d+)/.exec(modelo); return !!m && Number(m[1]) >= 3; };
+
+/* La petición exacta a un modelo (la usa callLLM y también probar-gemini.mjs, para probar lo mismo que hace el servicio). */
+export function armarPeticion(modelo, { sistema, entrada, esquema }, cfg) {
+  const generationConfig = { responseMimeType: "application/json", responseJsonSchema: esquema, maxOutputTokens: cfg.maxSalida };
+  if (admiteNivelDeRazonamiento(modelo)) generationConfig.thinkingConfig = { thinkingLevel: cfg.razonamiento.toUpperCase() };
+  return {
+    url: `${URL_MODELOS}${encodeURIComponent(modelo)}:generateContent`,
+    cuerpo: { systemInstruction: { parts: [{ text: sistema }] }, contents: [{ role: "user", parts: [{ text: entrada }] }], generationConfig },
+  };
+}
+
+async function intentarModelo(modelo, pedido, env, cfg, tope, fetchImpl) {
+  const { url, cuerpo } = armarPeticion(modelo, pedido, cfg);
   const control = new AbortController();
-  const reloj = setTimeout(() => control.abort(), cfg.esperaModeloMs);
-  let r;
+  const reloj = setTimeout(() => control.abort(), tope);
   try {
-    r = await fetchImpl("https://generativelanguage.googleapis.com/v1beta/interactions", {
-      method: "POST",
-      signal: control.signal,
-      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY, "Api-Revision": "2026-05-20" },
-      body: JSON.stringify({
-        model: cfg.modelo,
-        system_instruction: sistema,
-        input: entrada,
-        response_format: { type: "text", mime_type: "application/json", schema: esquema },
-        generation_config: { max_output_tokens: cfg.maxSalida, thinking_level: cfg.razonamiento },
-        store: false,                                   // no guardar la conversación en el servicio del modelo
-      }),
-    });
-  } catch (e) {
-    throw new ErrorLLM(control.signal.aborted ? "tiempo" : "fallo", "sin respuesta");
+    let r;
+    try {
+      r = await fetchImpl(url, {
+        method: "POST",
+        signal: control.signal,
+        headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        body: JSON.stringify(cuerpo),
+      });
+    } catch (e) {
+      const e2 = new ErrorLLM(control.signal.aborted ? "tiempo" : "fallo", "sin respuesta");
+      e2.siguiente = true;
+      if (control.signal.aborted) registrarErrorModelo(0, { status: "SIN_RESPUESTA", message: "no respondió a tiempo" }, env);
+      throw e2;
+    }
+    if (!r.ok) {
+      let error = null;
+      try { error = (await r.json()).error; } catch (e) { /* el cuerpo del error no es JSON */ }
+      registrarErrorModelo(r.status, error, env);
+      const e2 = new ErrorLLM(r.status === 429 ? "limite" : "fallo", "HTTP " + r.status);
+      e2.siguiente = r.status === 429 || r.status === 404 || r.status >= 500;
+      throw e2;
+    }
+    let datos;
+    try { datos = await r.json(); } catch (e) {
+      if (control.signal.aborted) { const e2 = new ErrorLLM("tiempo", "cuerpo incompleto"); e2.siguiente = true; throw e2; }
+      throw new ErrorLLM("fallo", "no es JSON");
+    }
+    const candidato = (datos.candidates || [])[0] || {};
+    if (candidato.finishReason && candidato.finishReason !== "STOP") {      // p. ej. MAX_TOKENS o SAFETY
+      registrarErrorModelo(r.status, { status: String(candidato.finishReason) }, env);
+      throw new ErrorLLM("fallo", "terminó con " + candidato.finishReason);
+    }
+    const texto = ((candidato.content || {}).parts || [])
+      .filter((p) => p && typeof p.text === "string" && !p.thought)
+      .map((p) => p.text).join("");
+    try { return JSON.parse(texto); } catch (e) { throw new ErrorLLM("fallo", "respuesta sin JSON"); }
   } finally {
     clearTimeout(reloj);
   }
-  if (!r.ok) {
-    let error = null;
-    try { error = (await r.json()).error; } catch (e) { /* el cuerpo del error no es JSON */ }
-    registrarErrorModelo(r.status, error, env);
-    throw new ErrorLLM(r.status === 429 ? "limite" : "fallo", "HTTP " + r.status);
+}
+
+export async function callLLM(pedido, env, fetchImpl = fetch) {
+  const cfg = config(env);
+  const inicio = Date.now();
+  let ultimo = null, todosLimite = true;
+  for (let i = 0; i < cfg.modelos.length; i++) {
+    const restante = cfg.esperaModeloMs - (Date.now() - inicio);
+    if (restante < 250) break;                                              // se acabó el presupuesto
+    const esElUltimo = i === cfg.modelos.length - 1;
+    const tope = esElUltimo ? restante : Math.min(cfg.esperaIntentoMs, restante);
+    try {
+      return await intentarModelo(cfg.modelos[i], pedido, env, cfg, tope, fetchImpl);
+    } catch (e) {
+      if (!(e instanceof ErrorLLM)) throw e;
+      ultimo = e;
+      if (e.tipo !== "limite") todosLimite = false;
+      if (!e.siguiente) throw e;
+    }
   }
-  let datos;
-  try { datos = await r.json(); } catch (e) { throw new ErrorLLM("fallo", "no es JSON"); }
-  if (datos.status && datos.status !== "completed") {              // p. ej. "incomplete": se acabaron los tokens de salida
-    registrarErrorModelo(r.status, { status: datos.status, ...((datos.errors || [])[0] || {}) }, env);
-    throw new ErrorLLM("fallo", "estado " + datos.status);
-  }
-  const texto = (datos.steps || [])
-    .filter((p) => p && p.type === "model_output")
-    .flatMap((p) => p.content || [])
-    .filter((c) => c && c.type === "text" && typeof c.text === "string")
-    .map((c) => c.text).join("");
-  try { return JSON.parse(texto); } catch (e) { throw new ErrorLLM("fallo", "respuesta sin JSON"); }
+  if (!ultimo) throw new ErrorLLM("tiempo", "sin presupuesto");
+  if (todosLimite) throw new ErrorLLM("limite", "todos los modelos");
+  throw new ErrorLLM(ultimo.tipo === "limite" ? "fallo" : ultimo.tipo, ultimo.message.replace(/^LLM: \w+ ?/, ""));
 }
 
 /* ---------------------------------------------------------------- la petición completa */

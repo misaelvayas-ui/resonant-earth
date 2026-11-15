@@ -123,7 +123,7 @@ Si no va bien, el propio programa dice qué hacer. Los casos:
 | `sin_clave` (503) | El servicio no tiene la clave | Repite el paso 5 |
 | `limite` (429) | Se llegó a un límite | Espera un minuto. Si se repite, baja los límites (paso 3) |
 | `modelo` (502) | Gemini devolvió un error | La clave no vale o el modelo cambió de nombre. Mira el detalle con `npx wrangler tail` y prueba de nuevo |
-| `tiempo` (504) | Gemini tardó más de 5 segundos | Prueba otra vez |
+| `tiempo` (504) | Gemini no respondió dentro del presupuesto (8 segundos en total) | Prueba otra vez; mira «Si Gemini está saturado» |
 
 `npx wrangler tail` muestra en vivo lo que le pasa al servicio. Se cierra con `Ctrl + C`.
 
@@ -181,14 +181,31 @@ Gemini respondió con error: http=400 codigo=400 estado=INVALID_ARGUMENT mensaje
 
 Causas ya vistas:
 
-- **`thinking_level` no admitido.** `gemini-3.8-flash` admite `low`, `medium` y `high`, pero no `minimal`. Hasta la ronda 35 el servicio enviaba `minimal` y Google lo rechazaba. Ahora envía `low` (se cambia con `GEMINI_THINKING` en `wrangler.toml`).
+- **`thinking_level` / `thinkingLevel` no admitido.** `gemini-3.8-flash` admite `low`, `medium` y `high`, pero no `minimal`. Desde la ronda 36 el servicio envía `LOW` (se cambia con `GEMINI_THINKING`). Los modelos anteriores a Gemini 3 no reciben ese campo, porque lo rechazan.
 - **`estado=incomplete`.** El modelo se quedó sin tokens de salida: `max_output_tokens` incluye los de razonamiento. Sube `MAX_TOKENS_SALIDA` (1200 por defecto) o baja `GEMINI_THINKING`.
 - **`http=400` o `403` con un mensaje sobre la clave.** Repite el paso 5 con una clave válida.
-- **`http=404`.** El nombre del modelo ya no existe: revisa `GEMINI_MODEL` contra <https://aistudio.google.com/docs/models>.
+- **`http=404`.** El nombre del modelo ya no existe: revisa `GEMINI_MODELOS` contra <https://aistudio.google.com/docs/models>. El servicio pasa al siguiente modelo de la lista.
 
-Si la prueba responde 504 `{"error":"tiempo"}`, el modelo tardó más de 5 segundos: baja `GEMINI_THINKING` a `low` o sube `ESPERA_MODELO_MS` (la web espera 6 segundos en total).
+Si la prueba responde 504 `{"error":"tiempo"}`, ningún modelo respondió dentro del presupuesto total (`ESPERA_MODELO_MS`, 8 segundos). La web espera 9 segundos en total.
 
-Si el 504 sigue aunque subas la espera, corre `node probar-gemini.mjs` dentro de `servicio-ia`: pide la clave con entrada oculta (nunca por argumento, no se imprime ni se guarda) y mide tres peticiones con tope de 40 s: A) la de hoy (API de Interacciones), B) la misma tarea con `generateContent` y C) «di hola» con `generateContent`. Gasta tres peticiones del cupo gratuito.
+### Si Gemini está saturado (503 «high demand»)
+
+El 15-nov-2026 `gemini-3.8-flash` respondió `503 UNAVAILABLE` («This model is currently experiencing high demand») y la API de Interacciones no respondía nada en 40 s. Por eso el servicio ahora:
+
+- usa el endpoint clásico `generateContent` (no la API de Interacciones);
+- prueba una **lista de modelos** (`GEMINI_MODELOS` en `wrangler.toml`, separados por comas, en orden de preferencia). Si el actual da 503, 429, otro error 5xx o 404, o no responde en `ESPERA_INTENTO_MS` (3,5 s), pasa al siguiente. Un 400 o un 403 (petición o clave mal) no se reintenta con otro modelo;
+- reparte un presupuesto total de `ESPERA_MODELO_MS` (8 s) entre todos los intentos; al último modelo le queda todo lo que sobre. Con un solo modelo, ese modelo usa los 8 s;
+- si todos fallan, devuelve el error de siempre y la web sigue con los comandos.
+
+Por defecto la lista tiene solo `gemini-3.8-flash`. Para elegir el orden, corre `node probar-gemini.mjs` y mira qué modelos responden bien.
+
+Para ver qué modelos responden bien **ahora**, corre dentro de `servicio-ia`:
+
+```
+node probar-gemini.mjs
+```
+
+Pide la clave con entrada oculta (nunca por argumento, no se imprime ni se guarda) y dice cuántos caracteres recibió (solo el número). Luego lista los modelos de tu cuenta (nombre y métodos), elige hasta 6 de las familias Flash y Flash-Lite que admiten `generateContent` (sin imagen, voz, embeddings ni live) y prueba con cada uno «Di hola» y la tarea real del servicio, con tope de 15 s. Imprime una tabla modelo / prueba / HTTP / ms / resultado y, al final, prueba `callLLM()` completo. Gasta unas 13 peticiones del cupo gratuito.
 
 ## Qué protege al servicio
 
@@ -219,7 +236,7 @@ Dos cosas que conviene saber:
 
 ## Cambiar de modelo
 
-- Otro modelo de Gemini: cambia `GEMINI_MODEL` en `wrangler.toml` y publica. El nombre vigente se comprueba en <https://aistudio.google.com/docs/models>.
+- Otros modelos de Gemini: cambia `GEMINI_MODELOS` (lista separada por comas) en `wrangler.toml` y publica. Los nombres vigentes se comprueban en <https://aistudio.google.com/docs/models> o con `node probar-gemini.mjs`.
 - Otro proveedor: cambia **solo** la función `callLLM()` de `src/nucleo.js`. Recibe las instrucciones, el mensaje y el esquema, y debe devolver un objeto `{ accion, parametros, respuesta }`.
 
 ## Si la clave se filtra
@@ -240,7 +257,7 @@ Dos cosas que conviene saber:
 | `src/index.js` | lo propio de Cloudflare: el Worker y el contador de los límites |
 | `wrangler.toml` | nombre, orígenes permitidos, modelo y límites (sin secretos) |
 | `probar.mjs` | prueba el servicio publicado con una frase de ejemplo |
-| `probar-gemini.mjs` | mide cuánto tarda Gemini con tres tipos de petición (para aislar un 504) |
+| `probar-gemini.mjs` | mide qué modelos de Gemini responden ahora (tabla modelo / HTTP / ms) para elegir el orden de `GEMINI_MODELOS` |
 | `pruebas/servicio.test.js` | pruebas con un modelo de mentira: `node --test pruebas/servicio.test.js` |
 
 ## Lo que está probado y lo que no

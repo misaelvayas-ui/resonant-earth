@@ -122,7 +122,8 @@ No se ven «Entendí», las frases sugeridas ni la lista de comandos. Las frases
 
 - Los comandos cortos, «llévame al año más cálido», el recorrido y los cambios de idioma no pasan por el modelo.
 - Lo que devuelve la IA se comprueba contra trece acciones permitidas y los rangos de la pista; lo que no cuadra se descarta y responde el intérprete.
-- Sin dirección, sin internet, con error, con límite (429) o si tarda más de 6 segundos, la guía responde con sus comandos y no muestra errores.
+- Sin dirección, sin internet, con error, con límite (429) o si tarda más de 9 segundos, la guía responde con sus comandos y no muestra errores.
+- Mientras espera a la IA, la esfera pasa a «pensando» y, si pasan 1,5 s, la guía dice «Un momento.» («One moment.») una sola vez; con lector de pantalla no habla, basta el texto.
 - Mientras la IA está encendida se ve el aviso «Tus frases se envían a un servicio de IA para responderte» y cada respuesta de la IA lleva la etiqueta «Respuesta generada por IA» (en inglés, sus equivalentes).
 
 **Pruebas de la guía**

@@ -143,40 +143,48 @@ test("el modelo responde 429, falla o tarda: 429 con pausa, 502 o 504, sin detal
   assert.equal(r.status, 502); assert.deepEqual(await r.json(), { error: "modelo" });
 });
 
-test("callLLM: arma la petición a Gemini como dice la documentación y lee la respuesta", async () => {
+test("callLLM: arma la petición a Gemini (generateContent) como dice la documentación y lee la respuesta", async () => {
   const vistos = [];
   const red = (estado, cuerpo) => async (url, op) => { vistos.push({ url, op }); return new Response(typeof cuerpo === "string" ? cuerpo : JSON.stringify(cuerpo), { status: estado }); };
-  const completa = { id: "int_1", status: "completed", steps: [{ type: "thought", content: [{ type: "text", text: "pensando" }] },
-    { type: "model_output", status: "done", content: [{ type: "text", text: JSON.stringify(BUENA) }] }] };
+  const completa = { candidates: [{ finishReason: "STOP", content: { role: "model", parts: [{ thought: true, text: "pensando" }, { text: JSON.stringify(BUENA) }] } }] };
   const pedido = { sistema: PROMPT_SISTEMA, entrada: "hola", esquema: ESQUEMA };
   assert.deepEqual(await callLLM(pedido, ENV, red(200, completa)), BUENA);
   const { url, op } = vistos[0], cuerpo = JSON.parse(op.body);
-  assert.equal(url, "https://generativelanguage.googleapis.com/v1beta/interactions");
+  assert.equal(url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent");
   assert.equal(op.method, "POST");
   assert.equal(op.headers["x-goog-api-key"], CLAVE);                     // la clave va en la cabecera, no en la dirección
   assert.ok(!url.includes(CLAVE) && !op.body.includes(CLAVE));
-  assert.equal(cuerpo.model, "gemini-3.8-flash");
-  assert.equal(cuerpo.system_instruction, PROMPT_SISTEMA);
-  assert.deepEqual(cuerpo.response_format, { type: "text", mime_type: "application/json", schema: ESQUEMA });
-  assert.equal(cuerpo.store, false);
-  assert.equal(op.headers["Api-Revision"], "2026-05-20");
-  // gemini-3.8-flash no admite thinking_level "minimal" (Google rechaza la petición): por defecto "low", y con margen de tokens
-  assert.deepEqual(cuerpo.generation_config, { max_output_tokens: 1200, thinking_level: "low" });
-  assert.deepEqual(Object.keys(cuerpo).sort(), ["generation_config", "input", "model", "response_format", "store", "system_instruction"]);
+  assert.deepEqual(Object.keys(op.headers).sort(), ["Content-Type", "x-goog-api-key"]);   // sin Api-Revision: eso era de Interacciones
+  assert.deepEqual(Object.keys(cuerpo).sort(), ["contents", "generationConfig", "systemInstruction"]);
+  assert.deepEqual(cuerpo.systemInstruction, { parts: [{ text: PROMPT_SISTEMA }] });
+  assert.deepEqual(cuerpo.contents, [{ role: "user", parts: [{ text: "hola" }] }]);
+  // gemini-3.8-flash no admite MINIMAL: por defecto LOW, y con margen de tokens (cuentan también los de razonamiento)
+  assert.deepEqual(cuerpo.generationConfig, { responseMimeType: "application/json", responseJsonSchema: ESQUEMA, maxOutputTokens: 1200, thinkingConfig: { thinkingLevel: "LOW" } });
   await callLLM(pedido, { ...ENV, GEMINI_THINKING: "medium", MAX_TOKENS_SALIDA: "2000" }, red(200, completa));
-  assert.deepEqual(JSON.parse(vistos.at(-1).op.body).generation_config, { max_output_tokens: 2000, thinking_level: "medium" });
+  const g2 = JSON.parse(vistos.at(-1).op.body).generationConfig;
+  assert.equal(g2.maxOutputTokens, 2000); assert.deepEqual(g2.thinkingConfig, { thinkingLevel: "MEDIUM" });
   await callLLM(pedido, { ...ENV, GEMINI_THINKING: "cualquier cosa" }, red(200, completa));
-  assert.equal(JSON.parse(vistos.at(-1).op.body).generation_config.thinking_level, "low");
-  assert.equal(JSON.parse((await (async () => { await callLLM(pedido, { ...ENV, GEMINI_MODEL: "otro-modelo" }, red(200, completa)); return vistos.at(-1).op.body; })())).model, "otro-modelo");
+  assert.equal(JSON.parse(vistos.at(-1).op.body).generationConfig.thinkingConfig.thinkingLevel, "LOW");
+  await callLLM(pedido, { ...ENV, GEMINI_MODEL: "otro-modelo" }, red(200, completa));
+  assert.match(vistos.at(-1).url, /\/models\/otro-modelo:generateContent$/);
+  await callLLM(pedido, { ...ENV, GEMINI_MODELOS: "models/gemini-2.5-flash" }, red(200, completa));          // modelos anteriores a Gemini 3: sin thinkingLevel
+  assert.ok(!("thinkingConfig" in JSON.parse(vistos.at(-1).op.body).generationConfig));
+  assert.match(vistos.at(-1).url, /\/models\/gemini-2\.5-flash:generateContent$/);
+  assert.deepEqual(config({}).modelos, ["gemini-3.8-flash"]);
+  assert.deepEqual(config({ GEMINI_MODELOS: " a , b,,models/c " }).modelos, ["a", "b", "c"]);
+  assert.deepEqual(config({ GEMINI_MODELOS: "," }).modelos, ["gemini-3.8-flash"]);
+  assert.equal(config({}).esperaModeloMs, 8000); assert.equal(config({}).esperaIntentoMs, 3500);
+
   const avisos = [], warn = console.warn; console.warn = (...a) => avisos.push(a.join(" "));      // lo que queda en el registro del servicio
   const falla = async (estado, cuerpoRed) => { try { await callLLM(pedido, ENV, red(estado, cuerpoRed)); return "sin error"; } catch (e) { return e.tipo; } };
   assert.equal(await falla(429, { error: { code: 429, status: "RESOURCE_EXHAUSTED" } }), "limite");
   assert.equal(await falla(500, "error interno"), "fallo");
   assert.equal(await falla(200, "no es json"), "fallo");
-  assert.equal(await falla(200, { status: "failed", steps: [] }), "fallo");
-  assert.equal(await falla(200, { status: "completed", steps: [{ type: "model_output", content: [{ type: "text", text: "no es json" }] }] }), "fallo");
+  assert.equal(await falla(200, { candidates: [] }), "fallo");
+  assert.equal(await falla(200, { candidates: [{ finishReason: "MAX_TOKENS", content: { parts: [{ text: "{" }] } }] }), "fallo");
+  assert.equal(await falla(200, { candidates: [{ finishReason: "STOP", content: { parts: [{ text: "no es json" }] } }] }), "fallo");
   const lenta = (url, op) => new Promise((_, rechazar) => op.signal.addEventListener("abort", () => rechazar(new Error("abortada"))));
-  try { await callLLM(pedido, { ...ENV, ESPERA_MODELO_MS: "40" }, lenta); assert.fail("debía agotar el tiempo"); } catch (e) { assert.equal(e.tipo, "tiempo"); }
+  try { await callLLM(pedido, { ...ENV, ESPERA_MODELO_MS: "300" }, lenta); assert.fail("debía agotar el tiempo"); } catch (e) { assert.equal(e.tipo, "tiempo"); }
   try { await callLLM(pedido, ENV, async () => { throw new Error("sin red"); }); assert.fail("debía fallar"); } catch (e) { assert.equal(e.tipo, "fallo"); }
   // el error real de Google queda en el registro: código HTTP, código o estado y mensaje; nada más
   avisos.length = 0;
@@ -191,17 +199,65 @@ test("callLLM: arma la petición a Gemini como dice la documentación y lee la r
   avisos.length = 0;
   assert.equal(await falla(429, { error: { code: 429, status: "RESOURCE_EXHAUSTED", message: "Quota exceeded" } }), "limite");
   assert.equal(await falla(503, "<html>no es json</html>"), "fallo");
-  assert.equal(await falla(200, { status: "incomplete", steps: [] }), "fallo");
-  assert.equal(await falla(200, { status: "failed", errors: [{ code: "internal", message: "algo falló" }], steps: [] }), "fallo");
+  assert.equal(await falla(200, { candidates: [{ finishReason: "MAX_TOKENS" }] }), "fallo");
   console.warn = warn;
   assert.deepEqual(avisos, ["Gemini respondió con error: http=429 codigo=429 estado=RESOURCE_EXHAUSTED mensaje=Quota exceeded", "Gemini respondió con error: http=503 codigo=- estado=- mensaje=-",
-    "Gemini respondió con error: http=200 codigo=- estado=incomplete mensaje=-", "Gemini respondió con error: http=200 codigo=internal estado=failed mensaje=algo falló"]);
+    "Gemini respondió con error: http=200 codigo=- estado=MAX_TOKENS mensaje=-"]);
   assert.equal(registrarErrorModelo(500, null, {}, () => { throw new Error("sin consola"); }), "Gemini respondió con error: http=500 codigo=- estado=- mensaje=-");
+});
+
+test("callLLM: modelos de respaldo (503, 429, 5xx, 404 o sin respuesta pasan al siguiente) dentro de un presupuesto total", async () => {
+  const warn = console.warn; console.warn = () => {};
+  try {
+    const pedido = { sistema: PROMPT_SISTEMA, entrada: "hola", esquema: ESQUEMA };
+    const buena = { candidates: [{ finishReason: "STOP", content: { parts: [{ text: JSON.stringify(BUENA) }] } }] };
+    const modeloDe = (url) => /models\/([^:]+):/.exec(url)[1];
+    // guion por modelo: número = estado HTTP, "lento" = no responde, "bien" = responde
+    const con = (guion) => {
+      const orden = [];
+      const f = async (url, op) => {
+        const m = modeloDe(url); orden.push(m); const g = guion[m];
+        if (g === "lento") return new Promise((_, no) => op.signal.addEventListener("abort", () => no(new Error("abortada"))));
+        if (g === "bien") return new Response(JSON.stringify(buena), { status: 200 });
+        return new Response(JSON.stringify({ error: { code: g, status: "X", message: "m" } }), { status: g });
+      };
+      f.orden = orden; return f;
+    };
+    const E = { ...ENV, GEMINI_MODELOS: "a,b,c" };
+
+    for (const malo of [503, 429, 500, 504, 404, "lento"]) {                    // cada fallo pasa al siguiente
+      const f = con({ a: malo, b: "bien", c: "bien" });
+      assert.deepEqual(await callLLM(pedido, { ...E, ESPERA_INTENTO_MS: "100" }, f), BUENA, String(malo));
+      assert.deepEqual(f.orden, ["a", "b"], String(malo));
+    }
+    // 400 y 403 (petición o clave mal) NO se reintentan con otro modelo
+    for (const malo of [400, 403]) {
+      const f = con({ a: malo, b: "bien" });
+      try { await callLLM(pedido, E, f); assert.fail("debía fallar"); } catch (e) { assert.equal(e.tipo, "fallo"); }
+      assert.deepEqual(f.orden, ["a"]);
+    }
+    // si el primero va bien, no se prueba ninguno más
+    const f1 = con({ a: "bien" }); await callLLM(pedido, E, f1); assert.deepEqual(f1.orden, ["a"]);
+    // todos fallan: el error de siempre
+    const tipoDe = async (guion, extra = {}) => { try { await callLLM(pedido, { ...E, ESPERA_INTENTO_MS: "100", ...extra }, con(guion)); return "sin error"; } catch (e) { return e.tipo; } };
+    assert.equal(await tipoDe({ a: 503, b: 503, c: 503 }), "fallo");
+    assert.equal(await tipoDe({ a: 429, b: 429, c: 429 }), "limite");
+    assert.equal(await tipoDe({ a: 429, b: 503, c: 503 }), "fallo");
+    assert.equal(await tipoDe({ a: 503, b: 503, c: "lento" }, { ESPERA_MODELO_MS: "600" }), "tiempo");
+    // con un solo modelo, todo el presupuesto es para él (no se corta antes)
+    const un = con({ a: "lento" }); const t0 = Date.now();
+    try { await callLLM(pedido, { ...ENV, GEMINI_MODELOS: "a", ESPERA_MODELO_MS: "500", ESPERA_INTENTO_MS: "50" }, un); assert.fail("debía agotar el tiempo"); } catch (e) { assert.equal(e.tipo, "tiempo"); }
+    assert.ok(Date.now() - t0 >= 450, "el último modelo usa el presupuesto restante");
+    // el presupuesto total manda sobre los intentos
+    const t1 = Date.now(); const lentos = con({ a: "lento", b: "lento", c: "lento" });
+    try { await callLLM(pedido, { ...E, ESPERA_MODELO_MS: "400", ESPERA_INTENTO_MS: "300" }, lentos); assert.fail("debía agotar el tiempo"); } catch (e) { assert.equal(e.tipo, "tiempo"); }
+    assert.ok(Date.now() - t1 < 900, "no pasa del presupuesto total"); assert.deepEqual(lentos.orden, ["a"], "con menos de 250 ms de presupuesto no se intenta otro modelo");
+  } finally { console.warn = warn; }
 });
 
 test("validarEntrada y config: valores por defecto prudentes", () => {
   const c = config({});
-  assert.deepEqual([c.modelo, c.porMinutoVisitante, c.porMinutoGlobal, c.porDia, c.maxTexto, c.maxContexto], ["gemini-3.8-flash", 6, 8, 200, 300, 9000]);
+  assert.deepEqual([c.modelos[0], c.porMinutoVisitante, c.porMinutoGlobal, c.porDia, c.maxTexto, c.maxContexto], ["gemini-3.8-flash", 6, 8, 200, 300, 9000]);
   assert.deepEqual(c.origenes, []);                                       // sin configurar no se permite ningún origen
   assert.deepEqual(validarEntrada({ texto: "  hola   mundo " }, c), { texto: "hola mundo", contexto: {} });
 });

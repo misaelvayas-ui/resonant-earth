@@ -1070,3 +1070,30 @@ la clave, la frase ni el contexto). Las pruebas de la web no cambian (23 pasan).
 NO probado: una llamada real a Gemini (sin clave en esta máquina). Que el 502 desaparezca hay que confirmarlo
 volviendo a publicar y repitiendo la prueba; si sigue, la línea del registro dirá el motivo exacto.
 Para volver a publicar: en servicio-ia/, npx wrangler deploy.
+
+RONDA 37 - servicio de IA: Gemini saturado; generateContent con modelos de respaldo, espera de 9 s y «un momento"   (2026-11-15)
+Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commits fdbee7b (ronda 36) y f1e2154 (probar-gemini.mjs).
+Problema: el servicio publicado respondía 504 "tiempo" aunque se subiera la espera a 25 s. Con probar-gemini.mjs y una clave
+válida: la API de Interacciones no respondía nada en 40 s; generateContent respondía en ~5 s con 503 UNAVAILABLE («This model
+is currently experiencing high demand») para gemini-3.8-flash. O sea: el modelo estaba saturado y Interacciones se colgaba.
+Tocados: servicio-ia/src/nucleo.js, servicio-ia/wrangler.toml, servicio-ia/probar-gemini.mjs, servicio-ia/pruebas/servicio.test.js,
+servicio-ia/LEEME.md, web/guia-voz-ia.js, web/guia-voz.js, web/pruebas/guia-voz-ia.test.js, web/README.md.
+1. probar-gemini.mjs ampliado: clave con entrada oculta (nunca por argumento; solo se imprime cuántos caracteres recibió), lista
+   los modelos (GET /v1beta/models: nombre y métodos), elige hasta 6 de Flash y Flash-Lite que admiten generateContent (sin
+   imagen, voz, embeddings, live ni versiones con fecha), prueba «Di hola» y la tarea real con cada uno (tope 15 s) e imprime la
+   tabla modelo / prueba / HTTP / ms / resultado; al final prueba callLLM() completo. Nunca imprime la clave.
+2. callLLM usa generateContent (POST /v1beta/models/<modelo>:generateContent; systemInstruction, contents, generationConfig con
+   responseMimeType application/json, responseJsonSchema, maxOutputTokens y thinkingConfig.thinkingLevel LOW; documentación
+   consultada el 15-nov-2026). Ya no usa Interacciones ni la cabecera Api-Revision. A los modelos anteriores a Gemini 3 no se
+   les manda thinkingLevel. Lista de respaldo en GEMINI_MODELOS (wrangler.toml, separada por comas; por defecto solo
+   gemini-3.8-flash): pasa al siguiente modelo con 503, 429, otro 5xx, 404 o sin respuesta en ESPERA_INTENTO_MS (3,5 s); 400 y
+   403 no se reintentan. Presupuesto total ESPERA_MODELO_MS = 8000 (el valor de 25 s se quitó); al último modelo le queda el resto.
+   Si todos fallan: el error de siempre (la web cae a comandos). El registro sigue siendo solo código HTTP, estado/código y
+   mensaje (≤300, sin clave); se añade una línea "estado=SIN_RESPUESTA" cuando un modelo no responde a tiempo.
+3. Web: ESPERA_MS sube de 6 a 9 s (guia-voz-ia.js). Mientras espera, la esfera pasa a «pensando» y, a los 1,5 s, la guía dice
+   «Un momento.» / «One moment.» una vez (con lector de pantalla no habla).
+Verificado: servicio-ia 13 pruebas; web 24 pruebas; navegador (espera.js, 13/13): esfera «pensando», «un momento» una vez en
+español e inglés, no lo dice si la respuesta es rápida, ni con lector de pantalla; probar-gemini.mjs con una red de mentira
+(tabla, redacción de la clave, tope por prueba).
+NO probado: llamadas reales a Gemini ni qué modelos de respaldo existen en tu cuenta (eso lo dice probar-gemini.mjs con tu clave).
+Para volver a publicar: en servicio-ia/, npx wrangler deploy.
