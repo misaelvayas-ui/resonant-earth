@@ -376,7 +376,8 @@ def d1():
         out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", f"{flujo}:0", "-show_entries",
                               "packet=pts_time", "-of", "csv=p=0", os.path.join(sal, "demo.mp4")],
                              capture_output=True, text=True).stdout.split()
-        pts.append(min(float(x) for x in out))
+        # algunas versiones de ffprobe terminan cada línea del CSV con una coma ('4.093832,')
+        pts.append(min(float(x.strip(",").split(",")[0]) for x in out if x.strip(",")))
     # El video empieza ~0,100 s después del audio (retardo de 2 B-frames a 20 fps): es la
     # configuración confirmada sin entrecortes en VLC (ronda 7); el umbral deja margen de 1 fotograma.
     desfase = abs(pts[0] - pts[1])

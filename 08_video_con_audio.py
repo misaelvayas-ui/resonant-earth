@@ -33,7 +33,7 @@ def duracion(ruta, flujo=None):
     else:
         cmd = ["ffprobe", "-v", "error", "-select_streams", f"{flujo}:0",
                "-show_entries", "stream=duration", "-of", "csv=p=0", ruta]
-    texto = ejecutar(cmd).strip()
+    texto = ejecutar(cmd).strip().strip(",")       # algunas versiones de ffprobe añaden una coma al final
     try:
         return float(texto)
     except ValueError:
@@ -93,7 +93,7 @@ def cadencia(ruta):
 
 def alto_video(ruta):
     return int(ejecutar(["ffprobe", "-v", "error", "-select_streams", "v:0",
-                         "-show_entries", "stream=height", "-of", "csv=p=0", ruta]).strip())
+                         "-show_entries", "stream=height", "-of", "csv=p=0", ruta]).strip().strip(","))
 
 
 def filtros_texto(video, factor, carpeta):

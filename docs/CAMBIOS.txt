@@ -1079,3 +1079,8 @@ exportar_paleta.py, V29-V31, el flujo de CI (sounddevice se importa solo al repr
 Riesgos que quedan anotados: el CI no se ha ejecutado en GitHub; tras publicar, un visitante que ya tenía la web abierta puede mezclar archivos viejos y nuevos hasta 10 min (caché de GitHub Pages);
 el valor de un punto del mapa es aproximado (video comprimido); nada de lo táctil se probó en un teléfono real.
 Comprobado: verificar.cjs V1-V31 todo PASA; evaluar.py 46 PASA, 0 FALLA, 1 OMITIDA (sin cambios de Python en esta ronda).
+
+RONDA 41 - primer fallo del CI: coma final de ffprobe (rama mejoras/ronda-38)   (2026-11-15)
+Primera ejecución de .github/workflows/pruebas.yml: Ubuntu 46 PASA + K1 con FluidSynth y la web V1-V31 en verde; macos-latest (arm64) 45 PASA, 1 FALLA: D1 con
+"ValueError: could not convert string to float: '4.093832,'". El ffprobe de ese equipo termina cada línea del CSV con una coma. Se quita la coma al leer en D1 (evaluar.py), en duracion() y
+alto_video() de 08 y en duracion() de exportar_web (duracion_real y cadencia ya lo hacían). Aquí: evaluar.py 46 PASA, 0 FALLA, 1 OMITIDA.

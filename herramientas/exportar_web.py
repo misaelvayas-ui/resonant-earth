@@ -35,7 +35,7 @@ def ejecutar(cmd):
 
 
 def duracion(ruta):
-    return float(ejecutar(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", ruta]).strip())
+    return float(ejecutar(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", ruta]).strip().strip(","))
 
 
 def sha256(ruta):
