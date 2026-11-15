@@ -48,6 +48,7 @@ Los mp4 y los rasgos de `assets/` salen del pipeline, con la misma salida que el
 ```bash
 python -m herramientas.exportar_web      # mp4, _rasgos.json y _procedencia.json
 python -m herramientas.exportar_mapeo    # _mapeo.json y _esperado.json
+python -m herramientas.exportar_paleta   # _paleta.json (barra de colores, para «Explorar el mapa»)
 ```
 
 ## Sonido en vivo
@@ -80,9 +81,9 @@ mkdir -p /tmp/webm && for id in gistemp_1880_2023 sst_ecco2_2007_2008; do ffmpeg
 WEBM_DIR=/tmp/webm node web/pruebas/verificar.cjs http://localhost:8137/ /tmp/capturas
 ```
 
-El Chromium de Playwright no trae H.264 ni AAC: por eso las pruebas usan copias webm (`WEBM_DIR`). Son 30 comprobaciones (V1 a V30).
+El Chromium de Playwright no trae H.264 ni AAC: por eso las pruebas usan copias webm (`WEBM_DIR`). Son 31 comprobaciones (V1 a V31).
 Una captura que falla es un `[AVISO]` y no corta el informe. V29 falla si `equipo.json` tiene textos de relleno o si la cifra de
-pruebas de la portada no coincide con `evaluar.py`. V30 prueba el botón «Antes y después». Lighthouse se corre con `--preset=desktop`.
+pruebas de la portada no coincide con `evaluar.py`. V30 prueba el botón «Antes y después» y V31 «Explorar el mapa». Lighthouse se corre con `--preset=desktop`.
 
 ## Accesibilidad
 

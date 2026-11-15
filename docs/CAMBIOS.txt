@@ -1047,3 +1047,19 @@ node --test 13 PASA; camino real GISTEMP 05 -> 06 -> 07 -> 08 de punta a punta c
 NO comprobado: Linux y Windows (la ruta "opencv mp4v" no cambia, pero no se ejecutó); FluidSynth (K1); el CI en GitHub; Safari, iOS y Firefox para el modo en vivo; lector de pantalla y teléfono reales; escucha humana.
 NO hecho (queda en docs/REVISION_Y_MEJORAS.md): versión en inglés, "Adivina el año", descarga MIDI, tercera pista, CSP, cargar el 3D solo en equipos capaces, partir evaluar.py, limpieza de ramas e historial,
 la guía por voz (rama juan/guia-voz-ia-v2) y la decisión sobre el paneo de GISTEMP. No se publicó la web ni se hizo push.
+
+RONDA 39 - lo que pide el enunciado: «Explorar el mapa» en tiempo real (rama mejoras/ronda-38)   (2026-11-15)
+Se leyó el enunciado oficial («The Earth Information Jukebox», spaceappschallenge.org/2026/challenges/the-earth-information-jukebox/). Pide una experiencia donde se elige una visualización del EIC y se oye
+su sonificación, generada en tiempo real a partir de los fotogramas; nombra la exploración interactiva, y la accesibilidad (lector de pantalla, respuesta táctil, texto descriptivo) como tema central.
+Con ese criterio se eligió UNA función nueva y se descartaron las demás ideas (juego de adivinar, «tu año», descargas, kit docente): no las pide el enunciado.
+1. «Explorar el mapa» (web/js/explorar.js): con la pista en pausa, el cursor o las flechas mueven una mira sobre el fotograma; se lee el color (3x3 px de una copia de 256x128), se busca en la barra de
+   colores de la pista y suena la nota de la misma escala, al instante. Un texto (role=status) dice latitud, longitud, fecha y valor. Esc sale; si la pista vuelve a sonar, se sale solo.
+   GISTEMP usa distancia de color (como 05 en modo lab); el mar usa el matiz con brillo y saturación mínimos (como 05 en modo matiz): la tierra gris da «sin dato».
+   Vibración de 12 ms al cambiar de nota donde el navegador la permite (navigator.vibrate; no existe en iPhone).
+2. herramientas/exportar_paleta.py: escribe web/assets/<id>_paleta.json (64 colores de vmin a vmax) desde la MISMA barra y el mismo rango que usa 05 (config_eic.json, config_sst.json).
+   La barra del mar (sst_ecco2_cbar.png) se descargó de SVS 3912.
+3. Prueba V31: 80 puntos del mapa de GISTEMP dan de media entre -0,28 y -0,33 °C hacia 1898 (según el fotograma exacto) y +1,17 °C en 2023 (se exige una diferencia > 0,8 °C); pista en pausa, voz sonando, texto con latitud y °C, flechas que mueven
+   la mira y no la pista, Esc devuelve el foco al botón, axe sin violaciones en la rocola. Probado a mano: en el mar, los continentes dan «sin dato» y el ecuador unos 26-27 °C.
+4. README: tabla «Cómo respondemos al reto» (cada frase del enunciado y dónde se cumple) y la guía del jurado con el paso nuevo.
+Límites: el valor de un punto se lee de un video comprimido y reducido, así que es aproximado (la web dice «según el color» en el mar); los valores saturan en ±2 °C, el rango de la barra.
+NO comprobado: pantallas táctiles reales (el arrastre con el dedo y la vibración), lector de pantalla real, Safari.

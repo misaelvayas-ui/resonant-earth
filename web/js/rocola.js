@@ -6,6 +6,7 @@ import { cargarRasgos, cargarMapeo } from "./datos.js";
 import * as vivo from "./vivo.js";
 import { dibujarGraficoPista } from "./grafico.js";
 import * as lectura from "./lectura.js";
+import * as explorar from "./explorar.js";
 
 const $ = (id) => document.getElementById(id);
 let pistas = [];
@@ -139,6 +140,7 @@ export async function elegir(id, opciones = {}) {
   doc = null;
   mapeoActual = null;
   vivo.activar(false);                 // la pista anterior deja de sonar en vivo hasta saber qué trae esta
+  explorar.fijarPista(null, null);
   audio.fijarModo("original");
   estadoSelector(false, AYUDA.sinPista);
   marcarFichas(false);
@@ -164,6 +166,7 @@ export async function elegir(id, opciones = {}) {
     if (actual !== p) return;
     doc = d;
     mapeoActual = d ? m : null;
+    explorar.fijarPista(p, mapeoActual);
     dibujarGraficoPista($("grafico-pista"), p, d, saltarA);
     if (d) lectura.actualizar(p, d, 0, false, true); else lectura.sinLectura();
     prepararModo(p);
@@ -265,6 +268,8 @@ export function iniciarRocola(lista) {
   document.addEventListener("keydown", atajos);
   $("btn-cambiar").addEventListener("click", cambiar);
   $("btn-comparar").addEventListener("click", comparar);
+  explorar.iniciarExplorar({ boton: $("btn-explorar"), zona: $("zona-explorar"), mira: $("mira"), texto: $("explorar-texto"), video: $("medio") },
+    { alSalir: () => { if (actual && !audio.estado().sonando) decir(`En pausa: ${actual.titulo}`); } });
   audio.alCambiar(seguirComparacion);
   $("volumen").addEventListener("input", (ev) => {
     audio.fijarVolumen(ev.target.value / 100);

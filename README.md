@@ -9,10 +9,23 @@ Prototipo para NASA Space Apps (reto 9), probado con el video **NASA SVS 5207 �
 1. Abre la web: <https://misaelvayas-ui.github.io/rocola_practica/> (o, sin internet, `cd web && python -m http.server 8001` y <http://localhost:8001>).
 2. Pulsa **Temperatura del planeta** y escucha 30 segundos con auriculares. La melodía se queda abajo un siglo y sube en los últimos cuarenta años. La nota grave fija es el promedio de 1951–1980.
 3. Pulsa **Antes y después**: suenan los primeros 5 segundos (1881–1903) y enseguida los últimos (2011–2023).
-4. Cambia a **Sonido en vivo** y apaga casillas (melodía, volumen, paneo, dron) para oír qué aporta cada capa.
-5. La cifra clave: lo que leemos del video coincide con la serie oficial GISTEMP de la NASA con una **correlación de 0,99** (58 años). Se repite con un comando: `python -m herramientas.validar_gistemp`.
-6. Límites que declaramos: nuestra lectura queda 0,09 °C por debajo de la serie oficial; la pista del mar es un índice relativo, no grados exactos; el paneo de GISTEMP lo decide una zona pequeña del mapa.
-7. Todo está probado: `python evaluar.py` (47 pruebas) y `web/pruebas/verificar.cjs` (30 comprobaciones con Playwright y axe).
+4. Pulsa **Explorar el mapa** y mueve el cursor (o las flechas): cada punto suena y dice su latitud, longitud y temperatura, calculadas en ese instante desde el color del fotograma.
+5. Cambia a **Sonido en vivo** y apaga casillas (melodía, volumen, paneo, dron) para oír qué aporta cada capa.
+6. La cifra clave: lo que leemos del video coincide con la serie oficial GISTEMP de la NASA con una **correlación de 0,99** (58 años). Se repite con un comando: `python -m herramientas.validar_gistemp`.
+7. Límites que declaramos: nuestra lectura queda 0,09 °C por debajo de la serie oficial; la pista del mar es un índice relativo, no grados exactos; el paneo de GISTEMP lo decide una zona pequeña del mapa.
+8. Todo está probado: `python evaluar.py` (47 pruebas) y `web/pruebas/verificar.cjs` (31 comprobaciones con Playwright y axe).
+
+## Cómo respondemos al reto «The Earth Information Jukebox»
+
+| Lo que pide el enunciado | Dónde está |
+|---|---|
+| Una «rocola» donde se elige una visualización del EIC y se oye su paisaje sonoro | La web (`web/`): dos pistas con su video, su sonido y su lectura. SVS 3912 (corrientes y temperatura del mar) está en la lista de recursos del reto |
+| Sonificaciones **generadas en tiempo real** a partir de los fotogramas | «Sonido en vivo»: el navegador genera el audio mientras corre el video. «Explorar el mapa»: lee el color del píxel bajo el cursor en el fotograma y lo toca en ese instante |
+| Analizar los fotogramas (visión por computador: color → sonido) | `05_video_a_rasgos.py` lee la barra de colores del propio video y convierte cada píxel en valor; `web/js/explorar.js` hace lo mismo en el navegador con `<id>_paleta.json` |
+| Equilibrio entre dato y música | Escala pentatónica, dron de referencia, arpegios; y pruebas que exigen que cada nota coincida con el dato (`evaluar.py`, 07, I1) |
+| Traducción exploratoria e interactiva | Casillas para apagar melodía, volumen, paneo o dron; gráfico navegable; «Antes y después»; «Explorar el mapa» |
+| Accesibilidad para personas ciegas o con baja visión: lector de pantalla, respuesta táctil, texto descriptivo | Todo con teclado; lectura en vivo para el lector de pantalla; descripción de cada pista; mapa explorable con flechas que dice latitud, longitud y valor; vibración al cambiar de nota (teléfonos que la permiten) |
+| Contar el porqué de las decisiones | Sección «El porqué» de la web, `docs/CAMBIOS.txt` (39 rondas con mediciones) y `docs/ESPEC_MODO_EN_VIVO.md` |
 
 ## Qué se oye
 
@@ -169,6 +182,7 @@ salidas/       todo lo generado (WAV, MP4, PNG, JSON); salidas_sst/ = el de ECCO
 herramientas/  calibrar.py   →  python -m herramientas.calibrar (barra vertical u horizontal; --mapa, --modo-color)
                exportar_mapeo.py → python -m herramientas.exportar_mapeo (mapeo rasgo→sonido para el modo en vivo; ver docs/ESPEC_MODO_EN_VIVO.md)
                validar_gistemp.py → python -m herramientas.validar_gistemp (correlación con la serie oficial GISTEMP v4)
+               exportar_paleta.py → python -m herramientas.exportar_paleta (barra de colores de cada pista para «Explorar el mapa»)
                exportar_web.py   → python -m herramientas.exportar_web (MP4 y rasgos de web/assets desde la MISMA salida que el demo; comprueba el audio)
 web/           web del proyecto: GISTEMP y SST con globo 3D y rocola accesible (ver web/README.md)
 docs/          CAMBIOS.txt (historial de cambios), AUDITORIA.md y AUDITORIA_2.md (auditorías)

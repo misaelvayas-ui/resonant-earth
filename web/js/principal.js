@@ -11,6 +11,7 @@ import * as lectura from "./lectura.js";
 import { iniciarGlobo, cuadro, depuracion } from "./globo.js";
 import { iniciarAnimaciones } from "./animaciones.js";
 import { iniciarTarjetas } from "./tarjetas.js";
+import * as explorar from "./explorar.js";
 import { iniciarMenu, listaEnfocableSiDesborda } from "./menu.js";
 
 const $ = (id) => document.getElementById(id);
@@ -62,4 +63,4 @@ if (window.gsap) {
   });
 }
 
-window.__web = { audio, vivo, globo: depuracion, rocola: { elegir, cambiar, pistaActual } };
+window.__web = { explorar, audio, vivo, globo: depuracion, rocola: { elegir, cambiar, pistaActual } };

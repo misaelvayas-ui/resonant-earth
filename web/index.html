@@ -112,8 +112,12 @@
             <div class="marco">
               <video id="medio" playsinline preload="none"></video>
               <div id="fecha-video" class="fecha-video" aria-hidden="true" hidden></div>
+              <div id="zona-explorar" class="zona-explorar" role="application" tabindex="0" aria-label="Mapa explorable. Mueve el cursor o usa las flechas para oír cada punto; con Mayúsculas se avanza más; Escape para salir." aria-describedby="explorar-texto" hidden>
+                <span id="mira" class="mira" aria-hidden="true"></span>
+              </div>
               <canvas id="visualizador" aria-hidden="true"></canvas>
             </div>
+            <p id="explorar-texto" class="explorar-texto" role="status" aria-live="polite"></p>
             <div class="cabecera-pista">
               <h3 id="titulo-pista">Elige una pista</h3>
               <p id="fuente-pista" class="fuente"></p>
@@ -122,6 +126,7 @@
             <div class="controles" role="group" aria-label="Controles de la rocola">
               <button id="btn-reproducir" class="boton boton-lleno" type="button" disabled>Reproducir</button>
               <button id="btn-cambiar" class="boton boton-contorno" type="button" disabled>Cambiar de pista</button>
+              <button id="btn-explorar" class="boton boton-contorno" type="button" aria-pressed="false" disabled title="Oye el valor de cada punto del mapa, en tiempo real">Explorar el mapa</button>
               <button id="btn-comparar" class="boton boton-contorno" type="button" disabled title="Suena el principio de la pista y, enseguida, el final">Antes y después</button>
               <span class="grupo-volumen"><label class="volumen" for="volumen">Volumen</label><input id="volumen" type="range" min="0" max="100" step="1" value="80" aria-valuetext="80 %"></span>
               <span id="tiempo" class="dato">0:00 / 0:00</span>
@@ -223,6 +228,7 @@
           <li>Todo se usa con teclado y el foco siempre se ve.</li>
           <li>En Sonido en vivo puedes dejar un solo rasgo para aprender a reconocerlo: melodía, volumen, lado o nota grave.</li>
           <li>Atajos, fuera de un campo de texto: <kbd>Espacio</kbd> reproduce o pausa; <kbd>←</kbd> y <kbd>→</kbd> retroceden o adelantan 5 s. En el gráfico, <kbd>←</kbd> y <kbd>→</kbd> eligen un momento y <kbd>Enter</kbd> salta hasta él (o haz clic).</li>
+          <li><strong>Explorar el mapa:</strong> pausa la pista, mueve el cursor o las flechas sobre el mapa y oye el valor de cada punto, con su latitud, longitud y temperatura en texto. El sonido se calcula en ese instante a partir del color del fotograma. En teléfonos que vibran, se siente un toque al cambiar de nota.</li>
           <li>Cada pista explica qué se ve y qué se oye, y qué significan los colores.</li>
           <li>Contraste AA o mejor en todo el texto.</li>
           <li>Si pides menos movimiento al sistema, la página deja de moverse.</li>

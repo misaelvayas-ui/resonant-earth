@@ -152,6 +152,7 @@ export function fijarModo(nuevo) {
 export const modo = () => modoActual;
 export const contexto = () => ctx;
 export const entradaVivo = () => busVivo;
+export const entradaExtra = () => ganancia;      // para sonidos que no dependen del modo (explorar el mapa)
 export const elementoMedio = () => medio;
 
 export async function reproducir() {

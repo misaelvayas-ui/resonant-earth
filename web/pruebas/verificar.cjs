@@ -518,6 +518,44 @@ async function desplazarTodo(page) {
   comprobar("V30", desactivado30 && fase1.t < 4 && fase1.estado.startsWith("Antes") && salto30 && fase2.t >= 24.9 && fase2.t < 28 && fase2.sonando && fase2.estado.startsWith("Después"),
     `sin pista: deshabilitado ${desactivado30}; fase 1 a ${fase1.t.toFixed(1)} s «${fase1.estado}»; salto al final: ${salto30}; fase 2 a ${fase2.t.toFixed(1)} s «${fase2.estado}»`);
 
+  // V31: «Explorar el mapa»: el color del fotograma bajo la mira se convierte en valor, nota y texto (teclado y axe)
+  const ex = await nuevaPagina(browser, {});
+  await ex.page.goto(url, { waitUntil: "load" });
+  await esperar(1500);
+  const sinPista31 = await ex.page.$eval("#btn-explorar", (b) => b.disabled);
+  await ex.page.click("button.pista >> nth=0");
+  await ex.page.waitForFunction(() => window.__web.audio.estado().sonando && window.__web.explorar.estado().disponible, null, { timeout: 15000 }).catch(() => {});
+  const medir31 = async (t) => {
+    await ex.page.evaluate(() => window.__web.explorar.salir());
+    await ex.page.evaluate((s) => { window.__web.audio.buscar(s); return window.__web.audio.reproducir(); }, t);
+    await esperar(900);
+    await ex.page.focus("#btn-explorar");
+    await ex.page.keyboard.press("Enter");
+    await esperar(300);
+    return ex.page.evaluate(() => {
+      const pts = [];
+      for (let y = 0.15; y < 0.9; y += 0.1) for (let x = 0.05; x < 1; x += 0.1) { window.__web.explorar.mover(x, y); const e = window.__web.explorar.estado(); if (e.valor != null) pts.push(e.valor); }
+      window.__web.explorar.mover(0.5, 0.3);
+      return { n: pts.length, media: pts.reduce((a, b) => a + b, 0) / Math.max(1, pts.length), sonando: window.__web.audio.estado().sonando, e: window.__web.explorar.estado(),
+        foco: document.activeElement.id, texto: document.getElementById("explorar-texto").textContent };
+    });
+  };
+  const frio31 = await medir31(3);                       // hacia 1898
+  const calor31 = await medir31(29);                     // 2023
+  // solo la rocola: el héroe, fuera de pantalla, está a media transparencia por la animación de desplazamiento
+  const axe31 = await new AxeBuilder({ page: ex.page }).include("#rocola").withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  const x31 = calor31.e.x;
+  await ex.page.keyboard.press("ArrowRight");
+  const trasFlecha31 = await ex.page.evaluate(() => ({ x: window.__web.explorar.estado().x, t: window.__web.audio.estado().tiempo }));
+  await ex.page.keyboard.press("Escape");
+  const fin31 = await ex.page.evaluate(() => ({ activo: window.__web.explorar.estado().activo, foco: document.activeElement.id, oculto: document.getElementById("zona-explorar").hidden }));
+  await captura(ex.page, { path: path.join(carpeta, "explorar-1440.png") });
+  await ex.ctx.close();
+  comprobar("V31", sinPista31 && frio31.n >= 40 && calor31.n >= 40 && calor31.media - frio31.media > 0.8 && !calor31.sonando && calor31.e.suena && calor31.foco === "zona-explorar"
+    && /°C/.test(calor31.texto) && /norte|sur|ecuador/.test(calor31.texto) && trasFlecha31.x > x31 && trasFlecha31.t > 28 && !fin31.activo && fin31.foco === "btn-explorar" && fin31.oculto && axe31.violations.length === 0,
+    `media de ${frio31.n} puntos hacia 1898: ${frio31.media.toFixed(2)} °C; de ${calor31.n} puntos en 2023: ${calor31.media.toFixed(2)} °C; pista en pausa: ${!calor31.sonando}; suena la voz: ${calor31.e.suena}; texto «${calor31.texto}»; `
+    + `flecha derecha mueve la mira (${x31.toFixed(3)} -> ${trasFlecha31.x.toFixed(3)}) y no la pista; Esc: foco en ${fin31.foco}; axe ${axe31.violations.length} ${axe31.violations.map((v) => v.id).join(",")}`);
+
   // V29: contenido de entrega (sin navegador): nada de textos de relleno y la cifra de pruebas al día
   const raiz = path.join(__dirname, "..");
   const equipo = fs.readFileSync(path.join(raiz, "equipo.json"), "utf8");
