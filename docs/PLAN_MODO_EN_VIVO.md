@@ -412,3 +412,4 @@ Las siete dudas de la primera versión de este plan se cerraron en la sección 1
 ## 9. Desviaciones durante la ejecución
 
 (Se añaden aquí, con el número de paso, las diferencias entre lo escrito y lo hecho.)
+- **Paso 7:** el accesor del `<video>` se llama `audio.elementoMedio()` (no `medio()`) y el del modo `audio.modo()`, porque `medio` y `modo` ya son variables del módulo. `estado()` incluye además `modo`.
