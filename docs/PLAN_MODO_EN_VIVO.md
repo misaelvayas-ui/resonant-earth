@@ -413,3 +413,8 @@ Las siete dudas de la primera versión de este plan se cerraron en la sección 1
 
 (Se añaden aquí, con el número de paso, las diferencias entre lo escrito y lo hecho.)
 - **Paso 7:** el accesor del `<video>` se llama `audio.elementoMedio()` (no `medio()`) y el del modo `audio.modo()`, porque `medio` y `modo` ya son variables del módulo. `estado()` incluye además `modo`.
+- **Paso 9:** `vivo.js` escucha directamente los eventos del `<video>` (`audio.elementoMedio()`) en vez de pasar por `audio.alCambiar`, porque necesita saber QUÉ evento ocurrió (`pause` y `ended` no se tratan igual). `audio.js` sigue reenviando los eventos nuevos a `avisar()` para la interfaz.
+- **Paso 10:** el campo `ultimo` de `vivo.estado()` guarda `{ t, cuando }` del último golpe programado; con GISTEMP, 5 s de reproducción programan 11 golpes (el criterio decía 8 a 14). La pista del mar programa 41 (tiene 40 golpes en esos 5 s): el rango 8 a 14 solo vale para GISTEMP.
+- **Paso 11:** `playing` solo vuelve a arrancar el planificador si no estaba en marcha (tras `play` ya lo está); sin esto se reprogramaban los golpes dos veces. Al terminar la pista, la puerta se cierra con una rampa lineal de 50 ms.
+- **Paso 13 (parte 1):** el texto de ayuda (`#modo-ayuda`) queda FUERA del `fieldset` (el `fieldset:disabled` le bajaría el contraste) y se enlaza con `aria-describedby`. El aviso «Suena: …» de la región de estado ahora solo se escribe cuando la pista pasa de no sonar a sonar, para no pisar los mensajes del selector.
+- **Paso 16 (parte 1):** V24 comprueba que el `AudioContext` no existe antes del primer gesto (en Chromium con `--autoplay-policy=no-user-gesture-required`, que usa `verificar.cjs`, no se puede comprobar el rechazo de `resume()`; eso queda en la lista manual).
