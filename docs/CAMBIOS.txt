@@ -1049,3 +1049,24 @@ llamada real a Gemini.
 Para Misael: la web tiene unos 146 textos solo en español (95 en index.html, 20 en pistas.json, 11 en equipo.json y unos
 20 en web/js/). En equipo.json siguen dos nombres de ejemplo y los cinco "Aporte al proyecto (editar)".
 HAY QUE VOLVER A PUBLICAR EL SERVICIO (npx wrangler deploy): cambiaron las instrucciones del modelo y el límite del contexto.
+
+RONDA 36 - servicio de IA: causa del 502 con Gemini y registro del error real   (2026-11-15)
+Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit c3cd0c8 (ronda 35, misma rama).
+Problema: el servicio publicado (rocola-guia-ia.resonant-earth.workers.dev) respondía 200 en la ruta de estado y
+502 {"error":"modelo"} con la frase de prueba, sin dejar ver por qué.
+Tocados: servicio-ia/src/nucleo.js, servicio-ia/wrangler.toml, servicio-ia/pruebas/servicio.test.js, servicio-ia/LEEME.md.
+1. Causa encontrada en la documentación oficial (aistudio.google.com/docs/thinking, consultada el 15-nov-2026):
+   gemini-3.8-flash admite thinking_level low, medium y high, pero NO "minimal", y callLLM enviaba "minimal". Ahora envía
+   "low" (variable GEMINI_THINKING). Además max_output_tokens incluye los tokens de razonamiento: sube de 400 a 1200
+   (variable MAX_TOKENS_SALIDA) para que la respuesta no quede en estado "incomplete".
+2. Revisado contra la documentación y sin cambios: la dirección (POST .../v1beta/interactions), las cabeceras
+   (x-goog-api-key y Api-Revision: 2026-05-20), el cuerpo (model, system_instruction como texto, input, response_format con
+   type/mime_type/schema, store) y el nombre del modelo (gemini-3.8-flash, estable).
+3. Registro: cuando Google no responde bien, callLLM deja con console.warn SOLO el código HTTP, el código o estado del
+   error y su mensaje cortado a 300 caracteres y sin la clave. También si el estado no es "completed". Nunca la frase de la
+   persona ni el contexto. A la web sigue sin viajar ningún detalle. Se ve con: npx wrangler tail.
+Verificado: servicio-ia, 12 pruebas pasan (incluyen la forma de la petición, lo que se registra y que no se registran
+la clave, la frase ni el contexto). Las pruebas de la web no cambian (23 pasan).
+NO probado: una llamada real a Gemini (sin clave en esta máquina). Que el 502 desaparezca hay que confirmarlo
+volviendo a publicar y repitiendo la prueba; si sigue, la línea del registro dirá el motivo exacto.
+Para volver a publicar: en servicio-ia/, npx wrangler deploy.

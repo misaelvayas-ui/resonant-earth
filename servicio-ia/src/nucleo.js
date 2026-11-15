@@ -86,6 +86,9 @@ export function config(env = {}) {
     maxTexto: numero(env.MAX_TEXTO, 300),                          // caracteres de la frase
     maxContexto: numero(env.MAX_CONTEXTO, 9000),                   // caracteres del contexto ya serializado
     esperaModeloMs: numero(env.ESPERA_MODELO_MS, 5000),            // la web espera 6 s en total
+    // cuánto "piensa" el modelo antes de responder. gemini-3.8-flash admite low, medium y high (NO "minimal")
+    razonamiento: ["minimal", "low", "medium", "high"].includes(env.GEMINI_THINKING) ? env.GEMINI_THINKING : "low",
+    maxSalida: numero(env.MAX_TOKENS_SALIDA, 1200),                // incluye los tokens de razonamiento, no solo la respuesta
     pausaTrasLimiteS: numero(env.PAUSA_TRAS_LIMITE_S, 60),         // si el modelo dice "límite", no insistir durante este tiempo
   };
 }
@@ -174,12 +177,29 @@ export class ErrorLLM extends Error {
   constructor(tipo, detalle = "") { super(`LLM: ${tipo} ${detalle}`.trim()); this.tipo = tipo; }   // "limite" | "tiempo" | "fallo"
 }
 
+/* Deja en el registro del servicio por qué falló el modelo, para poder arreglarlo: SOLO el código HTTP, el código o
+   estado que da Google y su mensaje, cortado a 300 caracteres y sin la clave. Lo que dijo la persona y el contexto
+   no se registran nunca, y nada de esto viaja a la web. */
+export function registrarErrorModelo(http, error, env = {}, registrar = console.warn) {
+  const e = error && typeof error === "object" ? error : {};
+  let mensaje = typeof e.message === "string" ? e.message.replace(/\s+/g, " ").trim() : "";
+  if (env.GEMINI_API_KEY) mensaje = mensaje.split(env.GEMINI_API_KEY).join("[clave]");
+  const linea = `Gemini respondió con error: http=${http} codigo=${String(e.code ?? "").slice(0, 60) || "-"} estado=${String(e.status ?? "").slice(0, 60) || "-"} mensaje=${mensaje.slice(0, 300) || "-"}`;
+  try { registrar(linea); } catch (x) { /* sin registro: se sigue igual */ }
+  return linea;
+}
+
 /* Llama al modelo y devuelve el objeto JSON que respondió. Para cambiar de modelo o de proveedor se cambia
    SOLO esta función: recibe { sistema, entrada, esquema } y debe devolver un objeto o lanzar ErrorLLM.
 
-   Gemini (Google AI Studio), API de Interacciones. Documentación consultada el 14-nov-2026:
+   Gemini (Google AI Studio), API de Interacciones. Documentación consultada el 15-nov-2026:
      https://aistudio.google.com/docs/models               modelo Flash estable: gemini-3.8-flash
-     https://aistudio.google.com/docs/structured-output    response_format con esquema JSON
+     https://aistudio.google.com/docs/structured-output    response_format con esquema JSON y cabecera Api-Revision: 2026-05-20
+     https://aistudio.google.com/docs/thinking             thinking_level: gemini-3.8-flash admite low, medium y high, NO "minimal"
+                                                           (con "minimal" Google rechaza la petición); max_output_tokens
+                                                           incluye los tokens de razonamiento
+   Si Google responde con error, se registra (console.warn, se ve con "npx wrangler tail") SOLO el código HTTP, el código o
+   estado del error y su mensaje cortado a 300 caracteres. Nunca la clave, la frase de la persona ni el contexto.
      https://aistudio.google.com/api-reference/interactions-api
    La respuesta trae "steps"; el texto está en el paso de tipo "model_output", en content[].text. */
 export async function callLLM({ sistema, entrada, esquema }, env, fetchImpl = fetch) {
@@ -197,7 +217,7 @@ export async function callLLM({ sistema, entrada, esquema }, env, fetchImpl = fe
         system_instruction: sistema,
         input: entrada,
         response_format: { type: "text", mime_type: "application/json", schema: esquema },
-        generation_config: { max_output_tokens: 400, thinking_level: "minimal" },
+        generation_config: { max_output_tokens: cfg.maxSalida, thinking_level: cfg.razonamiento },
         store: false,                                   // no guardar la conversación en el servicio del modelo
       }),
     });
@@ -206,11 +226,18 @@ export async function callLLM({ sistema, entrada, esquema }, env, fetchImpl = fe
   } finally {
     clearTimeout(reloj);
   }
-  if (r.status === 429) throw new ErrorLLM("limite", "429");
-  if (!r.ok) throw new ErrorLLM("fallo", "HTTP " + r.status);
+  if (!r.ok) {
+    let error = null;
+    try { error = (await r.json()).error; } catch (e) { /* el cuerpo del error no es JSON */ }
+    registrarErrorModelo(r.status, error, env);
+    throw new ErrorLLM(r.status === 429 ? "limite" : "fallo", "HTTP " + r.status);
+  }
   let datos;
   try { datos = await r.json(); } catch (e) { throw new ErrorLLM("fallo", "no es JSON"); }
-  if (datos.status && datos.status !== "completed") throw new ErrorLLM("fallo", "estado " + datos.status);
+  if (datos.status && datos.status !== "completed") {              // p. ej. "incomplete": se acabaron los tokens de salida
+    registrarErrorModelo(r.status, { status: datos.status, ...((datos.errors || [])[0] || {}) }, env);
+    throw new ErrorLLM("fallo", "estado " + datos.status);
+  }
   const texto = (datos.steps || [])
     .filter((p) => p && p.type === "model_output")
     .flatMap((p) => p.content || [])
@@ -233,7 +260,8 @@ function responder(estado, cuerpo, origen, extra = {}) {
 }
 
 /* request -> Response. 'contador' tiene permitir(visitante) y enfriar(segundos) (en Cloudflare, un Durable Object).
-   Nunca se registra ni se devuelve el texto de la persona, la clave ni el detalle de un error del modelo. */
+   Nunca se registra ni se devuelve el texto de la persona, el contexto ni la clave. Del error del modelo, a la web
+   no viaja ningún detalle; en el registro del servicio queda solo lo que escribe registrarErrorModelo(). */
 export async function manejar(request, env, { contador, fetchImpl = fetch, llm = callLLM } = {}) {
   const cfg = config(env);
   const origen = request.headers.get("Origin");

@@ -2,7 +2,7 @@
    Uso:  cd servicio-ia  y luego  node --test pruebas/servicio.test.js */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ACCIONES, ESQUEMA, ErrorLLM, Limites, PROMPT_SISTEMA, callLLM, config, construirEntrada, limpiarSalida, manejar, validarEntrada } from "../src/nucleo.js";
+import { ACCIONES, ESQUEMA, ErrorLLM, Limites, PROMPT_SISTEMA, callLLM, config, construirEntrada, limpiarSalida, manejar, registrarErrorModelo, validarEntrada } from "../src/nucleo.js";
 
 const CLAVE = "CLAVE-DE-MENTIRA-123";
 const ENV = { GEMINI_API_KEY: CLAVE, ORIGENES_PERMITIDOS: "http://localhost:8000, https://ejemplo.github.io/", MAX_POR_MINUTO_VISITANTE: "3", MAX_POR_MINUTO_GLOBAL: "5", MAX_POR_DIA: "7" };
@@ -127,7 +127,7 @@ test("límites propios: por visitante, por minuto entre todos y por día", async
   assert.equal(llm.llamadas.length, 7);                                                            // las rechazadas no llaman al modelo
 });
 
-test("el modelo responde 429, falla o tarda: 429 con pausa, 502 o 504, sin detalles", async () => {
+test("el modelo responde 429, falla o tarda: 429 con pausa, 502 o 504, sin detalles hacia la web", async () => {
   const contador = contadorFalso();
   let r = await manejar(pedir(CUERPO), ENV, { contador, llm: modeloFalso(new ErrorLLM("limite", "429 cuota agotada de la clave " + CLAVE)) });
   assert.equal(r.status, 429); assert.equal(r.headers.get("Retry-After"), "60");
@@ -159,7 +159,16 @@ test("callLLM: arma la petición a Gemini como dice la documentación y lee la r
   assert.equal(cuerpo.system_instruction, PROMPT_SISTEMA);
   assert.deepEqual(cuerpo.response_format, { type: "text", mime_type: "application/json", schema: ESQUEMA });
   assert.equal(cuerpo.store, false);
+  assert.equal(op.headers["Api-Revision"], "2026-05-20");
+  // gemini-3.8-flash no admite thinking_level "minimal" (Google rechaza la petición): por defecto "low", y con margen de tokens
+  assert.deepEqual(cuerpo.generation_config, { max_output_tokens: 1200, thinking_level: "low" });
+  assert.deepEqual(Object.keys(cuerpo).sort(), ["generation_config", "input", "model", "response_format", "store", "system_instruction"]);
+  await callLLM(pedido, { ...ENV, GEMINI_THINKING: "medium", MAX_TOKENS_SALIDA: "2000" }, red(200, completa));
+  assert.deepEqual(JSON.parse(vistos.at(-1).op.body).generation_config, { max_output_tokens: 2000, thinking_level: "medium" });
+  await callLLM(pedido, { ...ENV, GEMINI_THINKING: "cualquier cosa" }, red(200, completa));
+  assert.equal(JSON.parse(vistos.at(-1).op.body).generation_config.thinking_level, "low");
   assert.equal(JSON.parse((await (async () => { await callLLM(pedido, { ...ENV, GEMINI_MODEL: "otro-modelo" }, red(200, completa)); return vistos.at(-1).op.body; })())).model, "otro-modelo");
+  const avisos = [], warn = console.warn; console.warn = (...a) => avisos.push(a.join(" "));      // lo que queda en el registro del servicio
   const falla = async (estado, cuerpoRed) => { try { await callLLM(pedido, ENV, red(estado, cuerpoRed)); return "sin error"; } catch (e) { return e.tipo; } };
   assert.equal(await falla(429, { error: { code: 429, status: "RESOURCE_EXHAUSTED" } }), "limite");
   assert.equal(await falla(500, "error interno"), "fallo");
@@ -169,6 +178,25 @@ test("callLLM: arma la petición a Gemini como dice la documentación y lee la r
   const lenta = (url, op) => new Promise((_, rechazar) => op.signal.addEventListener("abort", () => rechazar(new Error("abortada"))));
   try { await callLLM(pedido, { ...ENV, ESPERA_MODELO_MS: "40" }, lenta); assert.fail("debía agotar el tiempo"); } catch (e) { assert.equal(e.tipo, "tiempo"); }
   try { await callLLM(pedido, ENV, async () => { throw new Error("sin red"); }); assert.fail("debía fallar"); } catch (e) { assert.equal(e.tipo, "fallo"); }
+  // el error real de Google queda en el registro: código HTTP, código o estado y mensaje; nada más
+  avisos.length = 0;
+  const pedidoSecreto = { sistema: PROMPT_SISTEMA, entrada: construirEntrada("mi frase secreta", { dato: "contexto secreto" }), esquema: ESQUEMA };
+  const malo = { error: { code: 400, status: "INVALID_ARGUMENT", message: "Invalid value at 'generation_config.thinking_level': minimal is not supported. Key " + CLAVE + " " + "x".repeat(900) } };
+  try { await callLLM(pedidoSecreto, ENV, red(400, malo)); assert.fail("debía fallar"); } catch (e) { assert.equal(e.tipo, "fallo"); assert.ok(!e.message.includes("INVALID_ARGUMENT")); }
+  assert.equal(avisos.length, 1);
+  assert.match(avisos[0], /^Gemini respondió con error: http=400 codigo=400 estado=INVALID_ARGUMENT mensaje=Invalid value at 'generation_config\.thinking_level'/);
+  assert.ok(!avisos[0].includes(CLAVE) && avisos[0].includes("[clave]"), "la clave nunca se registra");
+  assert.ok(!avisos[0].includes("frase secreta") && !avisos[0].includes("contexto secreto") && !avisos[0].includes("DATOS"), "ni la frase ni el contexto");
+  assert.ok(avisos[0].split("mensaje=")[1].length <= 300, "mensaje cortado a 300");
+  avisos.length = 0;
+  assert.equal(await falla(429, { error: { code: 429, status: "RESOURCE_EXHAUSTED", message: "Quota exceeded" } }), "limite");
+  assert.equal(await falla(503, "<html>no es json</html>"), "fallo");
+  assert.equal(await falla(200, { status: "incomplete", steps: [] }), "fallo");
+  assert.equal(await falla(200, { status: "failed", errors: [{ code: "internal", message: "algo falló" }], steps: [] }), "fallo");
+  console.warn = warn;
+  assert.deepEqual(avisos, ["Gemini respondió con error: http=429 codigo=429 estado=RESOURCE_EXHAUSTED mensaje=Quota exceeded", "Gemini respondió con error: http=503 codigo=- estado=- mensaje=-",
+    "Gemini respondió con error: http=200 codigo=- estado=incomplete mensaje=-", "Gemini respondió con error: http=200 codigo=internal estado=failed mensaje=algo falló"]);
+  assert.equal(registrarErrorModelo(500, null, {}, () => { throw new Error("sin consola"); }), "Gemini respondió con error: http=500 codigo=- estado=- mensaje=-");
 });
 
 test("validarEntrada y config: valores por defecto prudentes", () => {

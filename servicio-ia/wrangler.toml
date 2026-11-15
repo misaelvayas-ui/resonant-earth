@@ -13,6 +13,10 @@ compatibility_date = "2026-06-01"
 ORIGENES_PERMITIDOS = "http://localhost:8000,http://localhost:8001,https://misaelvayas-ui.github.io"
 # Modelo de Gemini. Nombre vigente comprobado el 14-nov-2026 en https://aistudio.google.com/docs/models
 GEMINI_MODEL = "gemini-3.8-flash"
+# Cuánto razona el modelo antes de responder: low, medium o high. gemini-3.8-flash NO admite "minimal".
+GEMINI_THINKING = "low"
+# Tokens máximos de salida. Incluye los de razonamiento, por eso es más que lo que ocupa la respuesta.
+MAX_TOKENS_SALIDA = "1200"
 # Límites propios. Deben quedar POR DEBAJO de los de tu cuenta gratuita de Gemini,
 # que se ven en https://aistudio.google.com/rate-limit (peticiones por minuto y por día del modelo).
 MAX_POR_MINUTO_VISITANTE = "6"

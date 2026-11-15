@@ -165,6 +165,29 @@ Por los textos de la web, el tamaño máximo del estado subió de 6000 a **9000*
 
 **Si ya habías publicado el servicio antes de la ronda 35, hay que publicarlo otra vez** (`npx wrangler deploy`, dentro de `servicio-ia/`). No hace falta tocar la clave. Con un servicio antiguo, la web nueva manda un estado más grande que su límite de 6000: el servicio lo rechaza y la guía responde con sus comandos, sin avisar.
 
+## Si la frase de prueba responde 502 `{"error":"modelo"}`
+
+Quiere decir que Google rechazó la petición o respondió algo que no sirve. A la web no viaja el detalle, pero el servicio lo deja en su registro. Para verlo, abre dos terminales en `servicio-ia/`:
+
+```
+npx wrangler tail
+```
+
+y, en la otra, repite la prueba (`node probar.mjs https://TU-SERVICIO.workers.dev`). En la primera aparece una línea como:
+
+```
+Gemini respondió con error: http=400 codigo=400 estado=INVALID_ARGUMENT mensaje=...
+```
+
+Causas ya vistas:
+
+- **`thinking_level` no admitido.** `gemini-3.8-flash` admite `low`, `medium` y `high`, pero no `minimal`. Hasta la ronda 35 el servicio enviaba `minimal` y Google lo rechazaba. Ahora envía `low` (se cambia con `GEMINI_THINKING` en `wrangler.toml`).
+- **`estado=incomplete`.** El modelo se quedó sin tokens de salida: `max_output_tokens` incluye los de razonamiento. Sube `MAX_TOKENS_SALIDA` (1200 por defecto) o baja `GEMINI_THINKING`.
+- **`http=400` o `403` con un mensaje sobre la clave.** Repite el paso 5 con una clave válida.
+- **`http=404`.** El nombre del modelo ya no existe: revisa `GEMINI_MODEL` contra <https://aistudio.google.com/docs/models>.
+
+Si la prueba responde 504 `{"error":"tiempo"}`, el modelo tardó más de 5 segundos: baja `GEMINI_THINKING` a `low` o sube `ESPERA_MODELO_MS` (la web espera 6 segundos en total).
+
 ## Qué protege al servicio
 
 | Protección | Valor inicial | Dónde se cambia |
@@ -189,7 +212,7 @@ Dos cosas que conviene saber:
 ## Privacidad
 
 - La web avisa: «Tus frases se envían a un servicio de IA para responderte», y la persona puede apagarlo.
-- El servicio no guarda las frases ni las escribe en sus registros.
+- El servicio no guarda las frases ni las escribe en sus registros. Si Google responde con un error, en el registro queda **solo** el código HTTP, el código o estado del error y su mensaje (cortado a 300 caracteres y sin la clave); nunca la frase de la persona ni el estado de la página.
 - En la **capa gratuita** de Gemini, Google usa lo que se envía para mejorar sus productos (lo dice su página de precios, consultada el 14 de noviembre de 2026). No es un servicio para datos personales. La web lo advierte en las opciones de la guía.
 
 ## Cambiar de modelo
