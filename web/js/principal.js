@@ -2,6 +2,7 @@
 "use strict";
 
 import * as audio from "./audio.js";
+import * as vivo from "./vivo.js";
 import { cargarPistas, cargarEquipo } from "./datos.js";
 import { iniciarRocola, pistaActual, documentoActual, elegir, cambiar } from "./rocola.js";
 import { iniciarVisualizador, dibujar } from "./visualizador.js";
@@ -16,6 +17,7 @@ const $ = (id) => document.getElementById(id);
 const reducir = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 audio.iniciar($("medio"));
+vivo.iniciar();
 iniciarVisualizador($("visualizador"), $("mini-espectro"));
 lectura.iniciarLectura({ fecha: $("ahora-fecha"), fechaVideo: $("fecha-video"), texto: $("ahora-texto"), viva: $("lectura-viva"), casilla: $("anunciar") });
 
@@ -59,4 +61,4 @@ if (window.gsap) {
   });
 }
 
-window.__web = { audio, globo: depuracion, rocola: { elegir, cambiar, pistaActual } };
+window.__web = { audio, vivo, globo: depuracion, rocola: { elegir, cambiar, pistaActual } };

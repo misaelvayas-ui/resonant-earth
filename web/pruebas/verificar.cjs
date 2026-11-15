@@ -1,4 +1,4 @@
-/* Pruebas de la web con Playwright y axe-core (V1 a V23).
+/* Pruebas de la web con Playwright y axe-core (V1 a V28).
    Uso:  NODE_PATH=<carpeta con node_modules> node web/pruebas/verificar.cjs <url> <carpeta de capturas>
    Imprime [PASA], [FALLA] u [OMITIDA] por comprobación y sale con código 1 si hay alguna [FALLA].
 
@@ -356,6 +356,144 @@ async function desplazarTodo(page) {
     && JSON.stringify(abierto.enlaces) === JSON.stringify(esperados) && trasEsc.exp === "false" && trasEsc.foco === "btn-menu" && trasElegir.exp === "false" && Math.abs(trasElegir.y) < 120 && cifras390 === "0",
     `menú cerrado: nav ${cerrado.nav}; abierto: ${abierto.enlaces.join(", ")}; Esc -> aria-expanded ${trasEsc.exp}, foco en #${trasEsc.foco}; al elegir -> ${trasElegir.exp}, sección a ${trasElegir.y} px; carrusel de cifras enfocable: ${cifras390}`);
   await m3.ctx.close();
+
+  // ---- Sonido en vivo (V24 a V28) ----
+  const vi = await nuevaPagina(browser);
+  const vp = vi.page;
+  await vp.goto(url, { waitUntil: "load" });
+  await esperar(2000);
+  // V24: el AudioContext no existe hasta un gesto; el modo por defecto es la pista original
+  const antes24 = await vp.evaluate(() => ({ ctx: window.__web.audio.contexto(), modo: window.__web.audio.modo(), selector: document.getElementById("modo-sonido").disabled, rasgos: document.getElementById("rasgos-vivo").disabled }));
+  await vp.click("button.pista >> nth=0");
+  await vp.waitForFunction(() => window.__web.audio.estado().sonando, null, { timeout: 15000 });
+  await esperar(500);
+  const des24 = await vp.evaluate(() => ({ ctx: window.__web.audio.contexto() && window.__web.audio.contexto().state, modo: window.__web.audio.modo(), selector: document.getElementById("modo-sonido").disabled, rasgos: document.getElementById("rasgos-vivo").disabled,
+    marcado: document.querySelector('input[name="modo-sonido"]:checked').value, ayuda: document.getElementById("modo-ayuda").textContent }));
+  comprobar("V24", antes24.ctx === null && antes24.modo === "original" && antes24.selector === true && antes24.rasgos === true && des24.rasgos === true && des24.ctx === "running" && des24.modo === "original" && des24.selector === false && des24.marcado === "original" && /Pista original/.test(des24.ayuda),
+    `antes de tocar nada: AudioContext ${antes24.ctx}, selector deshabilitado ${antes24.selector}; tras elegir pista: contexto ${des24.ctx}, modo ${des24.modo}, marcado «${des24.marcado}», selector habilitado ${!des24.selector}`);
+
+  // V25: sonido en vivo con teclado; pausa, búsqueda, velocidad y final
+  await vp.click("#btn-reproducir");                                             // pausa la pista original
+  await vp.focus('input[name="modo-sonido"][value="original"]');
+  await vp.keyboard.press("ArrowRight");                                         // → «Sonido en vivo»
+  await esperar(300);
+  const modo25 = await vp.evaluate(() => ({ modo: window.__web.audio.modo(), activo: window.__web.vivo.estado().activo, estado: document.getElementById("estado-rocola").textContent }));
+  await vp.evaluate(() => window.__web.audio.buscar(0));
+  await vp.click("#btn-reproducir");
+  let fuertes25 = 0, maxAmp25 = 0;
+  for (let i = 0; i < 20; i++) { const a = await vp.evaluate(() => window.__web.audio.amplitud()); if (a > 0.02) fuertes25++; maxAmp25 = Math.max(maxAmp25, a); await esperar(150); }
+  const sonando25 = await vp.evaluate(() => ({ ...window.__web.vivo.estado(), t: window.__web.audio.estado().tiempo }));
+  // pausa
+  await vp.click("#btn-reproducir");
+  const calla = await vp.waitForFunction(() => window.__web.audio.amplitud() < 0.02, null, { timeout: 1000 }).then(() => true).catch(() => false);
+  const p1 = await vp.evaluate(() => window.__web.vivo.estado().programados); await esperar(600);
+  const p2 = await vp.evaluate(() => window.__web.vivo.estado().programados);
+  // búsqueda
+  await vp.click("#btn-reproducir");
+  await esperar(400);
+  await vp.evaluate(() => { window.__web.audio.buscar(20); });
+  const salto = await vp.waitForFunction(() => { const u = window.__web.vivo.estado().ultimo; return u && u.t >= 19.9; }, null, { polling: 20, timeout: 3000 }).then(() => true).catch(() => false);
+  const ult20 = await vp.evaluate(() => window.__web.vivo.estado().ultimo);
+  // velocidad ×2
+  await vp.evaluate(() => window.__web.audio.buscar(8)); await esperar(700);
+  const v0 = await vp.evaluate(() => ({ p: window.__web.vivo.estado().programados, t: window.__web.audio.estado().tiempo }));
+  await vp.evaluate(() => { document.getElementById("medio").playbackRate = 2; });
+  await esperar(2000);
+  const v1 = await vp.evaluate(() => ({ p: window.__web.vivo.estado().programados, t: window.__web.audio.estado().tiempo }));
+  await vp.evaluate(() => { document.getElementById("medio").playbackRate = 1; });
+  const golpesTramo = await vp.evaluate(async ([a, b]) => { const M = await import("/js/mapeo.js"); const D = await import("/js/datos.js"); const pi = (await D.cargarPistas())[0]; const m = await D.cargarMapeo(pi);
+    return M.eventos(m, M.calcularSerie(m, (await D.cargarRasgos(pi)).rasgos)).filter((x) => x.t >= a && x.t < b).length; }, [v0.t, v1.t]);
+  // final
+  await vp.evaluate(() => window.__web.audio.buscar(29));
+  await vp.waitForFunction(() => window.__web.audio.estado().terminado, null, { timeout: 15000 }).catch(() => {});
+  await esperar(400);
+  const fin25 = await vp.evaluate(() => ({ sonando: window.__web.vivo.estado().sonando, estado: document.getElementById("estado-rocola").textContent, boton: document.getElementById("btn-reproducir").textContent }));
+  comprobar("V25", modo25.modo === "vivo" && modo25.activo && /Sonido en vivo/.test(modo25.estado) && fuertes25 >= 5 && sonando25.programados > 3 && Math.abs(sonando25.ultimo.t - sonando25.t) < 0.3
+    && calla && p2 === p1 && salto && ult20.t >= 19.9 && ult20.t <= 20.6 && Math.abs((v1.p - v0.p) - golpesTramo) <= 2 && v1.t - v0.t > 3.5
+    && fin25.sonando === false && fin25.estado === "Terminó: Temperatura del planeta" && fin25.boton === "Reproducir",
+    `teclado → modo ${modo25.modo}; amplitud > 0,02 en ${fuertes25} de 20 (máx ${maxAmp25.toFixed(2)}), ${sonando25.programados} golpes, último a ${Math.abs(sonando25.ultimo.t - sonando25.t).toFixed(2)} s del video; pausa: calla ${calla}, golpes ${p1} -> ${p2}; buscar(20): último golpe ${ult20 && ult20.t}; ×2: ${(v1.t - v0.t).toFixed(1)} s de pista en 2 s, ${v1.p - v0.p} golpes de ${golpesTramo}; final: sonando ${fin25.sonando}, «${fin25.estado}»`);
+
+  // V26: casillas de rasgos (siguen en la misma pista, ahora en vivo)
+  await vp.evaluate(() => window.__web.audio.buscar(0));
+  await vp.click("#btn-reproducir");
+  await vp.waitForFunction(() => window.__web.audio.estado().sonando, null, { timeout: 5000 });
+  const hab26 = await vp.evaluate(() => !document.getElementById("rasgos-vivo").disabled);
+  await vp.uncheck("#rasgo-tono"); await vp.uncheck("#rasgo-volumen"); await vp.uncheck("#rasgo-paneo");
+  const txt26a = await vp.$eval("#estado-rocola", (e) => e.textContent);
+  await esperar(500);
+  const g0 = await vp.evaluate(() => window.__web.vivo.estado().programados);
+  let amp26 = 0;
+  for (let i = 0; i < 8; i++) { amp26 = Math.max(amp26, await vp.evaluate(() => window.__web.audio.amplitud())); await esperar(125); }
+  const g1 = await vp.evaluate(() => window.__web.vivo.estado().programados);
+  await vp.check("#rasgo-tono"); await vp.check("#rasgo-volumen"); await vp.check("#rasgo-paneo");
+  await vp.focus("#rasgo-dron");
+  await vp.keyboard.press("Space");                                              // el dron se apaga con el teclado
+  await esperar(300);
+  const r26 = await vp.evaluate(() => window.__web.vivo.estado().rasgos);
+  const txt26b = await vp.$eval("#estado-rocola", (e) => e.textContent);
+  const h0 = await vp.evaluate(() => window.__web.vivo.estado().programados); await esperar(1200);
+  const h1 = await vp.evaluate(() => window.__web.vivo.estado().programados);
+  await vp.keyboard.press("Space");
+  await vp.uncheck("#rasgo-tono"); await vp.uncheck("#rasgo-volumen"); await vp.uncheck("#rasgo-paneo"); await vp.uncheck("#rasgo-dron");
+  const txt26c = await vp.$eval("#estado-rocola", (e) => e.textContent);
+  await vp.evaluate(() => window.__web.audio.pausar());
+  await vp.check("#rasgo-tono"); await vp.check("#rasgo-volumen"); await vp.check("#rasgo-paneo"); await vp.check("#rasgo-dron");
+  comprobar("V26", hab26 && /^Suenan: Dron\.?$/.test(txt26a) && g1 === g0 && amp26 > 0.02 && r26.dron === false && r26.tono && /Suenan: Melodía, Volumen, Paneo\./.test(txt26b) && h1 > h0 && txt26c === "No suena ningún rasgo.",
+    `solo dron: «${txt26a}», amplitud ${amp26.toFixed(2)}, golpes ${g0} -> ${g1}; sin dron (teclado): «${txt26b}», golpes ${h0} -> ${h1}; nada: «${txt26c}»`);
+
+
+  // V28: render sin conexión de las dos pistas: dron ~7 dB bajo la melodía y dron continuo (ESPEC §6)
+  const r28 = await vp.evaluate(async () => {
+    const D = await import("/js/datos.js"); const salida = [];
+    const potDb = (bf, a, z) => { let t = 0; for (let c = 0; c < bf.numberOfChannels; c++) { const d = bf.getChannelData(c); for (let i = a; i < z; i++) t += d[i] * d[i]; } return 10 * Math.log10(t / (z - a) + 1e-20); };
+    for (const pi of await D.cargarPistas()) {
+      const m = await D.cargarMapeo(pi), R = (await D.cargarRasgos(pi)).rasgos, V = window.__web.vivo;
+      const todo = await V.renderizar(m, R);
+      const mel = await V.renderizar(m, R, { tono: true, volumen: true, paneo: true, dron: false });
+      const dron = await V.renderizar(m, R, { tono: false, volumen: false, paneo: false, dron: true });
+      const w = Math.round(todo.sampleRate * 0.5), n = Math.floor(todo.length / w);
+      const db = Array.from({ length: n }, (_, k) => potDb(todo, k * w, (k + 1) * w));
+      salida.push({ id: pi.id, dif: potDb(mel, 0, mel.length) - potDb(dron, 0, dron.length), minimo: Math.min(...db), caida: Math.max(...db.slice(1).map((v, i) => db[i] - v)) });
+    }
+    return salida;
+  });
+  comprobar("V28", r28.length === 2 && r28.every((r) => r.dif >= 5.5 && r.dif <= 8.5 && r.minimo > -40 && r.caida <= 12),
+    r28.map((r) => `${r.id}: dron ${r.dif.toFixed(2)} dB bajo la melodía (5,5 a 8,5), ventana más baja ${r.minimo.toFixed(1)} dB (> −40), mayor caída ${r.caida.toFixed(1)} dB (≤ 12)`).join("; "));
+
+  // V27: modo recordado por pista, axe con los controles habilitados, y 390 px
+  await vp.click("#modo-sonido input[value=vivo]");
+  await vp.click("button.pista >> nth=1");
+  await vp.waitForFunction(() => window.__web.rocola.pistaActual().id === "sst-ecco2-2007-2008" && !document.getElementById("modo-sonido").disabled, null, { timeout: 15000 });
+  await esperar(500);
+  const sst27 = await vp.evaluate(() => ({ marcado: document.querySelector('input[name="modo-sonido"]:checked').value, modo: window.__web.audio.modo(), rasgos: document.getElementById("rasgos-vivo").disabled }));
+  await vp.click("#modo-sonido input[value=vivo]");
+  await esperar(300);
+  await vp.click("button.pista >> nth=0");
+  await vp.waitForFunction(() => window.__web.rocola.pistaActual().id === "gistemp-1880-2023" && !document.getElementById("modo-sonido").disabled, null, { timeout: 15000 });
+  await esperar(500);
+  const gis27 = await vp.evaluate(() => ({ marcado: document.querySelector('input[name="modo-sonido"]:checked').value, modo: window.__web.audio.modo(), activo: window.__web.vivo.estado().activo, rasgos: document.getElementById("rasgos-vivo").disabled }));
+  await vp.evaluate(() => window.__web.audio.pausar());
+  await vp.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));      // como V2: el hero atenuado por el paralaje falsearía el contraste
+  await esperar(800);
+  const axe27 = await new AxeBuilder({ page: vp }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  const mv = await nuevaPagina(browser, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await mv.page.goto(url, { waitUntil: "load" });
+  await esperar(2000);
+  await mv.page.tap("button.pista >> nth=0");
+  await mv.page.waitForFunction(() => window.__web.audio.estado().sonando, null, { timeout: 15000 });
+  await mv.page.tap("#modo-sonido input[value=vivo]");
+  await esperar(600);
+  const mov27 = await mv.page.evaluate(() => ({ ancho: document.documentElement.scrollWidth, ventana: window.innerWidth, modo: window.__web.audio.modo(), rasgos: !document.getElementById("rasgos-vivo").disabled }));
+  await mv.page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await esperar(800);
+  const axeM27 = await new AxeBuilder({ page: mv.page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  await mv.page.screenshot({ path: path.join(carpeta, "vivo-390.png") });
+  await mv.ctx.close();
+  const resumen27 = (r) => r.violations.map((v) => `${v.id}(${v.nodes.length}): ${v.nodes[0].target.join(" ")}`).join("; ");
+  comprobar("V27", sst27.marcado === "original" && sst27.modo === "original" && sst27.rasgos === true && gis27.marcado === "vivo" && gis27.modo === "vivo" && gis27.activo && gis27.rasgos === false
+    && axe27.violations.length === 0 && axeM27.violations.length === 0 && mov27.ancho <= mov27.ventana && mov27.modo === "vivo" && mov27.rasgos,
+    `SST: «${sst27.marcado}»; GISTEMP al volver: «${gis27.marcado}» (modo ${gis27.modo}); axe 1440 ${axe27.violations.length} ${resumen27(axe27)}, 390 ${axeM27.violations.length} ${resumen27(axeM27)}; 390 px: ancho ${mov27.ancho}/${mov27.ventana}`);
+  await vi.ctx.close();
 
   await browser.close();
   console.log(fallas ? `\n${fallas} FALLA` : "\nTodo PASA (o está OMITIDA)");

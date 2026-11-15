@@ -13,6 +13,7 @@
       "fotograma": "fotogramas/gistemp-1880-2023.jpg",
       "video": "assets/gistemp_1880_2023.mp4",
       "rasgos": "assets/gistemp_1880_2023_rasgos.json",
+      "mapeo": "assets/gistemp_1880_2023_mapeo.json",
       "duracion_s": 30,
       "lectura": {
         "plantilla": "{fecha}: {valor_signo} °C respecto al promedio de 1951–1980. El {area} % del mapa lo supera en más de 1 °C.",
@@ -37,6 +38,7 @@
       "fotograma": "fotogramas/sst-ecco2-2007-2008.jpg",
       "video": "assets/sst_ecco2_2007_2008.mp4",
       "rasgos": "assets/sst_ecco2_2007_2008_rasgos.json",
+      "mapeo": "assets/sst_ecco2_2007_2008_mapeo.json",
       "duracion_s": 30.5,
       "lectura": {
         "plantilla": "{fecha}: índice {valor}, {dif_ref_signo} respecto a la media del período. El {area} % del agua medida supera los 25 °C.",

@@ -2,7 +2,8 @@
 "use strict";
 
 import * as audio from "./audio.js";
-import { cargarRasgos } from "./datos.js";
+import { cargarRasgos, cargarMapeo } from "./datos.js";
+import * as vivo from "./vivo.js";
 import { dibujarGraficoPista } from "./grafico.js";
 import * as lectura from "./lectura.js";
 
@@ -11,6 +12,16 @@ let pistas = [];
 let actual = null;
 let doc = null;
 let arrastrando = false;
+let mapeoActual = null;             // <id>_mapeo.json de la pista elegida (null: no hay sonido en vivo)
+const modos = new Map();            // id de pista → "original" | "vivo" (solo durante la sesión)
+const AYUDA = {
+  sinPista: "Elige una pista para activar el sonido en vivo.",
+  original: "Pista original: el audio del video, hecho con nuestro programa en Python.",
+  vivo: "Sonido en vivo: tu navegador lo genera ahora mismo a partir de los datos. Mismas notas, otro timbre.",
+  sinMapeo: "Esta pista no tiene sonido en vivo.",
+  sinWebAudio: "Tu navegador no permite generar el sonido en vivo.",
+};
+const hayWebAudio = () => !!(window.AudioContext || window.webkitAudioContext);
 
 const SALTO = 5;                    // segundos que mueven las flechas izquierda y derecha
 
@@ -56,7 +67,7 @@ function pintarTarjetas() {
     const f = document.createElement("span"); f.className = "pista-ficha"; f.textContent = "Elegida";
     r.append(rt, f);
     b.append(img, t, d, r);
-    b.addEventListener("click", () => elegir(p.id, { reproducir: true }));
+    b.addEventListener("click", () => { audio.desbloquear(); elegir(p.id, { reproducir: true }); });
     cont.appendChild(b);
   }
 }
@@ -86,11 +97,50 @@ function alAudio(e) {
   if (e.terminado && actual) decir(`Terminó: ${actual.titulo}`);
 }
 
+const RASGOS = [["tono", "Melodía"], ["volumen", "Volumen"], ["paneo", "Paneo"], ["dron", "Dron"]];
+const rasgosMarcados = () => Object.fromEntries(RASGOS.map(([k]) => [k, $(`rasgo-${k}`).checked]));
+
+/* Habilita o no el selector de sonido según lo que haya cargado */
+function estadoSelector(habilitado, ayuda) {
+  $("modo-sonido").disabled = !habilitado;
+  if (!habilitado) $("rasgos-vivo").disabled = true;
+  $("modo-ayuda").textContent = ayuda;
+}
+
+/* Pone el modo de sonido ("original" o "vivo"); si el vivo no es posible vuelve al original */
+function ponerModo(modo, anunciar) {
+  if (modo === "vivo") {
+    const ok = !!mapeoActual && !!doc && audio.fijarModo("vivo") && vivo.activar(true);
+    if (!ok) { modo = "original"; vivo.activar(false); audio.fijarModo("original"); }
+  } else {
+    vivo.activar(false);
+    audio.fijarModo("original");
+  }
+  if (actual) modos.set(actual.id, modo);
+  $("rasgos-vivo").disabled = modo !== "vivo";
+  document.querySelector(`input[name="modo-sonido"][value="${modo}"]`).checked = true;
+  $("modo-ayuda").textContent = AYUDA[modo];
+  if (anunciar) decir(AYUDA[modo]);
+}
+
+/* Cuando ya hay rasgos y mapeo de la pista: prepara el motor en vivo y recupera el modo que tenía esa pista */
+function prepararModo(p) {
+  if (!hayWebAudio()) { estadoSelector(false, AYUDA.sinWebAudio); return; }
+  if (!mapeoActual || !doc) { estadoSelector(false, AYUDA.sinMapeo); return; }
+  vivo.cargar(mapeoActual, doc.rasgos);       // usa las casillas tal como están: vivo.fijarRasgos las mantiene al día
+  estadoSelector(true, AYUDA.original);
+  ponerModo(modos.get(p.id) || "original", false);
+}
+
 export async function elegir(id, opciones = {}) {
   const p = pistas.find((x) => x.id === id);
   if (!p) return;
   actual = p;
   doc = null;
+  mapeoActual = null;
+  vivo.activar(false);                 // la pista anterior deja de sonar en vivo hasta saber qué trae esta
+  audio.fijarModo("original");
+  estadoSelector(false, AYUDA.sinPista);
   marcarFichas(false);
   $("titulo-pista").textContent = `${p.titulo} ${p.periodo}`;
   const f = $("fuente-pista");
@@ -108,11 +158,13 @@ export async function elegir(id, opciones = {}) {
   $("avance").value = 0;
   decir(`Cargando «${p.titulo}»… 0 %`);
   lectura.limpiar();
-  const rasgos = cargarRasgos(p).then((d) => {
+  const rasgos = Promise.all([cargarRasgos(p), cargarMapeo(p)]).then(([d, m]) => {
     if (actual !== p) return;
     doc = d;
+    mapeoActual = d ? m : null;
     dibujarGraficoPista($("grafico-pista"), p, d, saltarA);
     if (d) lectura.actualizar(p, d, 0, false, true); else lectura.sinLectura();
+    prepararModo(p);
   });
   const ok = await audio.cargar(p, (fr) => { if (actual === p) decir(`Cargando «${p.titulo}»… ${Math.round(fr * 100)} %`); });
   await rasgos;
@@ -143,6 +195,7 @@ function saltarA(seg) {
 }
 
 async function alternar() {
+  audio.desbloquear();                      // primero y sin await: el gesto del usuario tiene que seguir activo
   if (audio.estado().sonando) {
     audio.pausar();
     if (actual && doc) lectura.actualizar(actual, doc, audio.estado().tiempo, false, true);
@@ -190,10 +243,22 @@ export function iniciarRocola(lista) {
   av.addEventListener("input", () => saltarA(Number(av.value)));
   av.addEventListener("change", () => { arrastrando = false; });
   $("btn-muestra").addEventListener("click", async () => {
+    audio.desbloquear();
     const e = audio.estado();
     if (e.sonando) { audio.pausar(); return; }
     if (!actual) await elegir(pistas[0].id, { reproducir: true });
     else { const ok = await audio.reproducir(); if (ok) decir(`Suena: ${actual.titulo}`); }
   });
-  audio.alCambiar((e) => { if (e.sonando && actual) decir(`Suena: ${actual.titulo}`); });
+  let sonabaAntes = false;
+  audio.alCambiar((e) => { if (e.sonando && !sonabaAntes && actual) decir(`Suena: ${actual.titulo}`); sonabaAntes = e.sonando; });
+  $("rasgos-vivo").addEventListener("change", () => {
+    const marcados = rasgosMarcados();
+    vivo.fijarRasgos(marcados);
+    const suenan = RASGOS.filter(([k]) => marcados[k]).map(([, nombre]) => nombre);
+    decir(suenan.length ? `Suenan: ${suenan.join(", ")}.` : "No suena ningún rasgo.");
+  });
+  $("modo-sonido").addEventListener("change", (ev) => {
+    audio.desbloquear();                  // primero y sin await: es un gesto del usuario
+    ponerModo(ev.target.value, true);
+  });
 }

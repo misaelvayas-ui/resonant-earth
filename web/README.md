@@ -28,13 +28,17 @@ Abre <http://localhost:8001>. Con doble clic (`file://`) no carga: necesita un s
 | `pistas.json` | las 2 pistas: textos, rutas, plantilla de la lectura en vivo, resumen del gráfico |
 | `equipo.json` | los 5 integrantes (nombres de ejemplo: edítalos) |
 | `js/principal.js` | arranque y bucle único de animación |
-| `js/audio.js` | cargar, reproducir, volumen, amplitud y espectro |
+| `js/audio.js` | cargar, reproducir, volumen, amplitud y espectro; dos buses (audio del mp4 y sonido en vivo) y `desbloquear()` |
+| `js/mapeo.js` | cálculo puro del sonido en vivo (notas, dron, volumen, paneo, golpes) a partir de `_mapeo.json`; sin DOM ni Web Audio |
+| `js/vivo.js` | motor Web Audio del sonido en vivo: nodos, planificador y sincronía con el video; `renderizar()` sin conexión |
+| `js/package.json` | `{"type": "module"}`: deja que Node importe `js/*.js` para la prueba; el navegador lo ignora |
 | `js/rocola.js`, `js/lectura.js`, `js/grafico.js`, `js/visualizador.js` | reproductor y sus partes |
 | `js/globo.js`, `js/animaciones.js`, `js/tarjetas.js` | globo 3D, GSAP y brillo del cursor |
 | `vendor/` | three, GSAP y ScrollTrigger (ver `vendor/LICENCIAS.md`) |
 | `texturas/`, `fotogramas/` | texturas del globo (2048x1024) y fotogramas de las tarjetas |
 | `assets/` | mp4 con el audio mezclado, `_rasgos.json`, `_mapeo.json`, `_esperado.json`, `_procedencia.json`, fuentes e íconos |
-| `pruebas/verificar.cjs` | pruebas con Playwright y axe (V1 a V23) |
+| `pruebas/verificar.cjs` | pruebas con Playwright y axe (V1 a V28) |
+| `pruebas/motor.test.mjs` | pruebas de Node del cálculo del sonido en vivo contra `_esperado.json` (`node --test web/pruebas/motor.test.mjs`; también las lanza `evaluar.py`, prueba L1) |
 | `hacer_icono.py` | dibuja los íconos de la pestaña |
 
 ## Regenerar los medios desde el pipeline
@@ -45,6 +49,16 @@ Los mp4 y los rasgos de `assets/` salen del pipeline, con la misma salida que el
 python -m herramientas.exportar_web      # mp4, _rasgos.json y _procedencia.json
 python -m herramientas.exportar_mapeo    # _mapeo.json y _esperado.json
 ```
+
+## Sonido en vivo
+
+Cada pista tiene un selector **Pista original / Sonido en vivo** (por defecto, la original). En vivo, el navegador genera el audio con Web Audio a partir de `assets/<id>_rasgos.json` y `assets/<id>_mapeo.json`, con el mismo mapeo que `06_rasgos_a_audio.py` (especificación: `docs/ESPEC_MODO_EN_VIVO.md`; plan y decisiones: `docs/PLAN_MODO_EN_VIVO.md`). El `<video>` sigue sonando con ganancia 0 y hace de reloj: reproducir, pausar, buscar, velocidad (`ratechange`) y final se siguen solos. El timbre es el del respaldo numpy (voz sostenida más un golpe), no la marimba del mp4; las notas, el dron, el volumen y el paneo son los mismos.
+
+- **Sin números a mano:** el motor lee todo de `_mapeo.json` (escala, `vmin_sonido`/`vmax_sonido`, eje de paneo `centroide_y`, percentiles, umbrales). Las únicas constantes del código son de timbre (`mapeo.js` y `vivo.js`).
+- **Casillas de rasgos:** melodía, volumen y paneo desmarcados quedan fijos (nota de la referencia, 0 dB, centro); el dron desmarcado se silencia. Sirve para oír cada rasgo por separado.
+- **Autoplay:** el `AudioContext` se crea y reanuda solo dentro de un gesto del usuario (`audio.desbloquear()` es la primera línea síncrona de cada manejador).
+- **Dron:** seno continuo, ~7 dB bajo la melodía (medido con `vivo.renderizar()` en la prueba V28), centrado como en 06.
+- **Sin Web Audio o sin `_mapeo.json`:** el selector queda deshabilitado con el motivo.
 
 ## Cambiar textos
 
@@ -70,6 +84,7 @@ El Chromium de Playwright no trae H.264 ni AAC. Para que reproduzca las pistas, 
 ## Accesibilidad
 
 - Todo se usa con teclado, con foco visible y un enlace «Saltar a la rocola». Atajos fuera de los campos de texto: Espacio reproduce o pausa; ← y → mueven ±5 s.
+- **Sonido en vivo:** el selector y las casillas son controles nativos con etiqueta (`fieldset`/`legend`), se usan con teclado y cada cambio se anuncia en la región de estado.
 - El gráfico es un control (`role="slider"`): clic, o ← → y Enter, saltan el video a ese momento. La barra de avance se mueve de 1 s en 1 s.
 - La lectura en vivo (fecha y frase) se actualiza mientras suena. A la región `aria-live` va una frase corta ("1956: +0,31 °C", `plantilla_viva` en `pistas.json`), siempre la del fotograma actual, y no se envía otra hasta que el lector pueda haber terminado (≥ 3 s); una casilla la apaga. La fecha sobre el video es solo visual (`aria-hidden`).
 - Cada pista trae «Qué se ve y qué se oye» y «Colores del mapa»; el gráfico lleva un resumen en texto.

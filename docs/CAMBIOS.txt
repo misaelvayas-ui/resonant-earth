@@ -997,3 +997,19 @@ La ronda 32 borró J4 junto con web/preparar_datos.py (evaluar.py pasó de 45 a 
    (b) un rocola.wav de la mitad de duración aborta, (c) un demo_*.mp4 con los canales invertidos aborta y (d) el caso en regla pasa; en los tres abortos el destino queda con 0 archivos y en (d) con 3.
    Se probó contra el exportar_web.py anterior: falla (aceptaba (a) y dejaba 2 archivos en (c)). Se omite si no hay ffmpeg.
 evaluar.py: 45 PASA, 0 FALLA, 0 OMITIDA. Los MP4 de web/assets no se regeneraron.
+
+RONDA 37 - modo de sonido en vivo con Web Audio (rama misael/en-vivo)   (2026-11-15)
+Plan: docs/PLAN_MODO_EN_VIVO.md (decisiones de Misael en la sección 1b, desviaciones en la 9). No se tocó ningún .py salvo evaluar.py, ni web/assets/, ni web/equipo.json.
+1. web/js/mapeo.js (cálculo puro): media móvil de 3, escala de 16 notas con vmin_sonido/vmax_sonido, redondeo al par, densidad 1/2/4 con arpegio, volumen -6..0 dB por area normalizada, paneo con el eje y los
+   percentiles del mapeo (ramas amplia y estrecha), golpes con ligado y re-golpe, nivel del dron y casillas de rasgos. Contra _esperado.json de las dos pistas: 0 notas, arpegios, dron, velocidades o eventos distintos; pan y ganancia idénticos.
+2. web/js/vivo.js (Web Audio): voz sostenida + golpes triangulares + dron seno continuo, planificador de 25 ms con horizonte de 0,2 s (1,2 s con la pestaña oculta), reloj de audio anclado al currentTime; sigue play, pause, seeking,
+   seeked, waiting, stalled, ratechange y ended (fundido de 50 ms). renderizar() hace el mismo audio sin conexión (OfflineAudioContext).
+3. web/js/audio.js: dos buses (audio del mp4 y vivo) hacia el mismo volumen y analizador; desbloquear() crea o reanuda el AudioContext dentro del gesto; fijarModo() con fundido de 15 ms.
+4. Interfaz: selector Pista original / Sonido en vivo (por defecto la original, recordado por pista durante la sesión) y casillas melodía, volumen, paneo y dron; textos en «Cómo funciona» y «Accesibilidad».
+5. Pruebas: web/pruebas/motor.test.mjs (Node, 13 pruebas; falla si se usa centroide_x, vmin/vmax de la paleta o se quita la media móvil) y evaluar.py prueba L1 que la lanza (OMITIDA sin node 18+): 46 pruebas.
+   verificar.cjs pasa a V1-V28 (V24-V28 nuevas): modo y autoplay, teclado, pausa, búsqueda, velocidad x2, final, casillas, modo por pista, axe a 1440 y 390 px, y nivel del dron en el render sin conexión.
+6. Hallazgo del paso 17: con el limitador 0,85·tanh(1,5·x) y el dron directo a los dos canales, el dron quedaba a 3,7 dB de la melodía y no a 7. Ahora limitador de rodilla y dron centrado con la ley de potencia constante de 06:
+   6,97 dB (GISTEMP) y 6,96 dB (SST); ventana más baja del mezclado -17,9 y -19,0 dB, mayor caída 1,6 y 3,8 dB.
+Comprobado: node --test 13 PASA; evaluar.py 46 PASA, 0 FALLA; verificar.cjs completo PASA (Chromium + axe, webm en lugar de mp4); alternar original/vivo sonando mantiene el tiempo del video (Δ pista = Δ reloj) y no deja golpes en el original.
+NO comprobado (lista manual del plan, 5.4): Firefox de escritorio, Safari de macOS e iOS (los prueba otra persona del equipo; incluye el interruptor de silencio, el bloqueo de pantalla y que resume() funcione dentro del gesto),
+escucha con auriculares del paneo hacia la derecha, lector de pantalla real (Orca o NVDA) y pestaña oculta 10 s. Sin PR todavía.
