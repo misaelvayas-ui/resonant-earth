@@ -1013,3 +1013,15 @@ Plan: docs/PLAN_MODO_EN_VIVO.md (decisiones de Misael en la sección 1b, desviac
 Comprobado: node --test 13 PASA; evaluar.py 46 PASA, 0 FALLA; verificar.cjs completo PASA (Chromium + axe, webm en lugar de mp4); alternar original/vivo sonando mantiene el tiempo del video (Δ pista = Δ reloj) y no deja golpes en el original.
 NO comprobado (lista manual del plan, 5.4): Firefox de escritorio, Safari de macOS e iOS (los prueba otra persona del equipo; incluye el interruptor de silencio, el bloqueo de pantalla y que resume() funcione dentro del gesto),
 escucha con auriculares del paneo hacia la derecha, lector de pantalla real (Orca o NVDA) y pestaña oculta 10 s. Sin PR todavía.
+
+RONDA 38 - revisión del modo en vivo (rama misael/en-vivo)   (2026-11-15)
+Origen: revisión con Claude en Chrome (0 errores de consola; sincronía, autoplay, casillas, búsqueda y final OK). Sin cambios en el pipeline.
+1. Eje del paneo, comprobado con dos videos sintéticos (fuera del repo, con "paneo": "y"). (a) Tormenta que sube de sur a norte: centroide_y de 0,107 a 0,847 y pan de 06 de -0,65 a +1,0 (los fotogramas con area < 0,01 van al centro).
+   (b) Banda caliente en el centro y luego en el 10 % superior del mapa: centroide_y 0,502 -> 0,933 y pan -1,0 -> +1,0. El eje es correcto: 05 da valores cercanos a 1 con el calor al norte y 06 panea a la derecha. Ojo: el pan es RELATIVO
+   (percentiles 5-95 de la serie): una banda siempre al norte daría pan 0.
+2. Textos del paneo (web/index.html, web/pistas.json): «derecha = más al norte de lo habitual en esa pista; izquierda = más al sur», no polo absoluto. GISTEMP: el calor se reparte por casi todo el planeta en las últimas décadas y el sonido vuelve
+   al centro y a la izquierda (datos: pan medio +0,70 en 1918-1953, -0,12 en 1956-1991 y -0,01 en 1993-2023). SST: el centro es la posición media del calor en los 344 días; derecha de junio a noviembre, izquierda el resto (pan medio +0,35 y -0,3).
+   Corregido también el punto 3 de la lista manual del plan: decía «derecha hacia 2000-2023» y los datos dan el centro.
+3. Gráfico: aria-valuenow y aria-valuetext siguen la reproducción solo al cambiar de fotograma y como mucho una vez por segundo, no pisan lo que se elige con las flechas (4 s) y cambian al instante con el clic. Prueba V29 (6 cambios en 6 s, separación mínima 1000 ms).
+4. A 390 px el texto de ayuda del modo reserva su alto (2 líneas; 3 hasta 480 px): las casillas y el gráfico no se mueven al cambiar de modo. V27 lo mide; sin la reserva se movían 25 px.
+Comprobado: node --test 13 PASA; evaluar.py 46 PASA, 0 FALLA; verificar.cjs completo (V1-V29) PASA. El scratchpad de pruebas se limpió durante la ronda: se reinstalaron Playwright y los webm fuera del repo.
