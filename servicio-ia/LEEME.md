@@ -188,6 +188,8 @@ Causas ya vistas:
 
 Si la prueba responde 504 `{"error":"tiempo"}`, el modelo tardó más de 5 segundos: baja `GEMINI_THINKING` a `low` o sube `ESPERA_MODELO_MS` (la web espera 6 segundos en total).
 
+Si el 504 sigue aunque subas la espera, corre `node probar-gemini.mjs` dentro de `servicio-ia`: pide la clave con entrada oculta (nunca por argumento, no se imprime ni se guarda) y mide tres peticiones con tope de 40 s: A) la de hoy (API de Interacciones), B) la misma tarea con `generateContent` y C) «di hola» con `generateContent`. Gasta tres peticiones del cupo gratuito.
+
 ## Qué protege al servicio
 
 | Protección | Valor inicial | Dónde se cambia |
@@ -238,6 +240,7 @@ Dos cosas que conviene saber:
 | `src/index.js` | lo propio de Cloudflare: el Worker y el contador de los límites |
 | `wrangler.toml` | nombre, orígenes permitidos, modelo y límites (sin secretos) |
 | `probar.mjs` | prueba el servicio publicado con una frase de ejemplo |
+| `probar-gemini.mjs` | mide cuánto tarda Gemini con tres tipos de petición (para aislar un 504) |
 | `pruebas/servicio.test.js` | pruebas con un modelo de mentira: `node --test pruebas/servicio.test.js` |
 
 ## Lo que está probado y lo que no
