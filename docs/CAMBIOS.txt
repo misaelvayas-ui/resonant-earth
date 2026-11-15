@@ -1138,3 +1138,27 @@ Verificado: node --test web (25); navegador 133 comprobaciones (voz elegida, vel
 NO probado: cómo suenan las voces reales de cada navegador (la elección se probó con listas de nombres de Edge, Chrome,
 Windows y macOS). Límite conocido: en inglés, «may 2008» se lee como el mes de mayo.
 No hace falta volver a publicar el servicio por esta fase.
+
+RONDA 38 - guía por voz, fase 3: la guía señala y pulsa   (2026-11-15)
+Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit 7c2a82b (fase 2).
+Tocados: web/guia-voz.js, web/guia-voz.css, web/guia-voz-adaptador.js, web/guia-voz-ia.js, web/pruebas/*.test.js, web/README.md,
+servicio-ia/src/nucleo.js, servicio-ia/pruebas/servicio.test.js, servicio-ia/LEEME.md. No se tocó ningún módulo de web/js/.
+6. Señalar: lista fija de 14 lugares (LUGARES). El adaptador dice dónde está cada uno (lugar(nombre)). Al explicar algo, la
+   página se desplaza hasta el lugar y lo rodea un anillo de luz que se quita solo (4,5 s). Comandos nuevos: «dónde está…»,
+   «señala…», "where is…", "point to…". Con menos movimiento: resalte sin animación. Con lector de pantalla: el foco va al
+   lugar y se anuncia por texto.
+7. Recorrido: 6 pasos; cada uno señala su lugar y un puntero visible pulsa de verdad la tarjeta de la pista, el botón de
+   reproducir (solo si no suena ya), la línea de tiempo (el salto lo hace el reproductor) y «Cambiar de pista». Se detiene
+   en cualquier momento y dura de 40 a 60 s.
+8. IA: acción nueva "senalar" con parametros.lugar (enum de la lista fija) en el esquema, las instrucciones y la validación
+   del servicio, y en el cliente. Un lugar fuera de la lista descarta la respuesta entera, en los dos lados.
+Verificado: node --test (web 27, servicio 14: lista de lugares igual en la guía, el cliente y el servicio; 15 valores manipulados
+descartados en cada lado). Navegador con micrófono, voz y servicio de mentira: todas las secciones pasan (unas 180
+comprobaciones): axe 0 violaciones también con el anillo a la vista, sin voces dobles con lector, el anillo rodea el lugar
+correcto y se quita solo, el recorrido señala 5 lugares y hace clic de verdad en la tarjeta de la pista y en «Cambiar de
+pista». Tres comprobaciones fallaron por tiempos del guion de prueba y pasaron al corregir sus esperas. verificar.cjs: pasa
+todo menos V11, que ya fallaba antes de esta ronda y no es de la guía.
+NO probado: una llamada real a Gemini con la acción nueva (que el modelo señale bien se verá al usarlo), lectores de pantalla
+reales, teléfonos.
+HAY QUE VOLVER A PUBLICAR EL SERVICIO (npx wrangler deploy): cambiaron el esquema y las instrucciones del modelo. Mientras
+no se publique, todo funciona igual, pero la IA no señalará.

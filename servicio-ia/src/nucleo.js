@@ -9,7 +9,12 @@
 
 /* Lo único que la guía puede hacer. El servicio y la web lo comprueban por separado. */
 export const ACCIONES = ["ninguna", "reproducir", "pausar", "siguiente", "anterior", "elegir", "saltar_tiempo",
-  "saltar_anio", "descripcion", "leyenda", "volumen", "repetir", "ayuda"];
+  "saltar_anio", "descripcion", "leyenda", "volumen", "repetir", "ayuda", "senalar"];
+
+/* Los únicos lugares de la página que la guía puede señalar (acción "senalar"). La misma lista está en la web
+   (guia-voz.js y guia-voz-ia.js); una prueba comprueba que coinciden. Cualquier otro valor se descarta. */
+export const LUGARES = ["pistas", "reproductor", "reproducir", "cambiar", "volumen", "avance", "grafico", "lectura", "descripcion", "leyenda",
+  "como_funciona", "por_que", "accesibilidad", "equipo"];
 
 /* Forma obligatoria de la respuesta del modelo (JSON Schema). */
 export const ESQUEMA = {
@@ -26,6 +31,7 @@ export const ESQUEMA = {
         mes: { type: "integer", description: "saltar_anio: mes de 1 a 12, solo si lo piden" },
         valor: { type: "integer", description: "volumen: nivel de 0 a 100" },
         delta: { type: "integer", description: "volumen: cuánto subir (+) o bajar (-)" },
+        lugar: { type: "string", enum: LUGARES, description: "senalar: el lugar de la página que se muestra y se resalta" },
       },
       additionalProperties: false,
     },
@@ -54,12 +60,15 @@ QUÉ PUEDES HACER (campo "accion")
 - "volumen": parametros.valor de 0 a 100, o parametros.delta para subir o bajar.
 - "repetir": repetir lo último que dijo la guía.
 - "ayuda": decir qué se puede pedir.
+- "senalar": explicar algo y a la vez MOSTRAR en la página el lugar del que hablas. Pon parametros.lugar con UNO de estos valores, tal cual, y en "respuesta" la explicación. La página se desplaza hasta ese lugar y lo resalta. Lugares:
+  "pistas" (la lista para elegir pista), "reproductor" (el video con el mapa), "reproducir" (el botón de reproducir y pausar), "cambiar" (el botón para cambiar de pista), "volumen", "avance" (la línea de tiempo), "grafico" (el gráfico de la serie de datos), "lectura" (la lectura en vivo: qué pasa ahora), "descripcion" (la descripción de la pista), "leyenda" (qué significa cada color y cada sonido), "como_funciona", "por_que", "accesibilidad", "equipo" (secciones de la web).
 Si la persona pide una acción, elige esa acción y en "respuesta" confirma en pocas palabras. Si no estás segura de lo que pide, usa "ninguna" y pregunta.
 
 DE DÓNDE SALE LO QUE DICES
 - Explica lo que se oye usando SOLO los datos de CONTEXTO: la pista, el momento, la descripción, la leyenda y la serie de datos. No inventes cifras, fechas, lugares ni causas.
 - CONTEXTO.calculado trae cifras ya calculadas por la página: el momento actual, el máximo, el mínimo, el mayor cambio entre dos momentos seguidos y la tendencia. Úsalas tal cual. No hagas cuentas ni estimes cifras nuevas.
-- Si piden "explícame lo que oigo" o "qué estoy escuchando": usa "ninguna" y explica el momento actual con CONTEXTO.calculado.momento_actual y CONTEXTO.lo_que_pasa_ahora, comparándolo con el máximo o el mínimo, y di cómo se traduce eso en el sonido (más alto, más agudo).
+- SEÑALA CUANDO EXPLIQUES: si lo que explicas tiene un lugar en la página, usa "senalar" con ese lugar en vez de "ninguna". Qué pasa ahora o qué se oye: "lectura". Cómo cambia la serie o por qué sube o baja el tono: "grafico". Qué significa un color o un sonido: "leyenda". De qué trata la pista: "descripcion". Qué pistas hay o cómo elegir: "pistas". Cómo pausar: "reproducir". Cómo ir a otro momento: "avance". Cómo funciona el proyecto: "como_funciona". Por qué se hizo: "por_que". Accesibilidad: "accesibilidad". Quién lo hizo: "equipo". Si no hay un lugar claro, usa "ninguna". Nunca inventes un lugar que no esté en la lista.
+- Si piden "explícame lo que oigo" o "qué estoy escuchando": usa "senalar" con lugar "lectura" y explica el momento actual con CONTEXTO.calculado.momento_actual y CONTEXTO.lo_que_pasa_ahora, comparándolo con el máximo o el mínimo, y di cómo se traduce eso en el sonido (más alto, más agudo).
 - CONTEXTO.web trae los textos fijos de la página: qué es el proyecto, cómo funciona, por qué se hizo, accesibilidad, equipo, pistas y créditos. Si preguntan por la web, el proyecto o el equipo, responde SOLO con eso, con "ninguna". Si no está ahí, di que no lo sabes.
 - Si viene CONTEXTO.reformular, la persona no entendió o pide que lo repitas: vuelve a decir ESE texto con palabras más simples y frases más cortas, en el idioma de CONTEXTO.idioma. Usa "ninguna". No añadas datos, cifras ni ideas nuevas y no ejecutes ninguna acción.
 - Si el dato no está en CONTEXTO, di: "No lo sé con los datos que tengo." (en inglés: "I don't know with the data I have.")
@@ -170,6 +179,10 @@ export function limpiarSalida(obj) {
   poner("mes", entero(p.mes, 1, 12));
   poner("valor", entero(p.valor, 0, 100));
   poner("delta", entero(p.delta, -100, 100));
+  if (obj.accion === "senalar") {                                         // un lugar fuera de la lista fija: se descarta la respuesta
+    if (typeof p.lugar !== "string" || !LUGARES.includes(p.lugar)) return null;
+    parametros.lugar = p.lugar;
+  }
   const respuesta = typeof obj.respuesta === "string"
     ? obj.respuesta.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 600) : "";
   if (obj.accion === "ninguna" && !respuesta) return null;

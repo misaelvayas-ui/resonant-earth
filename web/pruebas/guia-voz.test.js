@@ -8,7 +8,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { interpretarComando, normalizar, buscarFecha, buscarPista, ejecutar, resumenSerie, guionRecorrido, valorDicho, ACCIONES_RECORRIDO, SUGERENCIAS,
-  elegirVozDe, calidadVoz, prepararParaVoz, fechaDicha, normalizarEN, TEXTOS, INTERFAZ, TONO_VOZ, VELOCIDAD_VOZ, AYUDA, AYUDA_EN } = require("../guia-voz.js");
+  elegirVozDe, calidadVoz, prepararParaVoz, LUGARES, NOMBRES_LUGAR, lugarDicho, fechaDicha, normalizarEN, TEXTOS, INTERFAZ, TONO_VOZ, VELOCIDAD_VOZ, AYUDA, AYUDA_EN } = require("../guia-voz.js");
 const SUGERENCIAS_ES = SUGERENCIAS.es;
 
 /* frase -> acción esperada. Incluye errores típicos del reconocimiento: sin tildes ni ñ, mayúsculas,
@@ -308,8 +308,12 @@ test("recorrido: guion fijo, solo acciones permitidas, cifras de los datos y uno
   const { ACCIONES, validarRespuesta, aAccionLocal } = require("../guia-voz-ia.js");
   const r = reproductorReal();
   const pasos = guionRecorrido(r.A);
-  assert.equal(pasos.length, 5);
-  assert.deepEqual(pasos.map((p) => (p.accion ? p.accion.tipo : null)), [null, "elegir", "saltar_tiempo", "elegir", null]);
+  assert.equal(pasos.length, 6);
+  assert.deepEqual(pasos.map((p) => (p.accion ? p.accion.tipo : null)), [null, "elegir", "reproducir", "saltar_tiempo", "elegir", null]);
+  // cada paso señala un lugar de la lista fija, y cuatro pulsan un control de verdad: elegir pista, reproducir, saltar y cambiar de pista
+  assert.deepEqual(pasos.map((p) => p.lugar || null), ["pistas", "reproductor", "reproducir", "grafico", "lectura", null]);
+  assert.deepEqual(pasos.map((p) => (p.pulsar ? p.pulsar.control : null)), [null, "pista", "reproducir", "avance", "cambiar", null]);
+  for (const p of pasos.filter((x) => x.lugar)) assert.ok(LUGARES.includes(p.lugar), p.lugar);
   for (const p of pasos.filter((x) => x.accion)) {
     assert.ok(ACCIONES_RECORRIDO.includes(p.accion.tipo) && ACCIONES.includes(p.accion.tipo), p.accion.tipo);
     // cada paso pasa la MISMA validación que una acción pedida por la IA
@@ -321,8 +325,9 @@ test("recorrido: guion fijo, solo acciones permitidas, cifras de los datos y uno
   assert.deepEqual(r.llamadas, ["elegir 0", "irA 22.0", "elegir 1"]);                         // GISTEMP, su momento clave, y el mar
   const texto = pasos.map((p) => p.texto).join(" ");
   assert.match(texto, /bienvenida a Resonant Earth/); assert.match(texto, /Salto hacia 2023: más 1,06 grados/); assert.match(texto, /punto más bajo es nov 2007/); assert.match(texto, /Fin del recorrido/);
-  const palabras = texto.split(/\s+/).length, segundos = palabras / 2.5 + pasos.reduce((a, p) => a + p.pausa, 0) / 1000;
-  assert.ok(segundos > 30 && segundos < 50, `duración estimada ${segundos.toFixed(0)} s (${palabras} palabras)`);
+  // palabras a 2,5 por segundo, las pausas, y 1,5 s por cada vez que el puntero va a un control
+  const palabras = texto.split(/\s+/).length, segundos = palabras / 2.5 + pasos.reduce((a, p) => a + p.pausa, 0) / 1000 + 1.5 * pasos.filter((p) => p.pulsar).length;
+  assert.ok(segundos >= 40 && segundos <= 60, `duración estimada ${segundos.toFixed(0)} s (${palabras} palabras)`);
   assert.equal((await ejecutar(interpretarComando("dame un recorrido"), r.A, {})).recorrido, true);
   // sin datos, el recorrido sigue saliendo (sin cifras)
   const sinDatos = guionRecorrido({ ...r.A, detalle: () => ({ serie: [] }) });
@@ -466,4 +471,38 @@ test("voz: el texto se prepara antes de hablar (grados, signos, años, meses, si
   assert.equal(en("Say “play” or “pause”. It rose 1 °C."), "Say play or pause. It rose 1 degree.");
   assert.equal(es(""), ""); assert.equal(es(null), "");
   for (const t of ["−0,36 °C", "57 %", "«hola»", "a → b"]) assert.ok(!/[°%«»→−]/.test(es(t)), t);
+});
+
+test("señalar: «dónde está…» y «señala…» llevan a un lugar de la lista fija; al explicar se señala el lugar que toca", async () => {
+  const es = [["¿Dónde está el volumen?", "volumen"], ["señala la leyenda", "leyenda"], ["dónde está el botón de reproducir", "reproducir"], ["muéstrame dónde está el gráfico", "grafico"],
+    ["dónde están las pistas", "pistas"], ["dónde veo la lectura en vivo", "lectura"], ["dónde está la línea de tiempo", "avance"], ["señálame el equipo", "equipo"], ["dónde está el mapa", "reproductor"]];
+  for (const [frase, lugar] of es) assert.deepEqual(interpretarComando(frase), { tipo: "senalar", lugar }, frase);
+  const en = [["Where is the volume?", "volumen"], ["point to the legend", "leyenda"], ["where is the play button", "reproducir"], ["show me where the chart is", "grafico"], ["where are the tracks", "pistas"], ["where is the team", "equipo"]];
+  for (const [frase, lugar] of en) assert.deepEqual(interpretarComando(frase, "en"), { tipo: "senalar", lugar }, frase);
+  assert.equal(interpretarComando("dónde estoy").tipo, "donde"); assert.equal(interpretarComando("where am I", "en").tipo, "donde");   // no se confunden
+  assert.notEqual(interpretarComando("dónde está mi abuela").tipo, "senalar");
+  assert.equal(lugarDicho("la zarandaja"), null);
+
+  // sin adaptador que sepa señalar (o con un lugar que no está en la página), nada cambia
+  const r = reproductorReal({ actual: 0 });
+  assert.equal((await ejecutar({ tipo: "leyenda" }, r.A, {})).lugar, undefined);
+  assert.match((await ejecutar({ tipo: "senalar", lugar: "leyenda" }, r.A, {})).texto, /No encuentro ese lugar/);
+  // con adaptador: cada explicación lleva su lugar, y «senalar» solo acepta la lista fija
+  const pedidos = [];
+  const A = { ...r.A, lugar: (n) => { pedidos.push(n); return n === "equipo" ? null : { nombre: n }; } };
+  const lugarDe = async (accion, idioma) => (await ejecutar(accion, A, {}, idioma)).lugar;
+  assert.equal(await lugarDe({ tipo: "leyenda" }), "leyenda"); assert.equal(await lugarDe({ tipo: "explicar" }), "lectura"); assert.equal(await lugarDe({ tipo: "explicar_tono" }), "grafico");
+  assert.equal(await lugarDe({ tipo: "pistas" }), "pistas"); assert.equal(await lugarDe({ tipo: "volumen", valor: 40 }), "volumen"); assert.equal(await lugarDe({ tipo: "donde" }), "reproductor");
+  assert.equal(await lugarDe({ tipo: "sobre_web", tema: "como_funciona" }), "como_funciona"); assert.equal(await lugarDe({ tipo: "sobre_web", tema: "accesibilidad" }), "accesibilidad");
+  assert.equal(await lugarDe({ tipo: "sobre_web", tema: "proyecto" }), undefined);          // no todo tiene un lugar
+  assert.equal(await lugarDe({ tipo: "sobre_web", tema: "equipo" }), undefined);            // el lugar no está en la página: no se señala
+  assert.equal(await lugarDe({ tipo: "pausar" }), undefined); assert.equal(await lugarDe({ tipo: "reproducir" }), undefined);
+  assert.deepEqual(await ejecutar({ tipo: "senalar", lugar: "leyenda" }, A, {}), { texto: "Aquí está la leyenda de colores.", lugar: "leyenda" });
+  assert.deepEqual(await ejecutar({ tipo: "senalar", lugar: "volumen" }, A, {}, "en"), { texto: "Here is the volume.", lugar: "volumen" });
+  pedidos.length = 0;
+  for (const malo of ["body", "#gv-ia", "<b>", "__proto__", "", null, undefined, 7]) {
+    assert.deepEqual(await ejecutar({ tipo: "senalar", lugar: malo }, A, {}), { texto: "No encuentro ese lugar en la página." }, String(malo));
+  }
+  assert.deepEqual(pedidos, [], "un lugar fuera de la lista ni siquiera se le pide al adaptador");
+  assert.equal(Object.keys(NOMBRES_LUGAR.es).join(), LUGARES.join()); assert.equal(Object.keys(NOMBRES_LUGAR.en).join(), LUGARES.join());
 });

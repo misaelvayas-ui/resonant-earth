@@ -233,6 +233,22 @@
 .gv-campo-opcion input[type="range"] { width: 100%; accent-color: var(--gv-acento); }
 .gv-boton-chico { justify-self: start; }
 
+/* ------------------------------------------------------------------ señalar: un anillo de luz sobre el lugar de la página del que habla la guía,
+   y un puntero que pulsa los controles durante el recorrido. No reciben clics ni los lee el lector de pantalla. */
+.guia-voz > .gv-anillo, .guia-voz > .gv-puntero { position: fixed; top: 0; left: 0; pointer-events: none; }
+.gv-anillo {
+  box-sizing: border-box;
+  border: 3px solid var(--gv-acento);
+  border-radius: 14px;
+  box-shadow: 0 0 0 2px #000000, 0 0 26px 6px rgba(var(--gv-luz), 0.75), inset 0 0 18px rgba(var(--gv-luz), 0.35);
+  animation: gv-anillo 1.5s ease-in-out infinite;
+}
+@keyframes gv-anillo { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+.gv-puntero { width: 34px; height: 34px; margin: -3px 0 0 -5px; color: var(--gv-acento); filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 10px rgba(var(--gv-luz), 0.9)); transition: transform 0.65s cubic-bezier(0.3, 0.7, 0.2, 1); }
+.gv-puntero svg { display: block; transition: transform 0.12s; transform-origin: 5px 3px; }
+.gv-puntero-clic svg { transform: scale(0.78); }
+.gv-puntero-clic::after { content: ""; position: absolute; left: -9px; top: -11px; width: 28px; height: 28px; border-radius: 50%; border: 3px solid #ffffff; }
+
 .guia-voz :is(button, input, select, summary):focus-visible { outline: 2px solid var(--gv-tinta); outline-offset: 2px; }
 
 /* ------------------------------------------------------------------ móvil */
@@ -243,7 +259,8 @@
 
 /* ------------------------------------------------------------------ menos movimiento: nada se mueve */
 @media (prefers-reduced-motion: reduce) {
-  .gv-esfera, .gv-esfera::before, .gv-esfera::after, .gv-escucha-barra { animation: none !important; transition: none; }
+  .gv-esfera, .gv-esfera::before, .gv-esfera::after, .gv-escucha-barra, .gv-anillo { animation: none !important; transition: none; }
+  .gv-puntero, .gv-puntero svg { transition: none; }
   .gv-hablar:hover .gv-esfera { transform: none; }
   .guia-voz[data-estado="escuchando"] .gv-esfera::after { inset: -8px; border-width: 3px; }
   .guia-voz[data-estado="pensando"] .gv-esfera::after { border-color: var(--gv-acento); border-style: dashed; }
@@ -256,4 +273,6 @@
   .gv-esfera::before { display: none; }
   .guia-voz[data-estado="escuchando"] .gv-esfera, .guia-voz[data-estado="respondiendo"] .gv-esfera { border-color: Highlight; border-width: 4px; }
   .gv-chip { color: LinkText; }
+  .gv-anillo { border-color: Highlight; box-shadow: none; }
+  .gv-puntero { color: Highlight; filter: none; }
 }

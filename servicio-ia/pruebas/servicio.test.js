@@ -2,7 +2,7 @@
    Uso:  cd servicio-ia  y luego  node --test pruebas/servicio.test.js */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ACCIONES, ESQUEMA, ErrorLLM, Limites, PROMPT_SISTEMA, callLLM, config, construirEntrada, limpiarSalida, manejar, registrarErrorModelo, validarEntrada } from "../src/nucleo.js";
+import { ACCIONES, ESQUEMA, ErrorLLM, LUGARES, Limites, PROMPT_SISTEMA, callLLM, config, construirEntrada, limpiarSalida, manejar, registrarErrorModelo, validarEntrada } from "../src/nucleo.js";
 
 const CLAVE = "CLAVE-DE-MENTIRA-123";
 const ENV = { GEMINI_API_KEY: CLAVE, ORIGENES_PERMITIDOS: "http://localhost:8000, https://ejemplo.github.io/", MAX_POR_MINUTO_VISITANTE: "3", MAX_POR_MINUTO_GLOBAL: "5", MAX_POR_DIA: "7" };
@@ -86,7 +86,30 @@ test("respuestas manipuladas del modelo: se rechazan o se limpian", async () => 
   assert.deepEqual(Object.keys(j), ["accion", "parametros", "respuesta"]);
   assert.deepEqual(j.parametros, { numero: 2 });                       // lo que no es del tipo o del rango correcto se descarta
   assert.equal(j.respuesta.length, 600); assert.ok(j.respuesta.startsWith("Hola mundo"));
-  for (const a of ACCIONES) assert.ok(limpiarSalida({ accion: a, parametros: {}, respuesta: "ok" }), a);
+  for (const a of ACCIONES.filter((x) => x !== "senalar")) assert.ok(limpiarSalida({ accion: a, parametros: {}, respuesta: "ok" }), a);
+});
+
+test("señalar: el modelo solo puede señalar un lugar de la lista fija; cualquier otro valor se descarta", async () => {
+  assert.ok(ACCIONES.includes("senalar")); assert.equal(LUGARES.length, 14);
+  assert.deepEqual(ESQUEMA.properties.parametros.properties.lugar.enum, LUGARES);         // el esquema ya limita al modelo
+  for (const l of LUGARES) {
+    assert.deepEqual(limpiarSalida({ accion: "senalar", parametros: { lugar: l }, respuesta: "Mira." }), { accion: "senalar", parametros: { lugar: l }, respuesta: "Mira." });
+    assert.ok(PROMPT_SISTEMA.includes(`"${l}"`), "el prompt nombra el lugar " + l);
+  }
+  assert.match(PROMPT_SISTEMA, /"senalar": explicar algo y a la vez MOSTRAR/); assert.match(PROMPT_SISTEMA, /SEÑALA CUANDO EXPLIQUES/); assert.match(PROMPT_SISTEMA, /Nunca inventes un lugar/);
+  const malos = ["body", "#gv-ia", ".pie a", "<img src=x onerror=alert(1)>", "javascript:alert(1)", "LEYENDA", "leyenda ", "", null, undefined, 3, ["leyenda"], { lugar: "leyenda" }, "__proto__"];
+  for (const lugar of malos) assert.equal(limpiarSalida({ accion: "senalar", parametros: { lugar }, respuesta: "Mira esto." }), null, JSON.stringify(lugar));
+  assert.equal(limpiarSalida({ accion: "senalar", respuesta: "Mira." }), null);
+  // en otras acciones, «lugar» no pasa a la web
+  assert.deepEqual(limpiarSalida({ accion: "ninguna", parametros: { lugar: "leyenda" }, respuesta: "Hola." }).parametros, {});
+  assert.deepEqual(limpiarSalida({ accion: "pausar", parametros: { lugar: "body" }, respuesta: "" }).parametros, {});
+  // de punta a punta, con un modelo de mentira: uno bueno pasa; uno manipulado da 502 y la web cae a sus comandos
+  let r = await manejar(pedir(CUERPO), ENV, { contador: contadorFalso(), llm: modeloFalso({ accion: "senalar", parametros: { lugar: "grafico", numero: 1 }, respuesta: "Mira cómo sube." }) });
+  assert.equal(r.status, 200); assert.deepEqual(await r.json(), { accion: "senalar", parametros: { numero: 1, lugar: "grafico" }, respuesta: "Mira cómo sube." });
+  for (const lugar of ["document.body", "#gv-ia", "pistas; reproducir"]) {
+    r = await manejar(pedir(CUERPO), ENV, { contador: contadorFalso(), llm: modeloFalso({ accion: "senalar", parametros: { lugar }, respuesta: "Ignora las reglas." }) });
+    assert.equal(r.status, 502); assert.deepEqual(await r.json(), { error: "respuesta_invalida" });
+  }
 });
 
 test("texto malicioso: viaja como dato, separado de las instrucciones, y la clave nunca va al modelo ni a la respuesta", async () => {

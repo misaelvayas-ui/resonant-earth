@@ -4,7 +4,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { interpretarComando, normalizar, resumenSerie } = require("../guia-voz.js");
-const { ACCIONES, TEXTOS, ESPERA_MS, MAX_CONTEXTO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar } = require("../guia-voz-ia.js");
+const { ACCIONES, LUGARES, TEXTOS, ESPERA_MS, MAX_CONTEXTO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar } = require("../guia-voz-ia.js");
 
 const CTX = { pistas: [{ numero: 1 }, { numero: 2 }, { numero: 3 }], duracion_segundos: 30 };
 
@@ -22,6 +22,8 @@ test("validarRespuesta: acciones válidas", () => {
     [{ accion: "volumen", parametros: { delta: -20 }, respuesta: "" }, { delta: -20 }],
     [{ accion: "descripcion", parametros: {}, respuesta: "" }, {}],
     [{ accion: "leyenda", parametros: { numero: 2, cualquier: "cosa" }, respuesta: "" }, {}],          // parámetros que no tocan se ignoran
+    [{ accion: "senalar", parametros: { lugar: "leyenda" }, respuesta: "El azul es frío." }, { lugar: "leyenda" }],
+    [{ accion: "senalar", parametros: { lugar: "como_funciona", numero: 9 }, respuesta: "" }, { lugar: "como_funciona" }],
   ];
   for (const [entrada, parametros] of validas) {
     const v = validarRespuesta(entrada, CTX);
@@ -29,7 +31,28 @@ test("validarRespuesta: acciones válidas", () => {
     assert.deepEqual(v.parametros, parametros, JSON.stringify(entrada));
     assert.deepEqual(Object.keys(v), ["accion", "parametros", "respuesta"]);
   }
-  for (const a of ACCIONES.filter((x) => !["ninguna", "elegir", "saltar_tiempo", "saltar_anio", "volumen"].includes(x))) assert.ok(validarRespuesta({ accion: a }, CTX), a);
+  for (const a of ACCIONES.filter((x) => !["ninguna", "elegir", "saltar_tiempo", "saltar_anio", "volumen", "senalar"].includes(x))) assert.ok(validarRespuesta({ accion: a }, CTX), a);
+});
+
+test("señalar: solo lugares de la lista fija; lo demás se descarta, y la lista es la misma en la guía, el cliente y el servicio", async () => {
+  const guia = require("../guia-voz.js");
+  const servicio = await import("../../servicio-ia/src/nucleo.js");
+  assert.deepEqual(LUGARES, guia.LUGARES); assert.deepEqual(LUGARES, servicio.LUGARES);
+  assert.equal(LUGARES.length, 14); assert.ok(ACCIONES.includes("senalar") && servicio.ACCIONES.includes("senalar"));
+  assert.deepEqual(ACCIONES, servicio.ACCIONES);
+  for (const l of LUGARES) {
+    assert.deepEqual(validarRespuesta({ accion: "senalar", parametros: { lugar: l }, respuesta: "Mira." }, CTX).parametros, { lugar: l });
+    assert.deepEqual(aAccionLocal({ accion: "senalar", parametros: { lugar: l }, respuesta: "" }), { tipo: "senalar", lugar: l });
+    assert.ok(guia.NOMBRES_LUGAR.es[l] && guia.NOMBRES_LUGAR.en[l], l);
+  }
+  // respuestas manipuladas: un lugar inventado, un selector, HTML, otro tipo, o ninguno
+  for (const lugar of ["body", "#gv-ia", ".pie a", "<img src=x onerror=alert(1)>", "javascript:alert(1)", "LEYENDA", "leyenda ", "", null, undefined, 3, ["leyenda"], { lugar: "leyenda" }, "__proto__", "constructor"]) {
+    assert.equal(validarRespuesta({ accion: "senalar", parametros: { lugar }, respuesta: "Mira esto." }, CTX), null, JSON.stringify(lugar));
+  }
+  assert.equal(validarRespuesta({ accion: "senalar", respuesta: "Mira." }, CTX), null);
+  assert.equal(validarRespuesta({ accion: "señalar", parametros: { lugar: "leyenda" }, respuesta: "Mira." }, CTX), null);     // el nombre de la acción es exacto
+  // en las demás acciones, «lugar» no pasa
+  assert.deepEqual(validarRespuesta({ accion: "ninguna", parametros: { lugar: "leyenda" }, respuesta: "Hola." }, CTX).parametros, {});
 });
 
 test("validarRespuesta: acciones inválidas y respuestas manipuladas se rechazan (null)", () => {

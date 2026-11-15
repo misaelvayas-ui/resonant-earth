@@ -25,7 +25,9 @@
      paginaAnuncia(que) true si la página ya avisa al lector de pantalla al "elegir", "pausar" o "saltar"
      paginaHablaSola()  true si la página dice cosas con su propia voz (esta web no lo hace)
      detalle(i)         de qué trata la pista i (sin i, la elegida), unidad, referencia y la serie [{ t, fecha, media, area }]
-     ancla()            el elemento de la página antes del cual se coloca el panel de la guía */
+     ancla()            el elemento de la página antes del cual se coloca el panel de la guía
+     lugar(nombre)      el elemento de la página que corresponde a un lugar de la lista fija de la guía (o null)
+     control(nombre, i) un control que el recorrido pulsa de verdad: "pista" (la tarjeta i), "reproducir", "cambiar", "avance" */
 "use strict";
 
 window.GuiaVozAdaptador = (() => {
@@ -82,6 +84,15 @@ window.GuiaVozAdaptador = (() => {
   };
   const pista = () => lista[indice()] || null;
   const serie = () => (pista() && series[pista().id]) || { referencia: null, rasgos: [] };
+
+  /* Dónde está en ESTA página cada lugar que la guía puede señalar. En las secciones largas se señala el título. */
+  const LUGARES = {
+    pistas: () => $("lista-pistas"), reproductor: () => $("escenario"), reproducir: () => $("btn-reproducir"), cambiar: () => $("btn-cambiar"),
+    volumen: () => $("volumen"), avance: () => $("avance"), grafico: () => document.querySelector(".grafico-pista"),
+    lectura: () => document.querySelector("section.ahora"), descripcion: () => $("descripcion-accesible") && $("descripcion-accesible").closest("section"),
+    leyenda: () => $("leyenda-pista") && $("leyenda-pista").closest("section"),
+    como_funciona: () => $("t-como"), por_que: () => $("t-porque"), accesibilidad: () => $("t-acc"), equipo: () => $("t-equipo"),
+  };
 
   return {
     cargado,
@@ -147,5 +158,8 @@ window.GuiaVozAdaptador = (() => {
     },
 
     ancla: () => $("rocola"),
+    lugar: (nombre) => (Object.prototype.hasOwnProperty.call(LUGARES, nombre) ? LUGARES[nombre]() || null : null),
+    control: (nombre, i = 0) => (nombre === "pista" ? $("lista-pistas").querySelectorAll(".pista")[i] || null
+      : nombre === "reproducir" ? $("btn-reproducir") : nombre === "cambiar" ? $("btn-cambiar") : nombre === "avance" ? $("avance") : null),
   };
 })();

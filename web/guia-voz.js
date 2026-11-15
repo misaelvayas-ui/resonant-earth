@@ -121,6 +121,10 @@
     if (hay(/\b(no (te |lo |le )?(entendi|entiendo|comprendi|comprendo|escuche|oi)|mas (simple|sencill\w+|facil|claro|despacio|lento)|repite\w*|repetir|repitelo|otra vez|de nuevo|como dijiste|que dijiste)\b/) &&
         !hay(/\b(reprodu\w+|pon\w*|toca|empieza|reinicia\w*|desde)\b/)) return { tipo: "repetir" };
 
+    // ---- «dónde está el volumen», «señala la leyenda»: la guía muestra ese lugar de la página
+    { const m = /\b(?:donde (?:esta|estan|queda|quedan|veo|encuentro)|senala(?:me)?|(?:muestrame|ensename) donde(?: esta| estan)?)\b(.*)$/.exec(s);
+      const l = m && lugarDicho(m[1]); if (l) return { tipo: "senalar", lugar: l }; }
+
     // ---- preguntas sobre la web (qué es, cómo funciona, por qué, accesibilidad, equipo)
     if (hay(/\bque es (esta (pagina|web)|este (sitio|proyecto|lugar)|resonant earth)\b|\bde que (trata|va)\b|\bpara que sirve\b|\bque hace esta (pagina|web)\b/)) return { tipo: "sobre_web", tema: "proyecto" };
     if (hay(/\bcomo funciona\b|\bcomo (lo )?(hacen|hicieron|hacemos|convierten|se convierte|se hace|se hizo)\b|\bpipeline\b/)) return { tipo: "sobre_web", tema: "como_funciona" };
@@ -283,6 +287,9 @@
     if (hay(/\b(tour|walkthrough|walk me through|show me around|guided visit)\b/)) {
       return { tipo: hay(/\b(stop|end|cancel|quit|exit|enough|no more)\b/) ? "detener_recorrido" : "recorrido" };
     }
+    // "where is the volume", "point to the legend": the guide shows that place on the page
+    { const m = /\b(?:where (?:is|are|can i (?:see|find))|show me where(?: is| are)?|point (?:to|at))\b(.*)$/.exec(s);
+      const l = m && lugarDicho(m[1]); if (l) return { tipo: "senalar", lugar: l }; }
     // sobre la web
     if (hay(/\bwhat is (this|that|it|resonant earth|this (page|site|website|project|place))( about)?$|\bwhat is this (page|site|website|project)\b|\bwhat is resonant earth\b|\bwhat does this (page|site|website) do\b/)) return { tipo: "sobre_web", tema: "proyecto" };
     if (hay(/\bhow does (it|this|that|the (site|page|website|project)) work\b|\bhow (is|was) (it|this) (made|built|done)\b|\bhow do you (make|turn|convert)\b|\bpipeline\b/)) return { tipo: "sobre_web", tema: "como_funciona" };
@@ -488,6 +495,7 @@
         salto: (f, v) => `Salto hacia ${f}: ${v}. Es el punto más alto de la pista, por eso la melodía suena cada vez más aguda.`,
         segunda: (t, dir, min) => `Segunda pista: ${t}.` + (dir ? ` Aquí la melodía ${dir}: su punto más bajo es ${min}.` : ""),
         direccion: { sube: "sube", baja: "baja", "sube y baja": "sube y baja" },
+        boton: "Con este botón pausas y sigues cuando quieras.",
         fin: "Fin del recorrido. Pulsa la esfera Háblame y pregúntame lo que quieras.",
       },
     },
@@ -526,29 +534,70 @@
         salto: (f, v) => `Jumping towards ${f}: ${v}. It is the highest point of the track, which is why the melody keeps getting higher.`,
         segunda: (t, dir, min) => `Second track: ${t}.` + (dir ? ` Here the melody ${dir}: its lowest point is ${min}.` : ""),
         direccion: { sube: "rises", baja: "falls", "sube y baja": "rises and falls" },
+        boton: "With this button you pause and resume whenever you like.",
         fin: "End of the tour. Press the sphere and ask me anything.",
       },
     },
   };
   const textos = (idioma) => L[idioma === "en" ? "en" : "es"];
 
+  /* Los ÚNICOS lugares de la página que la guía puede señalar. Lista fija: el adaptador dice dónde está cada uno
+     (A.lugar(nombre)); la IA solo puede pedir uno de estos y cualquier otro valor se descarta. */
+  const LUGARES = ["pistas", "reproductor", "reproducir", "cambiar", "volumen", "avance", "grafico", "lectura", "descripcion", "leyenda",
+    "como_funciona", "por_que", "accesibilidad", "equipo"];
+  const NOMBRES_LUGAR = {
+    es: { pistas: "la lista de pistas", reproductor: "el reproductor", reproducir: "el botón de reproducir y pausar", cambiar: "el botón para cambiar de pista",
+      volumen: "el volumen", avance: "la línea de tiempo", grafico: "el gráfico de la pista", lectura: "la lectura en vivo", descripcion: "la descripción de la pista",
+      leyenda: "la leyenda de colores", como_funciona: "la sección Cómo funciona", por_que: "la sección que cuenta por qué escuchar los datos",
+      accesibilidad: "la sección de accesibilidad", equipo: "la sección del equipo" },
+    en: { pistas: "the track list", reproductor: "the player", reproducir: "the play and pause button", cambiar: "the button to switch tracks",
+      volumen: "the volume", avance: "the timeline", grafico: "the chart of the track", lectura: "the live reading", descripcion: "the description of the track",
+      leyenda: "the colour legend", como_funciona: "the How it works section", por_que: "the section on why to listen to data",
+      accesibilidad: "the accessibility section", equipo: "the team section" },
+  };
+  const FRASES_LUGAR = {
+    es: { aqui: (n) => `Aquí está ${n}.`, sinLugar: "No encuentro ese lugar en la página.", foco: (n) => `Te llevé a ${n}.`.replace(" a el ", " al ") },
+    en: { aqui: (n) => `Here is ${n}.`, sinLugar: "I cannot find that place on the page.", foco: (n) => `I took you to ${n}.` },
+  };
+  const nombreLugar = (lugar, idioma) => NOMBRES_LUGAR[idioma === "en" ? "en" : "es"][lugar] || "";
+  /* De unas palabras (ya normalizadas, en español o inglés) al lugar del que hablan, o null. */
+  const PALABRAS_LUGAR = [
+    ["reproducir", /\b(reproducir|play|pausar?|pause)\b/], ["cambiar", /\b(cambiar|cambio|switch|change)\b/], ["volumen", /\b(volumen|volume)\b/],
+    ["avance", /\b(linea de tiempo|avance|barra|timeline|progress)\b/], ["grafico", /\b(grafic\w*|chart|graph)\b/], ["leyenda", /\b(leyenda|colores|legend|colou?rs)\b/],
+    ["descripcion", /\b(descripcion|description)\b/], ["lectura", /\b(lectura|que pasa ahora|reading|live)\b/], ["pistas", /\b(pistas|lista|tracks?)\b/],
+    ["como_funciona", /\b(como funciona|how it works)\b/], ["por_que", /\b(por que|why)\b/], ["accesibilidad", /\b(accesib\w*|accessib\w*)\b/],
+    ["equipo", /\b(equipo|team)\b/], ["reproductor", /\b(reproductor|video|mapa|player|map)\b/],
+  ];
+  function lugarDicho(palabras) {
+    const hallado = PALABRAS_LUGAR.find(([, re]) => re.test(String(palabras || "")));
+    return hallado ? hallado[0] : null;
+  }
+  /* Qué lugar se señala al explicar cada cosa (solo si el adaptador sabe señalar). */
+  const LUGAR_DE = { explicar: "lectura", explicar_tono: "grafico", descripcion: "lectura", leyenda: "leyenda", pistas: "pistas", volumen: "volumen", donde: "reproductor" };
+
   /* El recorrido guiado: un guion FIJO (no lo escribe ningún modelo). Cada paso tiene un texto, una pausa para
      dejar oír la música y, a veces, una acción de ACCIONES_RECORRIDO. Las cifras salen de resumenSerie(). */
-  const ACCIONES_RECORRIDO = ["elegir", "saltar_tiempo"];
+  const ACCIONES_RECORRIDO = ["elegir", "reproducir", "saltar_tiempo"];
+  /* Cada paso: { texto, pausa, accion, lugar, pulsar }. lugar = qué se señala mientras se explica (de LUGARES).
+     pulsar = el control de la página que el puntero pulsa de verdad ({ control, indice }); accion es lo mismo dicho como
+     acción, y se usa si el control no está o si la página no tiene puntero. */
   function guionRecorrido(A, idioma = "es") {
     const pistas = A.pistas(idioma), R0 = textos(idioma).recorrido, f = (x) => fechaDicha(x, idioma);
     const de = (i) => { const d = (A.detalle && pistas[i] && A.detalle(i)) || {}; return { ...d, resumen: resumenSerie(d.serie) }; };
-    const pasos = [{ accion: null, pausa: 300, texto: R0.bienvenida }];
+    const pasos = [{ accion: null, pausa: 300, texto: R0.bienvenida, lugar: "pistas" }];
     if (pistas[0]) {
       const d = de(0), R = d.resumen;
-      pasos.push({ accion: { tipo: "elegir", numero: 1 }, pausa: 3000, texto: R0.primera(pistas[0].titulo, R ? f(R.tendencia.inicio.fecha) : "") });
+      pasos.push({ accion: { tipo: "elegir", numero: 1 }, pulsar: { control: "pista", indice: 0 }, lugar: "reproductor", pausa: 2500,
+        texto: R0.primera(pistas[0].titulo, R ? f(R.tendencia.inicio.fecha) : "") });
+      pasos.push({ accion: { tipo: "reproducir" }, pulsar: { control: "reproducir" }, lugar: "reproducir", pausa: 500, texto: R0.boton });
       // unos segundos antes del punto más alto: la música sube hasta él mientras la guía lo cuenta
-      if (R) pasos.push({ accion: { tipo: "saltar_tiempo", segundos: Math.max(0, Math.round((R.maximo.t - 7) * 10) / 10) }, pausa: 2500,
+      if (R) pasos.push({ accion: { tipo: "saltar_tiempo", segundos: Math.max(0, Math.round((R.maximo.t - 7) * 10) / 10) }, pulsar: { control: "avance" }, lugar: "grafico", pausa: 2000,
         texto: R0.salto(f(R.maximo.fecha), valorDicho(R.maximo.valor, d, idioma)) });
     }
     if (pistas[1]) {
       const d = de(1), R = d.resumen;
-      pasos.push({ accion: { tipo: "elegir", numero: 2 }, pausa: 3000, texto: R0.segunda(pistas[1].titulo, R ? R0.direccion[R.tendencia.direccion] : "", R ? f(R.minimo.fecha) : "") });
+      pasos.push({ accion: { tipo: "elegir", numero: 2 }, pulsar: { control: "cambiar" }, lugar: "lectura", pausa: 2500,
+        texto: R0.segunda(pistas[1].titulo, R ? R0.direccion[R.tendencia.direccion] : "", R ? f(R.minimo.fecha) : "") });
     }
     pasos.push({ accion: null, pausa: 0, texto: R0.fin });
     return pasos;
@@ -557,6 +606,16 @@
   /* Ejecuta una acción con el adaptador y responde en el idioma pedido. Devuelve { texto, paginaAnuncia, paginaHabla }:
      paginaAnuncia = la página ya lo dirá al lector de pantalla; paginaHabla = la página ya lo dirá con su voz. */
   async function ejecutar(accion, A, memoria = {}, idioma = "es") {
+    const sabeSenalar = typeof A.lugar === "function", F = FRASES_LUGAR[idioma === "en" ? "en" : "es"];
+    if (accion.tipo === "senalar") {                                       // solo lugares de la lista fija, y solo si están en la página
+      const hay = sabeSenalar && LUGARES.includes(accion.lugar) && A.lugar(accion.lugar);
+      return hay ? { texto: F.aqui(nombreLugar(accion.lugar, idioma)), lugar: accion.lugar } : { texto: F.sinLugar };
+    }
+    const res = await ejecutarAccion(accion, A, memoria, idioma);
+    const lugar = accion.tipo === "sobre_web" ? accion.tema : LUGAR_DE[accion.tipo];
+    return sabeSenalar && res && res.texto && LUGARES.includes(lugar) && A.lugar(lugar) ? { ...res, lugar } : res;
+  }
+  async function ejecutarAccion(accion, A, memoria = {}, idioma = "es") {
     const T = textos(idioma), pistas = A.pistas(idioma), n = pistas.length;
     const f = (x) => fechaDicha(x, idioma), dura = (s) => enPalabras(s, idioma);
     let actual = A.indiceActual();
@@ -920,6 +979,61 @@
     const nivelar = () => { pintarEsfera(); try { A.atenuar(guia.escuchando ? 0.2 : guia.hablando ? 0.35 : 1); } catch (e) { /* el reproductor no está listo */ } };
     const esperar = (ms) => new Promise((listo) => ventana.setTimeout(listo, ms));
 
+    /* ================================================================ E. señalar un lugar de la página y pulsar con un puntero */
+    const sinMovimiento = () => !!(ventana.matchMedia && ventana.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    const anillo = doc.createElement("div"), puntero = doc.createElement("div");
+    anillo.className = "gv-anillo"; puntero.className = "gv-puntero";
+    puntero.innerHTML = '<svg focusable="false" viewBox="0 0 24 24" width="34" height="34"><path d="M5 2.5l13.5 10.2-6 .9 3.6 7-2.7 1.4-3.6-7L5 19z" fill="currentColor" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+    for (const e of [anillo, puntero]) { e.hidden = true; e.setAttribute("aria-hidden", "true"); panel.append(e); }
+    let relojAnillo = 0, cuadroAnillo = 0;
+    const quitarAnillo = () => { ventana.clearTimeout(relojAnillo); if (ventana.cancelAnimationFrame) ventana.cancelAnimationFrame(cuadroAnillo); anillo.hidden = true; delete panel.dataset.lugar; };
+    const quitarSenal = () => { quitarAnillo(); puntero.hidden = true; puntero.classList.remove("gv-puntero-clic"); };
+    const llevarA = (el) => { try { el.scrollIntoView({ behavior: sinMovimiento() ? "auto" : "smooth", block: "center", inline: "nearest" }); } catch (e) { try { el.scrollIntoView(); } catch (x) { /* sin scroll */ } } };
+    /* Lleva la página hasta un lugar de la lista fija y lo rodea con un anillo de luz que se quita solo.
+       Con lector de pantalla, además mueve el foco a ese lugar. Devuelve false si el lugar no está. */
+    function senalar(lugar, { dure = 4500 } = {}) {
+      const el = LUGARES.includes(lugar) && A.lugar ? A.lugar(lugar) : null;
+      if (!el) return false;
+      quitarAnillo();
+      llevarA(el);
+      const colocar = () => {                         // el anillo sigue al lugar mientras la página se desplaza
+        const r = el.getBoundingClientRect(), m = 6, alto = ventana.innerHeight, ancho = ventana.innerWidth;
+        const arriba = Math.max(r.top - m, 4), abajo = Math.min(r.bottom + m, alto - 4), izq = Math.max(r.left - m, 4), der = Math.min(r.right + m, ancho - 4);
+        anillo.style.top = arriba + "px"; anillo.style.left = izq + "px";
+        anillo.style.width = Math.max(der - izq, 0) + "px"; anillo.style.height = Math.max(abajo - arriba, 0) + "px";
+        if (!anillo.hidden && ventana.requestAnimationFrame) cuadroAnillo = ventana.requestAnimationFrame(colocar);
+      };
+      anillo.hidden = false; panel.dataset.lugar = lugar;
+      colocar();
+      relojAnillo = ventana.setTimeout(quitarAnillo, dure);
+      if (modoLector()) {
+        if (!/^(A|BUTTON|INPUT|SELECT|TEXTAREA|SUMMARY)$/.test(el.tagName) && !el.hasAttribute("tabindex")) {
+          el.setAttribute("tabindex", "-1");
+          el.addEventListener("blur", () => el.removeAttribute("tabindex"), { once: true });
+        }
+        try { el.focus({ preventScroll: true }); } catch (e) { /* no se pudo enfocar: queda el anuncio por texto */ }
+      }
+      return true;
+    }
+    /* Mueve el puntero visible hasta un control de la página. parte = en qué punto del ancho (0 a 1). Con «menos
+       movimiento» aparece ya en su sitio, sin deslizarse. */
+    async function moverPuntero(el, { parte = 0.5, clic = true } = {}) {
+      if (!el) return false;
+      llevarA(el);
+      await esperar(sinMovimiento() ? 60 : 550);
+      const poner = (x, y) => { puntero.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`; };
+      if (puntero.hidden) {                             // sale de la esfera
+        const e = ui.hablar.getBoundingClientRect();
+        puntero.style.transition = "none"; poner(e.left + e.width / 2, e.top + e.height / 2);
+        puntero.hidden = false; void puntero.offsetWidth; puntero.style.transition = "";
+      }
+      const r = el.getBoundingClientRect();
+      poner(r.left + r.width * parte, r.top + r.height / 2);
+      await esperar(sinMovimiento() ? 120 : 700);
+      if (clic) { puntero.classList.add("gv-puntero-clic"); await esperar(240); puntero.classList.remove("gv-puntero-clic"); }
+      return true;
+    }
+
     /* ================================================================ C. respuestas: voz O texto para el lector */
     const sintesis = "speechSynthesis" in ventana && typeof ventana.SpeechSynthesisUtterance === "function" ? ventana.speechSynthesis : null;
     let voces = [];
@@ -980,13 +1094,19 @@
     /* UNA sola salida por respuesta, y siempre el subtítulo a la vista.
        Con lector: texto en la región viva (y solo si la página no lo anuncia ya). Sin lector: la voz de la guía.
        seguir: al terminar de hablar, vuelve a escuchar unos segundos (solo si la respuesta salió por voz). */
-    async function responder(texto, { paginaAnuncia = false, paginaHabla = false, lento = false, seguir = true } = {}) {
+    async function responder(texto, { paginaAnuncia = false, paginaHabla = false, lento = false, seguir = true, lugar = null } = {}) {
       if (!texto) return;
       guia.ultima = texto;
       ui.respuesta.textContent = texto;               // el subtítulo: toda respuesta se ve también como texto
       abrirTarjeta();
       brillar(texto);
-      if (modoLector()) { if (!paginaAnuncia) escribirParaLector(texto); return; }
+      const senalado = lugar ? senalar(lugar) : false;   // la página va hasta el lugar del que se habla y lo resalta
+      if (modoLector()) {                               // con lector: el foco ya se movió; el lugar se anuncia por texto
+        const aviso = senalado ? FRASES_LUGAR[guia.idioma].foco(nombreLugar(lugar, guia.idioma)) : "";
+        const escrito = [paginaAnuncia ? "" : texto, aviso].filter(Boolean).join(" ");
+        if (escrito) escribirParaLector(escrito);
+        return;
+      }
       if (paginaHabla) return;
       if (!puedeHablar()) { escribirParaLector(texto); return; }
       const mio = ++guia.turnoVoz;
@@ -1158,15 +1278,32 @@
 
     /* ---------- recorrido guiado: guion fijo, paso a paso, y se puede detener en cualquier momento ---------- */
     /* Un paso del recorrido: se ve en el subtítulo y sale por UN camino (voz, o región viva con lector). Espera a que termine. */
-    async function narrar(texto) {
+    async function narrar(texto, aviso = "") {
       guia.ultima = texto;
       ui.respuesta.textContent = texto;
       abrirTarjeta();
       if (!modoLector() && puedeHablar()) return decir(texto);
       brillar(texto);
-      escribirParaLector(texto);
-      await esperar(1500 + texto.length * 60);        // tiempo para que el lector de pantalla lo lea
+      escribirParaLector(texto + aviso);
+      await esperar(1500 + (texto.length + aviso.length) * 60);   // tiempo para que el lector de pantalla lo lea
       return false;
+    }
+    /* Un paso que pulsa un control de verdad: el puntero va hasta él y la guía hace clic en el control de la página.
+       «reproducir» solo se pulsa si la pista no suena (si ya suena, el puntero lo muestra sin pulsar); la línea de tiempo
+       no admite un clic con sentido, así que el puntero va al punto exacto y el salto lo hace el reproductor. */
+    async function pulsarPaso(paso, sigue) {
+      const p = paso.pulsar, hacer = async () => { try { await ejecutar(paso.accion, A, guia, guia.idioma); } catch (e) { /* el paso se cuenta igual */ } };
+      const el = p && A.control ? A.control(p.control, p.indice) : null;
+      if (!el || el.disabled) { if (paso.accion) await hacer(); return; }
+      const yaSuena = p.control === "reproducir" && A.sonando();
+      const yaEsta = p.control === "cambiar" && A.indiceActual() === paso.accion.numero - 1;
+      const parte = p.control === "avance" && A.duracion() ? Math.min(1, Math.max(0, paso.accion.segundos / A.duracion())) : 0.5;
+      if (!modoLector()) await moverPuntero(el, { parte, clic: !yaSuena && !yaEsta });
+      if (!sigue()) return;
+      if (p.control === "avance") { await hacer(); return; }
+      if (yaSuena || yaEsta) return;
+      el.click();                                     // el clic de verdad, en el control de la página
+      for (let i = 0; i < 50 && sigue() && !A.listo(); i++) await esperar(100);   // la pista se está cargando
     }
     async function recorrer() {
       const mio = ++guia.recorrido, sigue = () => mio === guia.recorrido;
@@ -1175,15 +1312,18 @@
       if (ia) ia.marcar(false);
       let hablado = false;
       for (const paso of guionRecorrido(A, guia.idioma)) {
-        if (paso.accion) { try { await ejecutar(paso.accion, A, guia, guia.idioma); } catch (e) { /* el paso se cuenta igual */ } }
+        if (paso.pulsar || paso.accion) await pulsarPaso(paso, sigue);
         if (!sigue()) return;
-        hablado = await narrar(paso.texto);
+        const senalado = paso.lugar ? senalar(paso.lugar, { dure: 9000 }) : false;   // señala el lugar mientras lo explica
+        const aviso = senalado && modoLector() ? " " + FRASES_LUGAR[guia.idioma].foco(nombreLugar(paso.lugar, guia.idioma)) : "";
+        hablado = await narrar(paso.texto, aviso);
         if (!sigue()) return;
         await esperar(paso.pausa);
         if (!sigue()) return;
       }
       guia.enRecorrido = false;
       ui.detener.hidden = true;
+      quitarSenal();
       if (hablado) seguirEscuchando();                // "pregúntame lo que quieras": escucha una vez
     }
     /* silencio: lo corta otra frase (no dice nada ni pausa). Sin silencio: lo pidió la persona; calla, pausa y avisa. */
@@ -1192,6 +1332,7 @@
       guia.recorrido++;
       guia.enRecorrido = false;
       ui.detener.hidden = true;
+      quitarSenal();
       callar();
       if (silencio) return true;
       try { A.pausar(); } catch (e) { /* nada que pausar */ }
@@ -1320,6 +1461,6 @@
   }
 
   return { interpretarComando, interpretarES, interpretarEN, normalizar, normalizarEN, palabrasANumeros, palabrasANumerosEN, buscarFecha, buscarPista, leerFecha,
-    fechaDicha, resumenSerie, guionRecorrido, valorDicho, elegirVozDe, calidadVoz, prepararParaVoz, ACCIONES_RECORRIDO, SUGERENCIAS, TEXTOS: L, INTERFAZ: U, TONO_VOZ, VELOCIDAD_VOZ,
+    fechaDicha, resumenSerie, guionRecorrido, valorDicho, LUGARES, NOMBRES_LUGAR, lugarDicho, elegirVozDe, calidadVoz, prepararParaVoz, ACCIONES_RECORRIDO, SUGERENCIAS, TEXTOS: L, INTERFAZ: U, TONO_VOZ, VELOCIDAD_VOZ,
     ESPERA_SEGUIR_MS, ESPERA_AVISO_MS, SILENCIO_MS, HABLA_MAX_MS, ejecutar, montar, AYUDA, AYUDA_EN };
 });

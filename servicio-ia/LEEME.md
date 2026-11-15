@@ -165,6 +165,8 @@ Por los textos de la web, el tamaño máximo del estado subió de 6000 a **9000*
 
 **Si ya habías publicado el servicio antes de la ronda 35, hay que publicarlo otra vez** (`npx wrangler deploy`, dentro de `servicio-ia/`). No hace falta tocar la clave. Con un servicio antiguo, la web nueva manda un estado más grande que su límite de 6000: el servicio lo rechaza y la guía responde con sus comandos, sin avisar.
 
+**Señalar.** Además de las acciones de siempre, el modelo puede usar `senalar` con `parametros.lugar`, que debe ser uno de los 14 lugares de la lista fija (`LUGARES` en `src/nucleo.js`: `pistas`, `reproductor`, `reproducir`, `cambiar`, `volumen`, `avance`, `grafico`, `lectura`, `descripcion`, `leyenda`, `como_funciona`, `por_que`, `accesibilidad`, `equipo`). El esquema JSON ya lo limita con un `enum`, las instrucciones le piden señalar el lugar cuando explica algo, y `limpiarSalida()` descarta la respuesta entera (502 `respuesta_invalida`, la web sigue con sus comandos) si el lugar no está en la lista. La web vuelve a comprobarlo por su cuenta.
+
 ## Si la frase de prueba responde 502 `{"error":"modelo"}`
 
 Quiere decir que Google rechazó la petición o respondió algo que no sirve. A la web no viaja el detalle, pero el servicio lo deja en su registro. Para verlo, abre dos terminales en `servicio-ia/`:

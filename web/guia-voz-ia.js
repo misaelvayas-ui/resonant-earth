@@ -21,7 +21,10 @@
 
   /* Lo único que la IA puede pedir. La misma lista está en el servicio; aquí se vuelve a comprobar. */
   const ACCIONES = ["ninguna", "reproducir", "pausar", "siguiente", "anterior", "elegir", "saltar_tiempo", "saltar_anio",
-    "descripcion", "leyenda", "volumen", "repetir", "ayuda"];
+    "descripcion", "leyenda", "volumen", "repetir", "ayuda", "senalar"];
+  /* Los únicos lugares de la página que la IA puede pedir que se señalen. Igual que en guia-voz.js y en el servicio. */
+  const LUGARES = ["pistas", "reproductor", "reproducir", "cambiar", "volumen", "avance", "grafico", "lectura", "descripcion", "leyenda",
+    "como_funciona", "por_que", "accesibilidad", "equipo"];
   const ESPERA_MS = 9000;             // más que esto y se usan los comandos de siempre (el servicio prueba hasta ~8 s con sus modelos)
   const PAUSA_MS = 60000;             // tras un "límite" o dos fallos seguidos, no se insiste durante un minuto
   const MAX_FRASE = 300;              // el servicio no acepta frases más largas
@@ -127,6 +130,9 @@
         else if (p.delta != null) { if (!entero(p.delta, -100, 100) || p.delta === 0) return null; parametros.delta = p.delta; }
         else return null;
         break;
+      case "senalar":                                                    // solo lugares de la lista fija
+        if (typeof p.lugar !== "string" || !LUGARES.includes(p.lugar)) return null;
+        parametros.lugar = p.lugar; break;
       default: break;                                                    // el resto no lleva parámetros
     }
     return { accion: obj.accion, parametros, respuesta };
@@ -141,6 +147,7 @@
       case "saltar_tiempo": return p.relativo ? { tipo: "saltar_relativo", segundos: p.segundos } : { tipo: "saltar_tiempo", segundos: p.segundos };
       case "saltar_anio": return { tipo: "saltar_anio", anio: p.anio, ...(p.mes ? { mes: p.mes } : {}) };
       case "volumen": return p.valor != null ? { tipo: "volumen", valor: p.valor } : { tipo: "volumen", delta: p.delta };
+      case "senalar": return { tipo: "senalar", lugar: p.lugar };
       default: return { tipo: v.accion };                                 // reproducir, pausar, siguiente, anterior, descripcion, leyenda, repetir, ayuda
     }
   }
@@ -233,5 +240,5 @@
     return { atender, traducir, marcar: (esIA) => { etiqueta.hidden = !esIA || !interruptor.checked; }, encendida: () => interruptor.checked, estado };
   }
 
-  return { ACCIONES, AVISO, TEXTOS, ESPERA_MS, MAX_CONTEXTO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar, conectar };
+  return { ACCIONES, LUGARES, AVISO, TEXTOS, ESPERA_MS, MAX_CONTEXTO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar, conectar };
 });
