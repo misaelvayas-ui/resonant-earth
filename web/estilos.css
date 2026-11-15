@@ -159,6 +159,13 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 6px; border: 1px solid
 .controles { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-3) var(--e-4); }
 #btn-reproducir { width: 9.5rem; }           /* ancho fijo: "Reproducir" y "Pausar" no mueven nada */
 #tiempo { min-width: 13ch; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.grupo-sonido { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2) var(--e-5); margin: 0; min-width: 0; padding: var(--e-2) var(--e-4) var(--e-3); border: 1px solid var(--linea); border-radius: var(--r-control); }
+.grupo-sonido legend { padding: 0 var(--e-2); font-size: var(--t-chico); color: var(--tinta-2); }
+.grupo-sonido label { display: inline-flex; align-items: center; gap: var(--e-2); min-height: 32px; font-size: var(--t-chico); color: var(--tinta); cursor: pointer; }
+.grupo-sonido:disabled label { cursor: not-allowed; }
+.grupo-sonido:disabled { opacity: .55; }
+#modo-ayuda, #rasgos-ayuda { margin-top: calc(-1 * var(--e-2)); }
+#modo-ayuda { min-height: 3.2em; }   /* alto de 2 líneas reservado: al cambiar de modo el texto cambia de largo y las casillas no deben moverse */
 .volumen { font-size: var(--t-chico); color: var(--tinta-2); }
 input[type="range"], input[type="checkbox"] { accent-color: var(--acento); }
 #volumen { width: 120px; }
@@ -266,6 +273,9 @@ html.js .revelar { opacity: 0; }
 }
 @media (max-width: 799px) {
   .porque-rejilla, .pie-rejilla { grid-template-columns: 1fr; gap: var(--e-6); }
+}
+@media (max-width: 480px) {
+  #modo-ayuda { min-height: 4.8em; }          /* 3 líneas: el texto de «Sonido en vivo» ocupa 3 a 390 px */
 }
 @media (max-width: 599px) {
   #tarjeta-temperatura { display: none; }

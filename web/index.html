@@ -66,7 +66,7 @@
           <dl class="escucha-lista">
             <div><dt>Tono</dt><dd>Más agudo cuando el mapa está más caliente.</dd></div>
             <div><dt>Volumen</dt><dd>Más fuerte cuando la zona caliente crece.</dd></div>
-            <div><dt>Lado</dt><dd>A la izquierda si el calor está al sur; a la derecha si está al norte.</dd></div>
+            <div><dt>Lado</dt><dd>A la derecha si el calor está más al norte de lo habitual en esa pista; a la izquierda si está más al sur.</dd></div>
             <div><dt>Nota grave fija</dt><dd>El promedio de referencia, para oír cuánto se aleja el dato.</dd></div>
           </dl>
         </section>
@@ -115,6 +115,20 @@
               <input id="volumen" type="range" min="0" max="100" step="1" value="80" aria-valuetext="80 %">
               <span id="tiempo" class="dato">0:00 / 0:00</span>
             </div>
+            <fieldset id="modo-sonido" class="grupo-sonido" aria-describedby="modo-ayuda" disabled>
+              <legend>Sonido</legend>
+              <label><input type="radio" name="modo-sonido" value="original" checked> Pista original</label>
+              <label><input type="radio" name="modo-sonido" value="vivo"> Sonido en vivo</label>
+            </fieldset>
+            <p id="modo-ayuda" class="nota">Elige una pista para activar el sonido en vivo.</p>
+            <fieldset id="rasgos-vivo" class="grupo-sonido" aria-describedby="rasgos-ayuda" disabled>
+              <legend>Qué rasgos suenan (solo en vivo)</legend>
+              <label><input type="checkbox" id="rasgo-tono" checked> Melodía (tono)</label>
+              <label><input type="checkbox" id="rasgo-volumen" checked> Volumen</label>
+              <label><input type="checkbox" id="rasgo-paneo" checked> Paneo</label>
+              <label><input type="checkbox" id="rasgo-dron" checked> Dron</label>
+            </fieldset>
+            <p id="rasgos-ayuda" class="nota">Desmarca un rasgo para dejarlo fijo y oír mejor los demás; el dron desmarcado se silencia.</p>
             <label class="oculto-visual" for="avance">Avance de la pista</label>
             <input id="avance" type="range" min="0" max="30" step="1" value="0" disabled>
             <figure class="grafico-pista">
@@ -154,10 +168,11 @@
           <ol class="pasos">
             <li class="paso"><span class="paso-nodo"></span><h3>Fotogramas</h3><p>Tomamos el video de la NASA y leemos un fotograma cada cierto tiempo.</p><p class="paso-dato">60 fotogramas de GISTEMP y 61 de ECCO2</p></li>
             <li class="paso"><span class="paso-nodo"></span><h3>Rasgos</h3><p>En cada fotograma medimos tres cosas con la barra de color del propio mapa: el valor medio, cuánta superficie supera un umbral y dónde está esa superficie.</p><p class="paso-dato">2023: media +1,06 °C, 57 % del mapa más de 1 °C sobre el promedio</p></li>
-            <li class="paso"><span class="paso-nodo"></span><h3>Mapeo musical</h3><p>El valor medio elige la nota, la superficie decide el volumen y la posición decide de qué lado suena. Una nota grave fija marca la referencia.</p><p class="paso-dato">Do, Re, Mi, Sol y La en tres octavas</p></li>
+            <li class="paso"><span class="paso-nodo"></span><h3>Mapeo musical</h3><p>El valor medio elige la nota, la superficie decide el volumen y la posición, comparada con lo habitual en esa pista, decide de qué lado suena. Una nota grave fija marca la referencia.</p><p class="paso-dato">Do, Re, Mi, Sol y La en tres octavas</p></li>
             <li class="paso"><span class="paso-nodo"></span><h3>Audio</h3><p>Sale una pista de marimba. Después medimos el audio y comprobamos que cada nota es la que dictan los datos.</p><p class="paso-dato">89 golpes en GISTEMP y 125 en ECCO2</p></li>
           </ol>
         </div>
+        <p class="entrada revelar">En la rocola puedes elegir <strong>Sonido en vivo</strong>: el navegador aplica el mismo mapeo a los datos y genera el audio al momento. Con las casillas se oye cada rasgo por separado: la melodía, el volumen, el paneo o la nota grave fija.</p>
       </div>
     </section>
 
@@ -194,6 +209,7 @@
           <li>Una frase en texto dice qué pasa en cada momento, generada desde los datos.</li>
           <li>El lector de pantalla la anuncia mientras suena, y se puede apagar.</li>
           <li>Todo se usa con teclado y el foco siempre se ve.</li>
+          <li>En Sonido en vivo puedes dejar un solo rasgo para aprender a reconocerlo: melodía, volumen, lado o nota grave.</li>
           <li>Atajos, fuera de un campo de texto: <kbd>Espacio</kbd> reproduce o pausa; <kbd>←</kbd> y <kbd>→</kbd> retroceden o adelantan 5 s. En el gráfico, <kbd>←</kbd> y <kbd>→</kbd> eligen un momento y <kbd>Enter</kbd> salta hasta él (o haz clic).</li>
           <li>Cada pista explica qué se ve y qué se oye, y qué significan los colores.</li>
           <li>Contraste AA o mejor en todo el texto.</li>

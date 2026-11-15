@@ -1,5 +1,7 @@
 /* Motor de audio: carga el mp4 (video + audio), lo reproduce y entrega amplitud y espectro en tiempo real.
-   MediaElementSource → GainNode (volumen) → AnalyserNode → destino. */
+   Dos fuentes comparten volumen y análisis, y solo suena una:
+     MediaElementSource → busOriginal ┐
+     sonido en vivo (vivo.js) → busVivo ┴→ GainNode (volumen) → AnalyserNode → destino */
 "use strict";
 
 export const N_BANDAS = 64;
@@ -7,7 +9,8 @@ const FFT = 1024;
 const INDICE_MAX = 372;
 
 let medio = null;
-let ctx = null, ganancia = null, analizador = null;
+let ctx = null, ganancia = null, analizador = null, busOriginal = null, busVivo = null;
+let modoActual = "original";       // "original" (el audio del mp4) o "vivo" (generado en el navegador)
 let volumen = 0.8;
 let peticion = 0;
 let actual = null;                 // id de la pista cargada en el <video>
@@ -29,7 +32,7 @@ function avisar() {
 export function iniciar(elemento) {
   medio = elemento;
   medio.volume = 1;
-  ["play", "pause", "ended", "timeupdate", "seeked", "loadedmetadata", "waiting", "error"]
+  ["play", "playing", "pause", "ended", "timeupdate", "seeking", "seeked", "ratechange", "loadedmetadata", "waiting", "stalled", "error"]
     .forEach((n) => medio.addEventListener(n, avisar));
   onda8.fill(128);
 }
@@ -101,17 +104,54 @@ function crearGrafo() {
   try {
     ctx = new Clase();
     const fuente = ctx.createMediaElementSource(medio);
+    busOriginal = ctx.createGain();
+    busVivo = ctx.createGain();
+    busOriginal.gain.value = modoActual === "original" ? 1 : 0;
+    busVivo.gain.value = modoActual === "vivo" ? 1 : 0;
     ganancia = ctx.createGain();
     ganancia.gain.value = volumen;
     analizador = ctx.createAnalyser();
     analizador.fftSize = FFT;
     analizador.smoothingTimeConstant = 0.8;
-    fuente.connect(ganancia).connect(analizador).connect(ctx.destination);
+    fuente.connect(busOriginal).connect(ganancia);
+    busVivo.connect(ganancia);
+    ganancia.connect(analizador).connect(ctx.destination);
   } catch (e) {
-    ctx = ganancia = analizador = null;
+    ctx = ganancia = analizador = busOriginal = busVivo = null;
     medio.volume = volumen;
   }
 }
+
+/* Crea el AudioContext y lo reanuda. Hay que llamarlo SIN await previo dentro de un gesto del usuario (clic, tecla):
+   Safari e iOS solo dejan reanudar el contexto desde ahí. Devuelve false si el navegador no tiene Web Audio. */
+export function desbloquear() {
+  crearGrafo();
+  if (ctx && ctx.state !== "running") {
+    try { const p = ctx.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* sin gesto: se reintentará */ }
+  }
+  return !!ctx;
+}
+
+/* Cambia entre el audio del mp4 y el sonido en vivo con un fundido de 15 ms. false si no se puede (sin Web Audio) */
+export function fijarModo(nuevo) {
+  if (nuevo !== "original" && nuevo !== "vivo") return false;
+  if (nuevo === "vivo") {
+    crearGrafo();
+    if (!ctx) return false;
+  }
+  modoActual = nuevo;
+  if (ctx) {
+    busOriginal.gain.setTargetAtTime(nuevo === "original" ? 1 : 0, ctx.currentTime, 0.015);
+    busVivo.gain.setTargetAtTime(nuevo === "vivo" ? 1 : 0, ctx.currentTime, 0.015);
+  }
+  avisar();
+  return true;
+}
+
+export const modo = () => modoActual;
+export const contexto = () => ctx;
+export const entradaVivo = () => busVivo;
+export const elementoMedio = () => medio;
 
 export async function reproducir() {
   if (!medio || !medio.src) return false;
@@ -173,6 +213,7 @@ export const onda = () => onda8;
 export function estado() {
   return {
     id: actual,
+    modo: modoActual,
     cargando,
     sonando: !!medio && !medio.paused && !medio.ended,
     terminado: !!medio && medio.ended,
