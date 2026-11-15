@@ -1125,6 +1125,22 @@ def k2():
     return ok_mismo and not ok_inv and not ok_bajo, f"mismo WAV: {'acepta' if ok_mismo else 'RECHAZA'} ({t1[:70]}); canales invertidos: {'acepta' if ok_inv else 'rechaza'}; 10 dB menos: {'acepta' if ok_bajo else 'rechaza'}"
 
 
+def l1():
+    """web: el cálculo del modo en vivo (web/js/mapeo.js) reproduce _esperado.json de las dos pistas (prueba de Node)."""
+    import re
+    node = shutil.which("node")
+    if node is None:
+        return None, "node no instalado"
+    version = subprocess.run([node, "--version"], capture_output=True, text=True).stdout.strip()
+    if not re.match(r"v(1[89]|[2-9]\d)\.", version):
+        return None, f"hace falta Node 18 o más (hay {version or 'desconocido'})"
+    r = subprocess.run([node, "--test", os.path.join("web", "pruebas", "motor.test.mjs")], capture_output=True, text=True)
+    cuenta = {k: int(m.group(1)) for k in ("tests", "pass", "fail") if (m := re.search(rf"^# {k} (\d+)", r.stdout, re.M))}
+    if not cuenta:
+        return False, "no pude leer el resumen de node --test: " + (r.stderr or r.stdout).strip()[-150:]
+    return r.returncode == 0 and cuenta.get("fail") == 0 and cuenta.get("pass", 0) > 0, f"node {version}: {cuenta.get('pass')} pruebas pasan, {cuenta.get('fail')} fallan"
+
+
 EVALUACIONES = [
     ("A1", "fase inicial = 0", "|x[0]| < 1e-12", a1),
     ("A2", "tono(440) → 440 Hz", "440 ± 1 Hz", a2),
@@ -1169,6 +1185,7 @@ EVALUACIONES = [
     ("J4", "exportar_web: protección de la fuente", "aborta sin escribir nada si el rasgos.json o el wav no son de la pista; con todo en regla escribe 3 archivos", j4),
     ("K1", "06: dron continuo (FluidSynth)", "ninguna ventana de 0,5 s < -40 dB ni caída > 12 dB con notas ligadas", k1),
     ("K2", "exportar_web: audio web = rocola.wav", "acepta el MP4 de ese WAV; rechaza canales invertidos y 10 dB menos", k2),
+    ("L1", "web: motor del modo en vivo (Node)", "node --test web/pruebas/motor.test.mjs: 0 fallan", l1),
     ("I1", "especificación modo en vivo", "fórmulas de la ESPEC = control.json: notas exactas, pan ± 0,02 (4 casos sintéticos + 2 pistas)", i1),
     ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]
