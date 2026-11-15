@@ -13,7 +13,7 @@ test("T0 utilidades", () => {
 
 // ---- datos de las dos pistas ----
 import fs from "node:fs";
-import { calcularSerie, eventos, valorEn, primerEvento } from "../js/mapeo.js";
+import { calcularSerie, eventos, valorEn, primerEvento, nivelDron, aislar } from "../js/mapeo.js";
 
 const IDS = ["gistemp_1880_2023", "sst_ecco2_2007_2008"];
 const leer = (nombre) => JSON.parse(fs.readFileSync(new URL(`../assets/${nombre}`, import.meta.url), "utf8"));
@@ -96,4 +96,42 @@ test("T4 valorEn y primerEvento", () => {
   assert.equal(valorEn(serie, "pan", 9, 0.5), 0);          // después del último centro
   const ev = [{ t: 0 }, { t: 0.5 }, { t: 0.5 }, { t: 1 }];
   assert.deepEqual([-1, 0, 0.3, 0.5, 0.6, 1, 2].map((p) => primerEvento(ev, p)), [0, 0, 1, 1, 3, 3, 4]);
+});
+
+// T5: dron
+for (const [id, amp] of [["gistemp_1880_2023", 0.1067], ["sst_ecco2_2007_2008", 0.1284]]) {
+  test(`T5 ${id}: nivel del dron ${amp} y frecuencia de la nota`, () => {
+    const { m, R } = pista(id);
+    const serie = calcularSerie(m, R);
+    assert.ok(Math.abs(nivelDron(m, serie, eventos(m, serie)) - amp) < 0.001);
+    assert.ok(Math.abs(m.dron.hz - 440 * 2 ** ((m.dron.nota_midi - 69) / 12)) < 1e-6);
+    assert.equal(m.dron.continuo, true);
+  });
+}
+
+// T6: aislar rasgos
+test("T6 aislar: lo apagado queda fijo", () => {
+  for (const id of IDS) {
+    const { m, R } = pista(id);
+    const serie = calcularSerie(m, R);
+    const todo = { tono: true, volumen: true, paneo: true, dron: true };
+    assert.deepEqual(aislar(m, serie, todo), serie);
+    const fija = m.nota_referencia_base + 12 * m.escala.octava;
+    assert.ok(aislar(m, serie, { ...todo, tono: false }).every((f) => f.nota === fija && f.notas.length === 1 && !f.evento_fuerte));
+    assert.ok(aislar(m, serie, { ...todo, volumen: false }).every((f) => f.ganancia === 1 && f.velocidad === 127));
+    assert.ok(aislar(m, serie, { ...todo, paneo: false }).every((f) => f.pan === 0));
+    assert.equal(serie.some((f) => f.pan !== 0), true);            // el original no se modificó
+  }
+});
+
+// T7: el motor no lleva números del mapeo escritos a mano
+test("T7 sin números a mano en mapeo.js ni vivo.js", () => {
+  for (const archivo of ["mapeo.js", "vivo.js"]) {
+    const ruta = new URL(`../js/${archivo}`, import.meta.url);
+    if (!fs.existsSync(ruta)) continue;                            // vivo.js aparece en el paso 9
+    const texto = fs.readFileSync(ruta, "utf8");
+    for (const prohibido of ["centroide_", "174.61", 'vmin"', ".vmin ", ".vmax "]) {
+      assert.ok(!texto.includes(prohibido), `${archivo} contiene «${prohibido}»`);
+    }
+  }
 });
