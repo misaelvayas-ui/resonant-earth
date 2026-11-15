@@ -97,9 +97,13 @@ function alAudio(e) {
   if (e.terminado && actual) decir(`Terminó: ${actual.titulo}`);
 }
 
+const RASGOS = [["tono", "Melodía"], ["volumen", "Volumen"], ["paneo", "Paneo"], ["dron", "Dron"]];
+const rasgosMarcados = () => Object.fromEntries(RASGOS.map(([k]) => [k, $(`rasgo-${k}`).checked]));
+
 /* Habilita o no el selector de sonido según lo que haya cargado */
 function estadoSelector(habilitado, ayuda) {
   $("modo-sonido").disabled = !habilitado;
+  if (!habilitado) $("rasgos-vivo").disabled = true;
   $("modo-ayuda").textContent = ayuda;
 }
 
@@ -113,6 +117,7 @@ function ponerModo(modo, anunciar) {
     audio.fijarModo("original");
   }
   if (actual) modos.set(actual.id, modo);
+  $("rasgos-vivo").disabled = modo !== "vivo";
   document.querySelector(`input[name="modo-sonido"][value="${modo}"]`).checked = true;
   $("modo-ayuda").textContent = AYUDA[modo];
   if (anunciar) decir(AYUDA[modo]);
@@ -122,7 +127,7 @@ function ponerModo(modo, anunciar) {
 function prepararModo(p) {
   if (!hayWebAudio()) { estadoSelector(false, AYUDA.sinWebAudio); return; }
   if (!mapeoActual || !doc) { estadoSelector(false, AYUDA.sinMapeo); return; }
-  vivo.cargar(mapeoActual, doc.rasgos);
+  vivo.cargar(mapeoActual, doc.rasgos);       // usa las casillas tal como están: vivo.fijarRasgos las mantiene al día
   estadoSelector(true, AYUDA.original);
   ponerModo(modos.get(p.id) || "original", false);
 }
@@ -246,6 +251,12 @@ export function iniciarRocola(lista) {
   });
   let sonabaAntes = false;
   audio.alCambiar((e) => { if (e.sonando && !sonabaAntes && actual) decir(`Suena: ${actual.titulo}`); sonabaAntes = e.sonando; });
+  $("rasgos-vivo").addEventListener("change", () => {
+    const marcados = rasgosMarcados();
+    vivo.fijarRasgos(marcados);
+    const suenan = RASGOS.filter(([k]) => marcados[k]).map(([, nombre]) => nombre);
+    decir(suenan.length ? `Suenan: ${suenan.join(", ")}.` : "No suena ningún rasgo.");
+  });
   $("modo-sonido").addEventListener("change", (ev) => {
     audio.desbloquear();                  // primero y sin await: es un gesto del usuario
     ponerModo(ev.target.value, true);

@@ -164,7 +164,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 6px; border: 1px solid
 .grupo-sonido label { display: inline-flex; align-items: center; gap: var(--e-2); min-height: 32px; font-size: var(--t-chico); color: var(--tinta); cursor: pointer; }
 .grupo-sonido:disabled label { cursor: not-allowed; }
 .grupo-sonido:disabled { opacity: .55; }
-#modo-ayuda { margin-top: calc(-1 * var(--e-2)); }
+#modo-ayuda, #rasgos-ayuda { margin-top: calc(-1 * var(--e-2)); }
 .volumen { font-size: var(--t-chico); color: var(--tinta-2); }
 input[type="range"], input[type="checkbox"] { accent-color: var(--acento); }
 #volumen { width: 120px; }

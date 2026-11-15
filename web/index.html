@@ -121,6 +121,14 @@
               <label><input type="radio" name="modo-sonido" value="vivo"> Sonido en vivo</label>
             </fieldset>
             <p id="modo-ayuda" class="nota">Elige una pista para activar el sonido en vivo.</p>
+            <fieldset id="rasgos-vivo" class="grupo-sonido" aria-describedby="rasgos-ayuda" disabled>
+              <legend>Qué rasgos suenan (solo en vivo)</legend>
+              <label><input type="checkbox" id="rasgo-tono" checked> Melodía (tono)</label>
+              <label><input type="checkbox" id="rasgo-volumen" checked> Volumen</label>
+              <label><input type="checkbox" id="rasgo-paneo" checked> Paneo</label>
+              <label><input type="checkbox" id="rasgo-dron" checked> Dron</label>
+            </fieldset>
+            <p id="rasgos-ayuda" class="nota">Desmarca un rasgo para dejarlo fijo y oír mejor los demás; el dron desmarcado se silencia.</p>
             <label class="oculto-visual" for="avance">Avance de la pista</label>
             <input id="avance" type="range" min="0" max="30" step="1" value="0" disabled>
             <figure class="grafico-pista">
