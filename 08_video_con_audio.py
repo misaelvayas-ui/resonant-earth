@@ -85,6 +85,12 @@ def opcion_grafo():
              "Actualiza ffmpeg (>= 4).")
 
 
+def cadencia(ruta):
+    """Fotogramas por segundo del video, como fracción ('20/1')."""
+    return ejecutar(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                     "-show_entries", "stream=r_frame_rate", "-of", "csv=p=0", ruta]).strip().rstrip(",") or "25"
+
+
 def alto_video(ruta):
     return int(ejecutar(["ffprobe", "-v", "error", "-select_streams", "v:0",
                          "-show_entries", "stream=height", "-of", "csv=p=0", ruta]).strip())
@@ -126,6 +132,66 @@ def filtros_texto(video, factor, carpeta):
     return filtros
 
 
+def tiene_drawtext():
+    """El ffmpeg de Homebrew (macOS) suele venir sin el filtro drawtext."""
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True)
+    return " drawtext " in r.stdout
+
+
+def texto_por_imagenes(video, factor, carpeta, dur_total):
+    """Respaldo sin drawtext: cada rótulo es un PNG (Pillow) y ffmpeg los superpone con 'overlay'.
+    Devuelve (entradas extra de ffmpeg, posición 'x:y' del overlay) o (None, None) si no aplica."""
+    if not os.path.exists(sal("rasgos.json")):
+        print("rasgos.json no existe: sin texto superpuesto.")
+        return None, None
+    with open(sal("rasgos.json")) as fh:
+        d = json.load(fh)
+    if os.path.basename(d.get("fuente", "")) != os.path.basename(video):
+        print(f"rasgos.json es de '{d.get('fuente')}', no de '{video}': sin texto superpuesto.")
+        return None, None
+    fuente = fuente_tipografica()
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        fuente = None
+    if fuente is None:
+        print("AVISO: este ffmpeg no tiene 'drawtext' y falta Pillow o DejaVuSans.ttf: el video sale SIN texto.")
+        return None, None
+    R = d["rasgos"]
+    alto = alto_video(video)
+    margen = round(0.02 * alto)
+    con_fecha = "fecha" in R[0]
+    tam = max(10, round(alto * 0.06)) if con_fecha else 20
+    borde = margen if con_fecha else 6
+    letra = ImageFont.truetype(fuente, tam)
+    textos = [str(r["fecha"]) if "fecha" in r else f"media = {r['media']:.3f}".replace(".", ",") for r in R]
+    cajas = [letra.getbbox(t) for t in textos]
+    ancho = max(c[2] for c in cajas) + 2 * borde
+    alto_r = max(c[3] for c in cajas) + 2 * borde
+    ancho, alto_r = ancho + ancho % 2, alto_r + alto_r % 2
+    hechos = {}
+    lineas = ["ffconcat version 1.0"]
+    for i, (r, t) in enumerate(zip(R, textos)):
+        if t not in hechos:                                   # un PNG por texto distinto
+            img = Image.new("RGBA", (ancho, alto_r), (0, 0, 0, 0))
+            dib = ImageDraw.Draw(img)
+            w = letra.getbbox(t)[2] + 2 * borde
+            x0 = 0 if con_fecha else ancho - w                # caja ajustada al texto, como drawtext
+            dib.rectangle([x0, 0, x0 + w - 1, alto_r - 1], fill=(0, 0, 0, 153))
+            dib.text((x0 + borde, borde), t, font=letra, fill=(255, 255, 255, 255))
+            hechos[t] = f"rotulo_{len(hechos):04d}.png"
+            img.save(os.path.join(carpeta, hechos[t]))
+        ini = r["t"] * factor
+        fin = R[i + 1]["t"] * factor if i + 1 < len(R) else max(dur_total, ini + 0.5)
+        lineas += [f"file {hechos[t]}", f"duration {max(fin - ini, 0.001):.4f}"]
+    lineas.append(f"file {hechos[textos[-1]]}")               # el demuxer concat necesita repetir el último
+    with open(os.path.join(carpeta, "rotulos.txt"), "w") as fh:
+        fh.write("\n".join(lineas) + "\n")
+    print("Este ffmpeg no tiene 'drawtext': el texto se dibuja con imágenes (Pillow + overlay).")
+    pos = f"{2 * margen}:{2 * margen}" if con_fecha else "main_w-overlay_w-12:main_h-overlay_h-12"
+    return ["-f", "concat", "-safe", "0", "-i", "rotulos.txt"], pos
+
+
 def main():
     args = sys.argv[1:]
     video = args[0] if len(args) > 0 else sal("04_video_sintetico.mp4")
@@ -150,13 +216,25 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmp:
         f_aplicado = factor if estirar else 1.0
-        cadena = ([f"setpts=PTS*{factor:.6f}"] if estirar else []) + filtros_texto(video, f_aplicado, tmp)
+        # al estirar se conserva la cadencia del original (fps=...): con ffmpeg >= 7, setpts la reducía y el
+        # retardo de los 2 B-frames (sin lista de edición) pasaba de 0,1 s a 0,2 s en el ejemplo sintético
+        base = [f"setpts=PTS*{factor:.6f}", f"fps={cadencia(video)}"] if estirar else []
+        extra, pos = [], None
+        if tiene_drawtext():
+            base += filtros_texto(video, f_aplicado, tmp)
+        else:
+            extra, pos = texto_por_imagenes(video, f_aplicado, tmp, dur_a)
+            extra = extra or []
         # el grafo va en un archivo (la línea de comandos tiene un tope: ~128 KB en Linux, 32 KB en Windows)
         # y ffmpeg corre dentro de la carpeta temporal, con las rutas de entrada/salida absolutas
         with open(os.path.join(tmp, "grafo.txt"), "w") as fh:
-            fh.write("[0:v]" + ",".join(cadena or ["null"]) + "[v]")
+            if pos:
+                fh.write("[0:v]" + ",".join(base or ["null"]) + "[b];[2:v]format=rgba[t];"
+                         f"[b][t]overlay={pos}:eof_action=repeat[v]")
+            else:
+                fh.write("[0:v]" + ",".join(base or ["null"]) + "[v]")
         cmd = ["ffmpeg", "-y", "-v", "error", "-i", os.path.abspath(video), "-i", os.path.abspath(audio),
-               opcion_grafo(), "grafo.txt", "-map", "[v]",
+               *extra, opcion_grafo(), "grafo.txt", "-map", "[v]",
                "-map", "1:a:0", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
                "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
                # sin listas de edición: VLC las maneja mal y el audio se entrecortaba al inicio

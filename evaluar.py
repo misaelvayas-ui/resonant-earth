@@ -20,6 +20,7 @@ import tempfile
 import time
 
 import cv2
+from video_io import abrir_escritor
 import numpy as np
 from matplotlib import colormaps
 from scipy.io import wavfile
@@ -84,7 +85,7 @@ def video_c(carpeta, nombre, vacio_en=None, negro_en=None, titulo_en=None):
     bgr = lambda v: (cm(np.clip(v, 0, 1))[..., :3][..., ::-1] * 255).astype(np.uint8)
     barra = bgr(np.linspace(1, 0, BARRA[3] - BARRA[1])[:, None].repeat(BARRA[2] - BARRA[0], 1))
     ruta_video = os.path.join(carpeta, nombre + ".mp4")
-    out = cv2.VideoWriter(ruta_video, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+    out = abrir_escritor(ruta_video, FPS, (W, H))
     verdad = []
     for k in range(N_FRAMES):
         p = k / (N_FRAMES - 1)
@@ -291,7 +292,7 @@ def video_lat(carpeta, nombre):
     bgr = lambda v: (cm(np.clip(v, 0, 1))[..., :3][..., ::-1] * 255).astype(np.uint8)
     barra = bgr(np.linspace(1, 0, BARRA[3] - BARRA[1])[:, None].repeat(BARRA[2] - BARRA[0], 1))
     ruta_video = os.path.join(carpeta, nombre + ".mp4")
-    out = cv2.VideoWriter(ruta_video, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+    out = abrir_escritor(ruta_video, FPS, (W, H))
     ponderada, simple = [], []
     for k in range(N_FRAMES):
         p = k / (N_FRAMES - 1)
@@ -561,7 +562,7 @@ def f2():
         c = json.load(open(cfg))
         cap = cv2.VideoCapture(c["video"])
         ruta = os.path.join(d, "negro.mp4")
-        out = cv2.VideoWriter(ruta, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+        out = abrir_escritor(ruta, FPS, (W, H))
         for k in range(N_FRAMES):
             ok, f = cap.read()
             out.write(np.zeros_like(f) if k < 6 else f)
@@ -793,7 +794,7 @@ def video_matiz(carpeta, nombre="matiz"):
         return cv2.cvtColor(np.clip(hsv, 0, 255).astype(np.uint8), cv2.COLOR_HSV2BGR)
     barra_xy = (x0, 4, x1, 14)
     ruta_video = os.path.join(carpeta, nombre + ".mp4")
-    out = cv2.VideoWriter(ruta_video, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+    out = abrir_escritor(ruta_video, FPS, (W, H))
     verdad = []
     for k in range(N_FRAMES):
         p = k / (N_FRAMES - 1)
@@ -1135,7 +1136,7 @@ def l1():
     if not re.match(r"v(1[89]|[2-9]\d)\.", version):
         return None, f"hace falta Node 18 o más (hay {version or 'desconocido'})"
     r = subprocess.run([node, "--test", os.path.join("web", "pruebas", "motor.test.mjs")], capture_output=True, text=True)
-    cuenta = {k: int(m.group(1)) for k in ("tests", "pass", "fail") if (m := re.search(rf"^# {k} (\d+)", r.stdout, re.M))}
+    cuenta = {k: int(m.group(1)) for k in ("tests", "pass", "fail") if (m := re.search(rf"^(?:#|ℹ) {k} (\d+)", r.stdout, re.M))}
     if not cuenta:
         return False, "no pude leer el resumen de node --test: " + (r.stderr or r.stdout).strip()[-150:]
     return r.returncode == 0 and cuenta.get("fail") == 0 and cuenta.get("pass", 0) > 0, f"node {version}: {cuenta.get('pass')} pruebas pasan, {cuenta.get('fail')} fallan"
@@ -1200,8 +1201,16 @@ def main():
         t = time.time()
         try:
             ok, medido = f()
-        except Exception as e:                            # una excepción es un FALLA
-            ok, medido = False, f"{type(e).__name__}: {e}"
+        except KeyboardInterrupt:                         # Ctrl+C: se imprime lo que haya hasta aquí
+            filas.append((id_, nombre, "interrumpido por el usuario", umbral, "FALLA", time.time() - t))
+            break
+        except FileNotFoundError as e:                    # falta una salida de B1: no es un fallo propio
+            if id_ != "B1" and any(x[0] == "B1" and x[4] == "FALLA" for x in filas):
+                ok, medido = None, f"depende de B1, que falló (falta {os.path.basename(str(e.filename))})"
+            else:
+                ok, medido = False, f"{type(e).__name__}: {e}"
+        except (Exception, SystemExit) as e:              # una excepción o un sys.exit() es un FALLA, no el fin del informe
+            ok, medido = False, f"{type(e).__name__}: {str(e)[:300]}"
         filas.append((id_, nombre, medido, umbral, {True: "PASA", False: "FALLA", None: "OMITIDA"}[ok], time.time() - t))
     if "tmp" in ESTADO:
         ESTADO["tmp"].cleanup()
