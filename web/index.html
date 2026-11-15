@@ -115,6 +115,12 @@
               <input id="volumen" type="range" min="0" max="100" step="1" value="80" aria-valuetext="80 %">
               <span id="tiempo" class="dato">0:00 / 0:00</span>
             </div>
+            <fieldset id="modo-sonido" class="grupo-sonido" aria-describedby="modo-ayuda" disabled>
+              <legend>Sonido</legend>
+              <label><input type="radio" name="modo-sonido" value="original" checked> Pista original</label>
+              <label><input type="radio" name="modo-sonido" value="vivo"> Sonido en vivo</label>
+            </fieldset>
+            <p id="modo-ayuda" class="nota">Elige una pista para activar el sonido en vivo.</p>
             <label class="oculto-visual" for="avance">Avance de la pista</label>
             <input id="avance" type="range" min="0" max="30" step="1" value="0" disabled>
             <figure class="grafico-pista">
