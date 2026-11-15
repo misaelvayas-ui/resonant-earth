@@ -10,13 +10,14 @@ import * as lectura from "./lectura.js";
 import { iniciarGlobo, cuadro, depuracion } from "./globo.js";
 import { iniciarAnimaciones } from "./animaciones.js";
 import { iniciarTarjetas } from "./tarjetas.js";
+import { iniciarMenu, listaEnfocableSiDesborda } from "./menu.js";
 
 const $ = (id) => document.getElementById(id);
 const reducir = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 audio.iniciar($("medio"));
 iniciarVisualizador($("visualizador"), $("mini-espectro"));
-lectura.iniciarLectura({ fecha: $("ahora-fecha"), texto: $("ahora-texto"), viva: $("lectura-viva"), casilla: $("anunciar") });
+lectura.iniciarLectura({ fecha: $("ahora-fecha"), fechaVideo: $("fecha-video"), texto: $("ahora-texto"), viva: $("lectura-viva"), casilla: $("anunciar") });
 
 cargarPistas().then(iniciarRocola).catch((e) => { $("estado-rocola").textContent = e.message; });
 
@@ -37,6 +38,8 @@ cargarEquipo().then((eq) => {
 iniciarMiniGrafico($("mini-grafico"), $("mini-grafico-texto"));
 iniciarAnimaciones();
 iniciarTarjetas();
+iniciarMenu();
+listaEnfocableSiDesborda(document.querySelector(".cifras"));
 
 (window.requestIdleCallback || ((f) => setTimeout(f, 200)))(() => {
   iniciarGlobo($("globo"), { reducirMovimiento: reducir });

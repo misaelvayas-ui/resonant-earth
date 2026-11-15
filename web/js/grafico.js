@@ -2,11 +2,12 @@
 "use strict";
 
 import { cargarPistas, cargarRasgos } from "./datos.js";
+import { frase } from "./lectura.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const AN = 600, AL = 140, MARGEN = 12;
-let serie = null;      // {puntos: [[x, y]], duracion}
-let linea = null, punto = null;
+let serie = null;      // {puntos: [[x, y]], dur}
+let linea = null, punto = null, seleccion = null;
 
 function el(nombre, atrib, padre) {
   const e = document.createElementNS(NS, nombre);
@@ -21,28 +22,32 @@ function escala(valores) {
   return (v, alto, margen) => alto - margen - ((v - min) / (max - min)) * (alto - 2 * margen);
 }
 
-export function dibujarGraficoPista(contenedor, pista, doc) {
+/* alElegir(segundos) se llama al hacer clic en el gráfico o al pulsar Enter sobre el momento elegido con las flechas. */
+export function dibujarGraficoPista(contenedor, pista, doc, alElegir) {
   contenedor.textContent = "";
-  serie = null; linea = punto = null;
-  const R = (doc ? doc.rasgos : []).filter((r) => r.media != null);
+  for (const a of ["role", "tabindex", "aria-label", "aria-describedby", "aria-valuemin", "aria-valuemax", "aria-valuenow", "aria-valuetext"]) contenedor.removeAttribute(a);
+  contenedor.classList.remove("grafico-activo");
+  serie = null; linea = punto = seleccion = null;
+  const R = (doc ? doc.rasgos : []).map((r, i) => ({ r, i })).filter((x) => x.r.media != null);
   if (R.length < 2) {
     contenedor.textContent = "Sin datos para el gráfico";
     return;
   }
   const svg = el("svg", { viewBox: `0 0 ${AN} ${AL}`, preserveAspectRatio: "none", "aria-hidden": "true", focusable: "false" }, contenedor);
   const dur = pista.duracion_s;
-  const valores = R.map((r) => r.media);
+  const valores = R.map((x) => x.r.media);
   if (doc.referencia != null) valores.push(doc.referencia);
   const y = escala(valores);
-  const puntos = R.map((r) => [Math.min(AN, (r.t_video / dur) * AN), y(r.media, AL, MARGEN)]);
+  const puntos = R.map((x) => [Math.min(AN, (x.r.t_video / dur) * AN), y(x.r.media, AL, MARGEN)]);
   if (doc.referencia != null) {
     const yr = y(doc.referencia, AL, MARGEN);
     el("line", { x1: 0, x2: AN, y1: yr, y2: yr, stroke: "#98a1ab", "stroke-width": 1, "stroke-dasharray": "4 4", "vector-effect": "non-scaling-stroke" }, svg);
   }
   el("polyline", { points: puntos.map((p) => p.join(",")).join(" "), fill: "none", stroke: "#c3cad2", "stroke-width": 1.5, "vector-effect": "non-scaling-stroke", "stroke-linejoin": "round" }, svg);
+  seleccion = el("line", { class: "cursor-sel", x1: 0, x2: 0, y1: 0, y2: AL }, svg);
   linea = el("line", { class: "cursor-linea", x1: 0, x2: 0, y1: 0, y2: AL }, svg);
   punto = el("ellipse", { class: "cursor-punto", cx: 0, cy: puntos[0][1], rx: 4 * AN / (contenedor.clientWidth || AN), ry: 4 }, svg);
-  serie = { puntos, dur };
+  serie = { puntos, dur, fraccion: 0 };
   if (doc.referencia != null) {
     const t = document.createElement("span");
     t.className = "dato";
@@ -51,12 +56,62 @@ export function dibujarGraficoPista(contenedor, pista, doc) {
     contenedor.appendChild(t);
   }
   document.getElementById("resumen-grafico").textContent = pista.grafico.resumen;
+  hacerInteractivo(contenedor, svg, pista, doc, R, alElegir);
   moverCursor(0);
+}
+
+/* El gráfico pasa a ser un control: role="slider" con el momento elegido (un fotograma). Clic o Enter salta al video. */
+function hacerInteractivo(contenedor, svg, pista, doc, R, alElegir) {
+  if (!alElegir) return;
+  let k = 0;                                             // posición elegida dentro de R
+  let ultimaTecla = 0;                                   // mientras se navega con flechas, k no sigue al video
+  const texto = () => frase(pista, doc, R[k].i, true);
+  const mostrar = () => {
+    seleccion.setAttribute("x1", serie.puntos[k][0]); seleccion.setAttribute("x2", serie.puntos[k][0]);
+    contenedor.setAttribute("aria-valuenow", String(k));
+    contenedor.setAttribute("aria-valuetext", texto());
+  };
+  const masCercano = () => {
+    const x = serie.fraccion * AN;
+    let mejor = 0;
+    serie.puntos.forEach((p, n) => { if (Math.abs(p[0] - x) < Math.abs(serie.puntos[mejor][0] - x)) mejor = n; });
+    return mejor;
+  };
+  const sincronizar = () => { k = masCercano(); mostrar(); };
+  const ir = (seg) => { alElegir(Math.max(0, Math.min(pista.duracion_s, seg))); ultimaTecla = 0; };
+  contenedor.setAttribute("role", "slider");
+  contenedor.setAttribute("tabindex", "0");
+  contenedor.setAttribute("aria-label", "Gráfico de la pista. Flechas izquierda y derecha eligen un momento; Enter salta hasta él");
+  contenedor.setAttribute("aria-describedby", "resumen-grafico");
+  contenedor.setAttribute("aria-valuemin", "0");
+  contenedor.setAttribute("aria-valuemax", String(R.length - 1));
+  mostrar();
+  contenedor.addEventListener("focus", () => { sincronizar(); contenedor.classList.add("grafico-activo"); });
+  contenedor.addEventListener("blur", () => contenedor.classList.remove("grafico-activo"));
+  contenedor.addEventListener("keydown", (ev) => {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if (performance.now() - ultimaTecla > 4000) sincronizar();
+    ultimaTecla = performance.now();
+    const paso = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[ev.key];
+    if (paso !== undefined) k = Math.max(0, Math.min(R.length - 1, k + paso));
+    else if (ev.key === "Home") k = 0;
+    else if (ev.key === "End") k = R.length - 1;
+    else if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); ir(R[k].r.t_video); return; }
+    else return;
+    ev.preventDefault();
+    mostrar();
+  });
+  contenedor.addEventListener("click", (ev) => {
+    const caja = svg.getBoundingClientRect();
+    if (caja.width <= 0) return;
+    ir(Math.max(0, Math.min(1, (ev.clientX - caja.left) / caja.width)) * pista.duracion_s);
+  });
 }
 
 export function moverCursor(fraccion) {
   if (!serie || !linea) return;
   const f = Math.max(0, Math.min(1, fraccion));
+  serie.fraccion = f;
   const x = f * AN;
   const P = serie.puntos;
   let y = P[0][1];

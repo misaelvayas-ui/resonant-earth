@@ -23,7 +23,7 @@ export function iniciarAnimaciones() {
     tl.from(".barra", { opacity: 0, duration: 0.6 }, 0)
       .from(".heroe-titulo .linea", { y: 24, opacity: 0, duration: 0.9, ease: "power3.out", stagger: 0.08 }, 0)
       .from(".heroe-cierre", { y: 16, opacity: 0, duration: 0.6 }, 0.35)
-      .from(".escucha-lista > div", { x: -12, opacity: 0, duration: 0.5, stagger: 0.06 }, 0.5)
+      .from(".escucha-lista > div", { x: -12, duration: 0.5, stagger: 0.06 }, 0.5)      // sin opacity: la lista nunca se ve vacía
       .from(".cifra-ficha, .heroe-tarjetas > *", { y: 16, opacity: 0, duration: 0.6, stagger: 0.1, clearProps: "opacity,y" }, 0.7);
     // A2 contadores
     document.querySelectorAll(".cifra").forEach((c) => {

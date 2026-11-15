@@ -175,6 +175,7 @@ export function estado() {
     id: actual,
     cargando,
     sonando: !!medio && !medio.paused && !medio.ended,
+    terminado: !!medio && medio.ended,
     tiempo: medio ? medio.currentTime : 0,
     duracion: medio && Number.isFinite(medio.duration) ? medio.duration : 0,
   };

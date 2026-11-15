@@ -965,3 +965,24 @@ Objetivo: que cada cabecera diga qué hace el archivo y cómo se usa; los catál
    ninguna cita quedó sin destino y se revisó a mano una muestra (06:30 SEG_POR_FOTOGRAMA, 06:131 u1/u2, sin:74 PENTATONICA_MAYOR, sin:105-108 paneo...).
 Sin cambios de código salvo los textos de ayuda de calibrar y el mensaje de 05. Comprobado: control.json, rocola.mid y rocola.wav idénticos (sha256) a los de
 antes de la ronda 33; evaluar.py: 44 PASA, 0 FALLA. Las cabeceras de archivo/ (ejercicios 01-03) no se tocaron.
+
+RONDA 35 - pulido de la web (rama misael/pulido-web)   (2026-11-15)
+La web publicada es la carpeta web/ (.github/workflows/pages.yml sube "path: web"). No se tocó el pipeline Python, los assets de audio y video ni web/equipo.json.
+1. Textos y cifras: GISTEMP pasa a "1881–2023" (título de la pista y descripción de la portada; los datos empiezan en 1881). "1880–2023" queda solo en el crédito de SVS 5207
+   del pie, que es el nombre de la visualización. "Un año de océano" -> "344 días de océano (mar 2007–mar 2008)"; la portada dice "344 días". El contador de la pista del mar
+   muestra décimas (0:30,5) y el total se redondea igual; el de GISTEMP sigue en 0:30. La leyenda del mar aclara que los °C describen los colores del video original y que el sonido usa un índice relativo.
+2. Gráfico y teclado: el gráfico es un role="slider" (aria-label, aria-valuenow/valuetext, ya no está aria-hidden). Clic salta el video; con foco, ← → eligen un fotograma (aparece una línea punteada) y Enter salta a él.
+   Atajos globales (js/rocola.js): Espacio reproduce/pausa y ← → mueven ±5 s, salvo en campos de texto, sliders, botones y enlaces (Espacio) para no pisar sus teclas. Se listan en Accesibilidad.
+   La barra de avance pasa a segundos (paso de 1 s; antes 0-1000).
+3. Estado y lectura: al terminar dice "Terminó: <pista>" y el botón vuelve a "Reproducir". #estado-rocola solo se reescribe si el texto cambia (antes se reescribía en cada timeupdate).
+   Desfase del aria-live (a los 15 s decía 1938 con 1956 en el panel): NO era una cola de anuncios del código. El DOM coincidía con el panel al escribirse (medido: 1881, 1898, 1918, 1938, 1958 cada 4 s), pero el texto se guardaba
+   y se escribía como mucho cada 4 s, y la frase larga (~100 caracteres) tarda ~5 s en pronunciarse: a los 15 s se oía lo escrito a los 11,9 s. Ahora no se guarda ningún texto: en cada tick se compara el fotograma actual con el último anunciado
+   y se envía una frase corta (plantilla_viva, ≤ 40 caracteres, ~2 s) con el fotograma de ESE momento, esperando max(3 s, 70 ms por carácter + 0,8 s). Lo que queda viejo se descarta solo. No se pudo probar con un lector de pantalla real.
+4. Fecha sobre el video: #fecha-video (HTML y CSS, aria-hidden), sincronizada con el panel "Ahora" (misma función), fondo rgba(0,0,0,.78) y texto #f3f6f8 (contraste > 11 en el peor caso).
+5. Diseño: botón Reproducir/Pausar de ancho fijo (9,5 rem; 7,5 rem en móvil) y contador sin saltos de línea (el gráfico ya no se mueve). A 1118 px el menú queda en una línea (enlaces sin partir, "Abrir la rocola" oculto hasta 1199 px porque repite "La rocola")
+   y las fichas de cifras ya no se salen de su columna (antes: left en % empujaba la ficha 344 sobre "Temperatura del planeta"). "Qué vas a oír" nunca se ve vacía: la animación de entrada ya no usa opacity.
+   Se quitó tabindex fijo de .cifras: solo se pone (js/menu.js) cuando la lista desborda y se desplaza (carrusel móvil).
+6. Móvil: menú desplegable (js/menu.js) con aria-expanded, Esc, cierre al elegir y al pulsar fuera, con La rocola, Cómo funciona, El porqué, Accesibilidad, Equipo y Repositorio. Desviación: se usa hasta 899 px, no 600,
+   porque entre 600 y 899 px la barra ya no mostraba ningún menú. La lista de pistas muestra "Cargando las pistas…" hasta que llega pistas.json.
+Pruebas: web/pruebas/verificar.cjs pasa a V1-V23 (V16 a V23 nuevas; V9 ahora usa segundos). Todo PASA con Chromium + axe, escritorio 1440, 1118 y 390 px (axe: 0 violaciones). evaluar.py: 44 PASA, 0 FALLA.
+No se hizo: Lighthouse, prueba con lector de pantalla real ni en un teléfono; los nombres de equipo.json siguen pendientes.

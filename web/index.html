@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Escucha la Tierra | Resonant Earth</title>
-  <meta name="description" content="Resonant Earth convierte visualizaciones de la NASA en sonido: la temperatura del planeta desde 1880 y la del mar en 2007–2008. NASA Space Apps Challenge 2026, Quito.">
+  <meta name="description" content="Resonant Earth convierte visualizaciones de la NASA en sonido: la temperatura del planeta desde 1881 y la del mar en 2007–2008. NASA Space Apps Challenge 2026, Quito.">
   <meta name="theme-color" content="#000000">
   <link rel="icon" type="image/png" sizes="64x64" href="assets/icono-64.png">
   <link rel="apple-touch-icon" href="assets/icono-180.png">
@@ -27,18 +27,20 @@
       </svg>
       <span>Resonant Earth</span>
     </a>
-    <nav aria-label="Secciones">
+    <button id="btn-menu" class="boton boton-contorno boton-menu" type="button" aria-expanded="false" aria-controls="menu-principal">Menú</button>
+    <nav id="menu-principal" aria-label="Secciones">
       <ul>
         <li><a href="#rocola">La rocola</a></li>
         <li><a href="#como-funciona">Cómo funciona</a></li>
         <li><a href="#porque">El porqué</a></li>
         <li><a href="#accesibilidad">Accesibilidad</a></li>
         <li><a href="#equipo">Equipo</a></li>
+        <li class="solo-menu"><a href="https://github.com/misaelvayas-ui/rocola_practica">Repositorio</a></li>
       </ul>
     </nav>
     <div class="barra-acciones">
       <a class="boton boton-contorno boton-repo" href="https://github.com/misaelvayas-ui/rocola_practica">Repositorio</a>
-      <a class="boton boton-contorno" href="#rocola">Abrir la rocola</a>
+      <a class="boton boton-contorno boton-rocola" href="#rocola">Abrir la rocola</a>
     </div>
   </header>
 
@@ -52,7 +54,7 @@
       <div class="heroe-contenido">
         <h1 id="t-inicio" class="heroe-titulo"><span class="linea">Escucha</span> <span class="linea">la Tierra</span></h1>
         <div class="heroe-cierre">
-          <p class="heroe-sub">Convertimos visualizaciones de la NASA en música. El color de cada mapa decide qué nota suena, qué tan fuerte y de qué lado. Escucha la temperatura del planeta desde 1880 y la del mar a lo largo de un año.</p>
+          <p class="heroe-sub">Convertimos visualizaciones de la NASA en música. El color de cada mapa decide qué nota suena, qué tan fuerte y de qué lado. Escucha la temperatura del planeta desde 1881 y la del mar a lo largo de 344 días.</p>
           <p class="heroe-reto">NASA Space Apps Challenge 2026, Quito. Reto: La rocola de la Tierra.</p>
           <div class="heroe-acciones">
             <a class="boton boton-lleno" href="#rocola">Abrir la rocola</a>
@@ -68,7 +70,7 @@
             <div><dt>Nota grave fija</dt><dd>El promedio de referencia, para oír cuánto se aleja el dato.</dd></div>
           </dl>
         </section>
-        <ul class="cifras" tabindex="0" aria-label="Cifras del proyecto">
+        <ul class="cifras" aria-label="Cifras del proyecto">
           <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="143">143</span><span class="cifra-texto">años de temperatura del planeta en una pista de 30 segundos</span></li>
           <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="344">344</span><span class="cifra-texto">días de océano en una pista de 30,5 segundos</span></li>
           <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="45">45</span><span class="cifra-texto">pruebas automáticas comprueban que el audio sigue a los datos</span></li>
@@ -93,11 +95,12 @@
       <div class="contenedor">
         <h2 id="t-rocola" class="revelar">La rocola</h2>
         <p class="entrada revelar">Dos visualizaciones de la NASA, dos maneras de sonar. La temperatura del planeta sube durante 143 años; la del mar respira con las estaciones.</p>
-        <div id="lista-pistas" class="pistas revelar" role="group" aria-label="Elige una pista"></div>
+        <div id="lista-pistas" class="pistas revelar" role="group" aria-label="Elige una pista"><p class="nota">Cargando las pistas…</p></div>
         <div class="rocola-rejilla revelar">
           <div id="escenario" class="escenario">
             <div class="marco">
               <video id="medio" playsinline preload="none"></video>
+              <div id="fecha-video" class="fecha-video" aria-hidden="true" hidden></div>
               <canvas id="visualizador" aria-hidden="true"></canvas>
             </div>
             <div class="cabecera-pista">
@@ -113,9 +116,9 @@
               <span id="tiempo" class="dato">0:00 / 0:00</span>
             </div>
             <label class="oculto-visual" for="avance">Avance de la pista</label>
-            <input id="avance" type="range" min="0" max="1000" step="1" value="0" disabled>
+            <input id="avance" type="range" min="0" max="30" step="1" value="0" disabled>
             <figure class="grafico-pista">
-              <div id="grafico-pista" aria-hidden="true"></div>
+              <div id="grafico-pista"></div>
               <figcaption id="resumen-grafico">Elige una pista para ver su gráfico.</figcaption>
             </figure>
             <p id="estado-rocola" role="status">Elige una pista para empezar.</p>
@@ -191,6 +194,7 @@
           <li>Una frase en texto dice qué pasa en cada momento, generada desde los datos.</li>
           <li>El lector de pantalla la anuncia mientras suena, y se puede apagar.</li>
           <li>Todo se usa con teclado y el foco siempre se ve.</li>
+          <li>Atajos, fuera de un campo de texto: <kbd>Espacio</kbd> reproduce o pausa; <kbd>←</kbd> y <kbd>→</kbd> retroceden o adelantan 5 s. En el gráfico, <kbd>←</kbd> y <kbd>→</kbd> eligen un momento y <kbd>Enter</kbd> salta hasta él (o haz clic).</li>
           <li>Cada pista explica qué se ve y qué se oye, y qué significan los colores.</li>
           <li>Contraste AA o mejor en todo el texto.</li>
           <li>Si pides menos movimiento al sistema, la página deja de moverse.</li>
@@ -210,7 +214,7 @@
   <footer class="pie">
     <div class="contenedor pie-rejilla">
       <p>Resonant Earth. Código con licencia MIT. <a href="https://github.com/misaelvayas-ui/rocola_practica">Repositorio en GitHub</a></p>
-      <p>Datos y visualizaciones: NASA Scientific Visualization Studio (<a href="https://svs.gsfc.nasa.gov/5207/">SVS 5207</a> y <a href="https://svs.gsfc.nasa.gov/3912/">SVS 3912</a>) y Earth Information Center. Texturas del globo: Blue Marble y Black Marble, NASA Earth Observatory.</p>
+      <p>Datos y visualizaciones: NASA Scientific Visualization Studio: <a href="https://svs.gsfc.nasa.gov/5207/">SVS 5207</a> («Anomalías de temperatura global 1880–2023») y <a href="https://svs.gsfc.nasa.gov/3912/">SVS 3912</a> y Earth Information Center. Texturas del globo: Blue Marble y Black Marble, NASA Earth Observatory.</p>
       <p>Proyecto estudiantil para el NASA Space Apps Challenge 2026. No es un sitio oficial de la NASA. Hecho con ayuda de IA (Claude).</p>
     </div>
   </footer>
