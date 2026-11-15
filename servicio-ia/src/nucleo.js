@@ -74,13 +74,15 @@ LÍMITES
 
 /* ---------------------------------------------------------------- configuración (variables del servicio) */
 
-const nonVacia = (lista) => (lista.length ? lista : ["gemini-3.8-flash"]);
+/* Orden elegido con probar-gemini.mjs el 15-nov-2026 (gemini-3.8-flash estaba saturado). Igual que GEMINI_MODELOS en wrangler.toml. */
+export const MODELOS_POR_DEFECTO = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.6-flash"];
+const nonVacia = (lista) => (lista.length ? lista : [...MODELOS_POR_DEFECTO]);
 const numero = (v, defecto) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : defecto);
 
 export function config(env = {}) {
   return {
     // lista de modelos separada por comas, en orden de preferencia (GEMINI_MODEL, de una sola entrada, sigue valiendo si falta la lista)
-    modelos: nonVacia(String(env.GEMINI_MODELOS || env.GEMINI_MODEL || "gemini-3.8-flash").split(",").map((m) => m.trim().replace(/^models\//, "")).filter(Boolean)),
+    modelos: nonVacia(String(env.GEMINI_MODELOS || env.GEMINI_MODEL || MODELOS_POR_DEFECTO.join(",")).split(",").map((m) => m.trim().replace(/^models\//, "")).filter(Boolean)),
     origenes: String(env.ORIGENES_PERMITIDOS || "").split(",").map((o) => o.trim().replace(/\/+$/, "")).filter(Boolean),
     porMinutoVisitante: numero(env.MAX_POR_MINUTO_VISITANTE, 6),   // una persona hablando rara vez pasa de 6 frases por minuto
     porMinutoGlobal: numero(env.MAX_POR_MINUTO_GLOBAL, 8),         // por debajo del límite por minuto de la capa gratuita

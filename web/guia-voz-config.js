@@ -7,5 +7,5 @@
    AQUÍ NUNCA VA UNA CLAVE. Este archivo es público: cualquiera que abra la página puede leerlo.
    La clave del modelo vive solo en el servicio, guardada como secreto. */
 window.GUIA_VOZ_CONFIG = {
-  servicioIA: "",
+  servicioIA: "https://rocola-guia-ia.resonant-earth.workers.dev",
 };

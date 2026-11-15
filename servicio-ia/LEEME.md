@@ -197,7 +197,7 @@ El 15-nov-2026 `gemini-3.8-flash` respondió `503 UNAVAILABLE` («This model is 
 - reparte un presupuesto total de `ESPERA_MODELO_MS` (8 s) entre todos los intentos; al último modelo le queda todo lo que sobre. Con un solo modelo, ese modelo usa los 8 s;
 - si todos fallan, devuelve el error de siempre y la web sigue con los comandos.
 
-Por defecto la lista tiene solo `gemini-3.8-flash`. Para elegir el orden, corre `node probar-gemini.mjs` y mira qué modelos responden bien.
+Por defecto (en el código y en `wrangler.toml`) la lista es `gemini-3.5-flash-lite,gemini-3.5-flash,gemini-3.6-flash`, el orden que respondió bien el 15-nov-2026. Para revisarlo, corre `node probar-gemini.mjs` y mira qué modelos responden bien.
 
 Para ver qué modelos responden bien **ahora**, corre dentro de `servicio-ia`:
 

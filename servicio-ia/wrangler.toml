@@ -14,7 +14,7 @@ ORIGENES_PERMITIDOS = "http://localhost:8000,http://localhost:8001,https://misae
 # Modelos de Gemini, separados por comas y en orden de preferencia. Si el primero da 503, 429, otro 5xx, 404 o no responde
 # en ESPERA_INTENTO_MS, se prueba el siguiente (todos dentro del presupuesto ESPERA_MODELO_MS). Si todos fallan, la web
 # sigue con los comandos de siempre. Nombres vigentes: https://aistudio.google.com/docs/models  (o corre: node probar-gemini.mjs)
-GEMINI_MODELOS = "gemini-3.8-flash"
+GEMINI_MODELOS = "gemini-3.5-flash-lite,gemini-3.5-flash,gemini-3.6-flash"
 # Cuánto razona el modelo antes de responder: low, medium o high. gemini-3.8-flash NO admite "minimal".
 GEMINI_THINKING = "low"
 # Tokens máximos de salida. Incluye los de razonamiento, por eso es más que lo que ocupa la respuesta.
