@@ -56,7 +56,7 @@ function pintarTarjetas() {
     const f = document.createElement("span"); f.className = "pista-ficha"; f.textContent = "Elegida";
     r.append(rt, f);
     b.append(img, t, d, r);
-    b.addEventListener("click", () => elegir(p.id, { reproducir: true }));
+    b.addEventListener("click", () => { audio.desbloquear(); elegir(p.id, { reproducir: true }); });
     cont.appendChild(b);
   }
 }
@@ -143,6 +143,7 @@ function saltarA(seg) {
 }
 
 async function alternar() {
+  audio.desbloquear();                      // primero y sin await: el gesto del usuario tiene que seguir activo
   if (audio.estado().sonando) {
     audio.pausar();
     if (actual && doc) lectura.actualizar(actual, doc, audio.estado().tiempo, false, true);
@@ -190,6 +191,7 @@ export function iniciarRocola(lista) {
   av.addEventListener("input", () => saltarA(Number(av.value)));
   av.addEventListener("change", () => { arrastrando = false; });
   $("btn-muestra").addEventListener("click", async () => {
+    audio.desbloquear();
     const e = audio.estado();
     if (e.sonando) { audio.pausar(); return; }
     if (!actual) await elegir(pistas[0].id, { reproducir: true });
