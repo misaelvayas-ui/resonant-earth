@@ -1,9 +1,10 @@
-/* Carga de pistas.json, equipo.json y los rasgos de cada pista. */
+/* Carga de pistas.json, equipo.json, y los rasgos y el mapeo (modo en vivo) de cada pista. */
 "use strict";
 
 const CLAVES_PISTA = ["id", "titulo", "periodo", "fuente", "fuente_url", "resumen", "descripcion", "descripcion_accesible",
   "leyenda", "fotograma", "video", "rasgos", "duracion_s", "lectura", "grafico"];
 const memoria = new Map();
+const memoriaMapeo = new Map();
 
 async function leerJson(ruta) {
   const r = await fetch(ruta, { cache: "no-cache" });
@@ -35,6 +36,20 @@ export async function cargarRasgos(pista) {
     const res = { referencia: doc.referencia ?? null, rasgos };
     memoria.set(pista.id, res);
     return res;
+  } catch (e) {
+    return null;
+  }
+}
+
+/* → el <id>_mapeo.json de la pista, o null si la pista no lo declara o no se puede leer (entonces no hay modo en vivo) */
+export async function cargarMapeo(pista) {
+  if (!pista.mapeo) return null;
+  if (memoriaMapeo.has(pista.id)) return memoriaMapeo.get(pista.id);
+  try {
+    const m = await leerJson(pista.mapeo);
+    if (!m || !m.escala || !m.paneo || !m.volumen) throw new Error("mapeo incompleto");
+    memoriaMapeo.set(pista.id, m);
+    return m;
   } catch (e) {
     return null;
   }
