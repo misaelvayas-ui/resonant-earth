@@ -17,6 +17,8 @@ const oyentes = new Set();
 const bandas = new Float32Array(N_BANDAS);
 const onda8 = new Uint8Array(FFT);
 const frec8 = new Uint8Array(FFT / 2);
+// límites de cada banda en el espectro (escala logarítmica); no cambian, se calculan una vez
+const LIMITES = Array.from({ length: N_BANDAS + 1 }, (_, k) => Math.floor(INDICE_MAX ** (k / N_BANDAS)));
 let nivel = 0;
 
 function avisar() {
@@ -156,8 +158,8 @@ export function muestrear() {
   nivel += (objetivo - nivel) * (objetivo > nivel ? 0.35 : 0.08);
   analizador.getByteFrequencyData(frec8);
   for (let k = 0; k < N_BANDAS; k++) {
-    const a = Math.max(1, Math.floor(INDICE_MAX ** (k / N_BANDAS)));
-    const b = Math.max(a + 1, Math.floor(INDICE_MAX ** ((k + 1) / N_BANDAS)));
+    const a = Math.max(1, LIMITES[k]);
+    const b = Math.max(a + 1, LIMITES[k + 1]);
     let s = 0;
     for (let i = a; i < b; i++) s += frec8[i];
     bandas[k] = s / (b - a) / 255;

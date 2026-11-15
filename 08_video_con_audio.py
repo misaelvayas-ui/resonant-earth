@@ -1,17 +1,11 @@
 """
-08 — Une el video de la visualización con rocola.wav en un solo MP4 sincronizado (demo).
+08 — Une el video y rocola.wav en un MP4 sincronizado (demo).
 
-Uso:  python 08_video_con_audio.py [video.mp4] [rocola.wav] [salida.mp4]   (desde la raíz)
-Por defecto (en salidas/): 04_video_sintetico.mp4, rocola.wav, demo_rocola.mp4
-
-1. Mide la duración del video y del audio con ffprobe; factor = dur_audio / dur_video.
-2. Estira el video con setpts=PTS*factor (el audio no se toca). Si 0,99 <= factor <= 1,01, no estira.
-3. libx264 + yuv420p (reproduce en cualquier lado), audio AAC, -shortest, -preset veryfast.
-4. Si existe rasgos.json y corresponde a este video, superpone la "fecha" (año, grande, arriba a la izquierda) o, si no hay, "media = X" del fotograma
-   analizado que está en pantalla (cada valor se mantiene hasta el siguiente fotograma muestreado).
-5. Verifica con ffprobe que video y audio del resultado difieran < 0,1 s (PASA/FALLA).
-
-Requiere ffmpeg y ffprobe:  sudo apt install ffmpeg
+Uso:  python 08_video_con_audio.py [video.mp4] [rocola.wav] [salida.mp4]
+      (por defecto, en salidas/: 04_video_sintetico.mp4, rocola.wav, demo_rocola.mp4)
+Estira el video al largo del audio (no lo toca si difieren menos de 1 %), superpone la fecha o la media del
+fotograma en pantalla (si rasgos.json es de este video) y comprueba que video y audio duren lo mismo (± 0,1 s).
+Requiere ffmpeg y ffprobe.
 """
 import json
 import os

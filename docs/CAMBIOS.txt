@@ -937,3 +937,31 @@ Decisión de Misael: rehacer la web desde cero mostrando solo lo importante del 
    (Chromium sin GPU). El Chromium de Playwright no trae H.264: las pruebas sustituyen los mp4 por webm con WEBM_DIR (solo para probar).
 6. .github/workflows/pages.yml: publica web/ en GitHub Pages solo a mano (workflow_dispatch). README raíz con la sección Web.
 Pendiente: nombres del equipo (web/equipo.json), 60 fps en una laptop real, versión en inglés, y qué hacer con el PR #9 (reescribe la web anterior; chocará con esta rama).
+
+RONDA 33 - optimización sin cambio de comportamiento (rama misael/web-nueva)   (2026-11-15)
+Objetivo: quitar trabajo innecesario y comentarios desfasados sin tocar ninguna salida.
+1. sintesis.py: se borró suavizar() (bucle Python muestra a muestra, sin usos en el proyecto) y suavizar_rapido() pasó a llamarse suavizar(); lfilter se importa arriba.
+   06 usa el nombre nuevo. Comentarios de la cabecera y de las secciones 2, 3 y 4 acortados.
+2. 05: cKDTree.query con workers=-1 (todos los núcleos; mismo resultado). TablaMatiz.query acepta 'workers' para mantener la misma firma.
+3. 06: regolpe_en_fotograma pasa de O(n_f x ataques) a O(n_f + ataques) (conjunto en vez de any() por fotograma). Sigue en UNA línea: el número de líneas de 06 no cambia y las citas 06:línea de la ESPEC siguen valiendo.
+4. Web: audio.js calcula una sola vez los límites de las 64 bandas (antes 128 potencias por cuadro); lectura.js indiceEn() usa búsqueda binaria (antes recorrido lineal en cada cuadro);
+   tarjetas.js pide un solo requestAnimationFrame pendiente en vez de uno por cada pointermove.
+Comprobado: 04+05+06 (FluidSynth y --sintetico) y exportar_mapeo con salidas nuevas frente a las de antes: control.json, rocola.mid y rocola.wav idénticos (sha256);
+rasgos.json idéntico salvo la ruta absoluta del campo "fuente". indiceEn() da los mismos índices que la versión lineal (casos límite probados con node).
+evaluar.py: 44 PASA, 0 FALLA, igual que antes. web/pruebas/verificar.cjs NO se pudo ejecutar aquí (no hay playwright instalado): falta repetirla en una máquina que lo tenga.
+
+RONDA 34 - cabeceras de comentario más cortas (rama misael/web-nueva)   (2026-11-15)
+Objetivo: que cada cabecera diga qué hace el archivo y cómo se usa; los catálogos de claves y opciones van a un solo sitio.
+1. Cabeceras recortadas (líneas antes -> después): 05 60 -> 12, 06 52 -> 16, calibrar 25 -> 6, exportar_mapeo 15 -> 7, 08 14 -> 8,
+   exportar_web 10 -> 6, 04 10 -> 7, evaluar 9 -> 5, 07 8 -> 5, web/hacer_icono.py 7 -> 4, web/estilos.css 9 -> 4.
+2. Lo que se quitó de las cabeceras no se pierde:
+   - claves del config de 05 y 06: README, "Configuración de 05" (filas nuevas: borde_px, hemisferios, rasgo_tono y una por cada clave
+     musical de 06, que antes remitía a "ver cabecera de 06"); los valores por defecto de 06 siguen en DEFECTOS;
+   - opciones de calibrar: ahora en su --help (argparse), con la explicación que tenían en la cabecera.
+3. Datos desfasados corregidos: calibrar citaba LECTURA_BARRA (no existe); exportar_web y su constante citaban web/preparar_datos.py (borrado en la
+   ronda 32); hacer_icono decía que lila y turquesa eran los acentos de la web (ahora es #86cdfa). El mensaje de claves que faltan en 05 apunta al README.
+4. Citas archivo:línea: 06 tiene 36 líneas menos y sintesis.py se había movido en la ronda 33 (las citas sin:/sintesis.py: no se actualizaron entonces).
+   Se renumeraron con un mapa línea vieja -> línea nueva (difflib) en docs/ESPEC_MODO_EN_VIVO.md (66 citas) y herramientas/exportar_mapeo.py (24);
+   ninguna cita quedó sin destino y se revisó a mano una muestra (06:30 SEG_POR_FOTOGRAMA, 06:131 u1/u2, sin:74 PENTATONICA_MAYOR, sin:105-108 paneo...).
+Sin cambios de código salvo los textos de ayuda de calibrar y el mensaje de 05. Comprobado: control.json, rocola.mid y rocola.wav idénticos (sha256) a los de
+antes de la ronda 33; evaluar.py: 44 PASA, 0 FALLA. Las cabeceras de archivo/ (ejercicios 01-03) no se tocaron.

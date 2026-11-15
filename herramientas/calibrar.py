@@ -1,28 +1,9 @@
-"""calibrar.py — prepara config/config_<video>.json (o --salida) para un video real (p. ej. NASA SVS 5207).
+"""calibrar.py — prepara el config de 05 para un video real y dibuja salidas/calibracion.png para revisarlo.
 
-Uso (desde la raíz):  python -m herramientas.calibrar [opciones]
-  --video   datos/2023GISTEMP_Map_SOS.mp4
-  --barra   datos/giss_navy_anomaly_Vertical-both.png
-  --vmin/--vmax   rango de la barra en °C (si no se dan, se usan los de LECTURA_BARRA; ver abajo)
-  --cuadro  posición del fotograma de referencia, 0-1 (0.6)
-  --fps-muestreo 2   --escala AUTO (deja el mapa en ~1024 px de ancho: 0.25 para 4096, 0.533 para 1920)
-  --umbral  valor sobre el que se mide 'area'     --referencia  valor del dron (06)
-  --orientacion auto|vertical|horizontal   de la barra PNG (auto: la que tenga el degradado más grande)
-  --mapa X0,Y0,X1,Y1   rectángulo del mapa medido a mano (omite la detección automática por paleta, que
-                        falla en videos cuyo color pierde brillo, como ECCO2; con --modo-color matiz es obligatorio)
-  --modo-color lab|matiz   se copia a 'modo_color' del config (ver 05). Sin la opción se mantiene el modo del config
-                        que ya exista. Con matiz escribe dist_max 4 (unidades de matiz), borde_px 0 y mascara_estatica false
-                        (medidos con ECCO2; si el config ya era matiz se respetan los suyos)
-Genera ese config (conserva las claves musicales que ya tuviera) y salidas/calibracion.png (revísalo: rectángulos y cuadrícula).
-
-Qué detecta:
-  - Barra PNG: el degradado es el bloque donde cada fila (barra vertical) o cada columna (horizontal) es de
-    un solo color (marcas y texto no cumplen eso) y que ocupa filas/columnas contiguas; así se separa de
-    las marcas de graduación. Se prueban las dos orientaciones y gana el degradado de mayor área.
-  - Mapa: filas y columnas del fotograma donde una fracción mínima de píxeles casa con la
-    paleta de la barra (Lab); los títulos y márgenes sin datos quedan fuera.
-  - Rango en °C: la barra PNG trae las cifras como imagen (texto blanco sobre transparente);
-    no hay OCR, así que el script las dibuja en calibracion.png y el rango se confirma a ojo.
+Uso (desde la raíz):  python -m herramientas.calibrar [opciones]   (ver --help)
+Detecta el degradado de la barra PNG (filas o columnas de un solo color; gana la orientación de mayor área) y el
+mapa (filas y columnas cuyos píxeles casan con la paleta). El rango en °C no se lee (no hay OCR): se confirma a
+ojo en calibracion.png y se pasa con --vmin/--vmax. Conserva las claves musicales del config que ya exista.
 """
 import argparse
 import json
@@ -172,20 +153,21 @@ def main():
     ap.add_argument("--video", default="datos/2023GISTEMP_Map_SOS.mp4")
     ap.add_argument("--barra", default=None, help="PNG de la barra de colores del video (por defecto, solo para el de GISTEMP)")
     ap.add_argument("--fechas", default=None, help="time.txt de fechas (p. ej. datos/time.txt); sin él no se añade 'fechas'")
-    ap.add_argument("--vmin", type=float)
-    ap.add_argument("--vmax", type=float)
-    ap.add_argument("--cuadro", type=float, default=0.6)
+    ap.add_argument("--vmin", type=float, help="valor del extremo bajo de la barra (léelo en calibracion.png)")
+    ap.add_argument("--vmax", type=float, help="valor del extremo alto de la barra")
+    ap.add_argument("--cuadro", type=float, default=0.6, help="posición del fotograma de referencia, 0-1")
     ap.add_argument("--fps-muestreo", type=float, default=2)
-    ap.add_argument("--escala", type=float)
-    ap.add_argument("--umbral", type=float)
-    ap.add_argument("--referencia", type=float)
+    ap.add_argument("--escala", type=float, help="por defecto, la que deja el mapa en ~1024 px de ancho")
+    ap.add_argument("--umbral", type=float, help="valor sobre el que se mide 'area' (por defecto, el 75 %% del rango)")
+    ap.add_argument("--referencia", type=float, help="valor en el que suena el dron de 06")
     ap.add_argument("--orientacion", choices=("auto", "vertical", "horizontal"), default="auto",
                     help="orientación de la barra PNG (auto: el degradado de mayor área)")
     ap.add_argument("--mapa", default=None, metavar="X0,Y0,X1,Y1",
                     help="rectángulo del mapa en píxeles del video; omite la detección automática")
     ap.add_argument("--modo-color", choices=("lab", "matiz"), default=None,
-                    help="se copia a 'modo_color' (ver 05); con 'matiz' hace falta --mapa")
-    ap.add_argument("--salida", default=None)
+                    help="se copia a 'modo_color' (ver 05); con 'matiz' hace falta --mapa y se escriben dist_max 4, "
+                         "borde_px 0 y mascara_estatica false (salvo que el config ya fuera matiz)")
+    ap.add_argument("--salida", default=None, help="ruta del config (por defecto config/config_<video>.json)")
     a = ap.parse_args()
 
     if a.barra is None:
