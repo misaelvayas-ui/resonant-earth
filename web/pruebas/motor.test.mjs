@@ -13,7 +13,7 @@ test("T0 utilidades", () => {
 
 // ---- datos de las dos pistas ----
 import fs from "node:fs";
-import { calcularSerie } from "../js/mapeo.js";
+import { calcularSerie, eventos, valorEn, primerEvento } from "../js/mapeo.js";
 
 const IDS = ["gistemp_1880_2023", "sst_ecco2_2007_2008"];
 const leer = (nombre) => JSON.parse(fs.readFileSync(new URL(`../assets/${nombre}`, import.meta.url), "utf8"));
@@ -65,4 +65,35 @@ test("T3 mutaciones: centroide_x, vmin/vmax de la paleta y sin media móvil se d
     const sinMovil = discrepancias(calcularSerie({ ...m, suavizado_fotogramas: 1 }, R), esperado);
     assert.ok(total(sinMovil) > 0, `${id}: la media móvil de 3 no se detectó`);
   }
+});
+
+// T4: golpes (los de «Cómo funciona»: 89 y 125)
+for (const [id, golpes] of [["gistemp_1880_2023", 89], ["sst_ecco2_2007_2008", 125]]) {
+  test(`T4 ${id}: ${golpes} golpes, ordenados y dentro de la pista`, () => {
+    const { m, R, esperado } = pista(id);
+    const serie = calcularSerie(m, R);
+    const ev = eventos(m, serie);
+    assert.equal(ev.length, golpes);
+    const T = m.seg_por_fotograma;
+    ev.forEach((e, n) => {
+      assert.ok(e.t >= 0 && e.t < R.length * T, `golpe ${n} fuera de la pista`);
+      if (n) assert.ok(e.t >= ev[n - 1].t, `golpe ${n} desordenado`);
+    });
+    // «hay un golpe nuevo (no un re-golpe) justo al empezar el fotograma» = esperado.ataque
+    esperado.forEach((e, i) => {
+      const hay = ev.some((x) => x.i === i && x.tipo !== "regolpe" && x.t === i * T);
+      assert.equal(hay, e.ataque, `fotograma ${i}`);
+    });
+  });
+}
+
+test("T4 valorEn y primerEvento", () => {
+  const serie = [{ pan: 0 }, { pan: 1 }, { pan: 0 }];
+  assert.equal(valorEn(serie, "pan", 0, 0.5), 0);          // antes del primer centro
+  assert.equal(valorEn(serie, "pan", 0.25, 0.5), 0);       // en el primer centro
+  assert.equal(valorEn(serie, "pan", 0.5, 0.5), 0.5);      // a medio camino
+  assert.equal(valorEn(serie, "pan", 0.75, 0.5), 1);
+  assert.equal(valorEn(serie, "pan", 9, 0.5), 0);          // después del último centro
+  const ev = [{ t: 0 }, { t: 0.5 }, { t: 0.5 }, { t: 1 }];
+  assert.deepEqual([-1, 0, 0.3, 0.5, 0.6, 1, 2].map((p) => primerEvento(ev, p)), [0, 0, 1, 1, 3, 3, 4]);
 });

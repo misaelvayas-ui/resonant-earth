@@ -64,3 +64,52 @@ export function calcularSerie(m, R) {
     };
   });
 }
+
+/* Golpes de la melodía, ordenados por t (segundos de pista): densidad, ligado y re-golpe como en 06:137-175 (sin humanizar).
+   tipo: "ataque", "fuerte" (evento brusco) o "regolpe" (nota ligada que se vuelve a tocar suave). */
+export function eventos(m, serie) {
+  const T = m.seg_por_fotograma, a = m.articulacion, salida = [];
+  let ultF = -1;
+  serie.forEach((f, i) => {
+    const k = f.notas.length;
+    f.notas.forEach((nota, j) => {
+      const t = i * T + (j * T) / k;
+      const fin = t + (T / k) * a.duracion_nota;
+      const forzado = f.evento_fuerte && j === 0;
+      const vel = forzado ? Math.max(f.velocidad, m.volumen.velocidad_fuerte) : f.velocidad;
+      const previo = salida[salida.length - 1];
+      if (a.ligar && previo && nota === previo.nota && !forzado) {
+        if (a.regolpe_ligado > 0 && j === 0 && i - ultF >= a.regolpe_ligado) {
+          salida.push({ t, fin, nota, vel: Math.max(1, redondearPar(vel * a.regolpe_vel)), tipo: "regolpe", i });
+          ultF = i;
+        } else {
+          previo.fin = fin;                                    // la nota se alarga, sin golpe nuevo
+        }
+        return;
+      }
+      salida.push({ t, fin, nota, vel, tipo: forzado ? "fuerte" : "ataque", i });
+      ultF = i;
+    });
+  });
+  return salida;
+}
+
+/* Valor de un campo de la serie en la posición 'pos' (s): interpolación lineal entre los CENTROS de fotograma
+   ((i + 0,5)·T), constante antes del primero y después del último (06:269, 06:294) */
+export function valorEn(serie, campo, pos, T) {
+  const u = pos / T - 0.5;
+  if (u <= 0) return serie[0][campo];
+  if (u >= serie.length - 1) return serie[serie.length - 1][campo];
+  const i = Math.floor(u);
+  return serie[i][campo] + (serie[i + 1][campo] - serie[i][campo]) * (u - i);
+}
+
+/* Índice del primer golpe con t ≥ pos (búsqueda binaria); ev.length si no queda ninguno */
+export function primerEvento(ev, pos) {
+  let lo = 0, hi = ev.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (ev[mid].t < pos - 1e-6) lo = mid + 1; else hi = mid;
+  }
+  return lo;
+}
