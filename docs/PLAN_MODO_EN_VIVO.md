@@ -6,7 +6,7 @@ Rama `misael/en-vivo` (sale de `master` con los PR #12 y #13 ya fusionados). Est
 
 La web publicada es la carpeta `web/` (`.github/workflows/pages.yml`, `path: web`). Hoy la rocola reproduce el audio del MP4. Se añade un segundo modo, **Sonido en vivo**, que genera el audio en el navegador a partir de `<id>_rasgos.json` y `<id>_mapeo.json`, con las mismas notas, dron, volumen y paneo que `06_rasgos_a_audio.py`. El modo por defecto sigue siendo **Pista original**.
 
-No se toca: ningún `0x_*.py`, `sintesis.py`, `herramientas/`, `evaluar.py`, `web/assets/*` ni `web/equipo.json`.
+No se toca: ningún `0x_*.py`, `sintesis.py`, `herramientas/`, `web/assets/*` ni `web/equipo.json`. `evaluar.py` solo recibe una prueba nueva (L1, paso 5b) que lanza la prueba de Node.
 
 ### Comprobado durante la planificación (prototipo desechable, fuera del repo)
 
@@ -34,6 +34,18 @@ Sirve de referencia para la forma del motor (un `AudioContext`, oscilador sosten
 6. **Casillas de rasgos = «este rasgo modula el sonido».** Apagar un rasgo lo deja en un valor fijo, no en silencio (tabla en 3.7). Con melodía, volumen y paneo apagados a la vez, la voz de la melodía se calla y queda el dron.
 7. **El modo se recuerda por pista durante la sesión** (un `Map` en memoria, sin `localStorage`). Al cargar la página, todas en «Pista original».
 8. **El AudioContext se crea o reanuda solo dentro de un gesto**, de forma síncrona, antes de cualquier `await`.
+
+## 1b. Decisiones de Misael (cierran las dudas de la sección 8)
+
+1. **Sin selector de velocidad.** El motor solo responde a `ratechange` (la web no ofrece ese control). El paso 15 queda **descartado**.
+2. **Timbre:** respaldo numpy, voz sostenida + golpe (como está en 3.6).
+3. **Casillas:** apagar tono, volumen o paneo los deja fijos (nota de la referencia, 0 dB, centro); apagar el dron lo silencia (3.7).
+4. **Dron** a unos 7 dB bajo la melodía (3.5).
+5. **`web/js/package.json`** con `{"type": "module"}`.
+6. **`evaluar.py` lanza la prueba de Node** si encuentra `node` (≥ 18); si no, la prueba sale OMITIDA. Es el paso 5b; `evaluar.py` pasa de 45 a **46** pruebas (L1).
+7. **Safari e iOS** los prueba otra persona del equipo: el punto 10 de la lista manual (5.4) se entrega sin probar y se copia a la descripción del PR.
+
+Orden de ejecución: primero el mínimo viable (sección 7: pasos 1 a 5b, 6 a 11 y 13 sin las casillas, con T0 a T5 y V24, V25), con `evaluar.py` y la prueba de Node en verde y un push; después el resto. Un commit por paso, con su número.
 
 ## 2. Arquitectura
 
@@ -251,6 +263,7 @@ Cada paso termina con su criterio cumplido y con `node --test web/pruebas/motor.
 | 3 | Añadir `calcularSerie` (3.2) y los grupos T1, T2 y T3 | T1 a T3 pasan en las dos pistas | 35 min |
 | 4 | Añadir `eventos` (3.3), `valorEn` (3.4), `primerEvento` y el grupo T4 | T4 pasa: 89 y 125 golpes | 30 min |
 | 5 | Añadir las constantes de 3.6 que usa el cálculo, `nivelDron` (3.5), `aislar` (3.7) y los grupos T5, T6 y T7 | T5 a T7 pasan | 30 min |
+| 5b | `evaluar.py`: prueba **L1** «web: motor del modo en vivo (Node)», que ejecuta `node --test web/pruebas/motor.test.mjs` y lee el resumen (`# pass` / `# fail`). Sin `node` (o menor que 18) devuelve OMITIDA. Añadirla a `EVALUACIONES` y subir a 46 el recuento del README | `python evaluar.py`: 46 PASA, 0 FALLA; con `PATH` sin `node`, L1 sale OMITIDA y el resto igual | 15 min |
 
 ### Fase B: datos y grafo
 
@@ -275,7 +288,7 @@ Cada paso termina con su criterio cumplido y con `node --test web/pruebas/motor.
 |---|---|---|---|
 | 13 | `index.html` y `estilos.css`: los dos `fieldset` de 5.2 dentro de `#escenario`, entre `.controles` y la barra de avance. `rocola.js`: `change` del selector → `desbloquear()`, `audio.fijarModo`, `vivo.activar`, guardar el modo en el `Map` por pista y `decir()` el mensaje; `elegir()` restaura el modo guardado de esa pista (por defecto original) y habilita o deshabilita según 5.2; `change` de las casillas → `vivo.fijarRasgos` y `decir()` | Flujo completo con teclado: Tab hasta el selector, flechas para cambiar, Espacio en las casillas. Al cambiar de pista vuelve el modo guardado de esa pista. Sin mapeo o sin Web Audio, el selector está deshabilitado y se lee el motivo. Los atajos Espacio y ← → siguen funcionando fuera de los controles | 60 min |
 | 14 | Textos: un párrafo en «Cómo funciona» y un punto en «Accesibilidad» (5.2) | Los dos textos están en la página y `V2` (axe) sigue en 0 violaciones | 15 min |
-| 15 | *(recortable)* Selector de velocidad `<select id="velocidad">` (0,5×, 1×, 1,5×, 2×) en `.controles`, que fija `medio.playbackRate` | Cambiar la velocidad en los dos modos mantiene el sonido, el cursor del gráfico y la fecha sincronizados | 25 min |
+| 15 | ~~Selector de velocidad~~ **Descartado** (decisión 1): sin selector; el motor responde a `ratechange` (paso 11) | — | — |
 
 ### Fase E: pruebas y cierre
 
@@ -283,9 +296,9 @@ Cada paso termina con su criterio cumplido y con `node --test web/pruebas/motor.
 |---|---|---|---|
 | 16 | `verificar.cjs`: V24 a V27 (5.3) | V1 a V27 en PASA | 60 min |
 | 17 | *(recortable)* `vivo.js`: `renderizar(mapeo, rasgos, rasgosActivos)` con `OfflineAudioContext` (programa todos los golpes de una vez, sin video) y V28 | V28 en PASA: dron entre 5,5 y 8,5 dB bajo la melodía; ninguna ventana de 0,5 s de la mezcla por debajo de −40 dB ni caída de más de 12 dB entre ventanas contiguas (ESPEC §6) | 45 min |
-| 18 | Lista manual de 5.4 en Chrome y Firefox de escritorio; `python evaluar.py`; `web/README.md` (archivos, pruebas, accesibilidad) y `docs/CAMBIOS.txt` (ronda 37) | Lista manual sin fallos; `evaluar.py` da 45 PASA, 0 FALLA; `git diff --stat master` no lista ningún `.py` ni nada de `web/assets/` | 40 min |
+| 18 | Lista manual de 5.4 en Chrome y Firefox de escritorio; `python evaluar.py`; `web/README.md` (archivos, pruebas, accesibilidad) y `docs/CAMBIOS.txt` (ronda 37) | Lista manual sin fallos (salvo el punto 10, que prueba otra persona); `evaluar.py` da 46 PASA, 0 FALLA; `git diff --stat master` no lista ningún `.py` salvo `evaluar.py` ni nada de `web/assets/` | 40 min |
 
-Total: unas 10 h con todo; unas 8 h 30 min sin los pasos 15 y 17.
+Total: unas 9 h 30 min con todo (sin el paso 15); unas 8 h 30 min sin el paso 17.
 
 ## 5. Plan de pruebas
 
@@ -364,8 +377,8 @@ Además, V1 a V23 deben seguir en PASA sin tocar sus condiciones.
 
 ### 5.5 Regresión
 
-- `python evaluar.py`: 45 PASA, 0 FALLA (no se toca ningún `.py`).
-- `git diff --stat master -- '*.py' web/assets web/equipo.json` vacío.
+- `python evaluar.py`: 46 PASA, 0 FALLA (las 45 de siempre más L1).
+- `git diff --stat master -- '*.py' web/assets web/equipo.json` solo lista `evaluar.py`.
 - `node --test web/pruebas/motor.test.mjs` y `verificar.cjs` completos.
 
 ## 6. Riesgos
@@ -385,19 +398,17 @@ Además, V1 a V23 deben seguir en PASA sin tocar sus condiciones.
 Lo mínimo viable es **tono, dron, volumen y paneo con el selector**: pasos 1 a 4, 6 a 11 y 13 (sin el segundo `fieldset`), más T0 a T4 y V24, V25. Orden de recorte, del primero que se quita al último:
 
 1. Paso 17 (render sin conexión y V28).
-2. Paso 15 (selector de velocidad). El motor sigue reaccionando a `ratechange`.
+2. (El selector de velocidad ya se descartó.)
 3. Paso 12 y el `fieldset` de rasgos (requisito 3). Se quitan también T6, V26 y los dos textos de 5.2.
 4. El limitador (`busVivo` directo): solo si da problemas en Safari.
 5. Dentro del motor, la voz sostenida (queda golpe + dron). `nivelDron` pasa a usar solo `eGolpe`.
 
 No se recorta nunca: `mapeo.js` completo con T1 a T3, el dron continuo, la sincronía con pausa y búsqueda, y el `desbloquear()` dentro del gesto.
 
-## 8. Dudas que debe decidir Misael antes de ejecutar
+## 8. Dudas: resueltas
 
-1. **Selector de velocidad.** La web no tiene hoy ningún control de velocidad, así que «cambiar de velocidad» solo se puede probar por código. ¿Se añade el `<select>` del paso 15, o basta con que el motor responda a `ratechange`? El plan lo deja como recortable.
-2. **Timbre.** El plan usa el respaldo numpy (voz sostenida + golpe), que es lo que documenta la ESPEC §3. La alternativa es solo golpes, más parecida a la marimba del MP4 pero con silencios entre notas ligadas. ¿Se mantiene el respaldo numpy?
-3. **Casillas.** Apagar un rasgo lo deja fijo (nota de la referencia, 0 dB, centro), no en silencio, para que los demás sigan oyéndose. ¿Es lo que se quiere con «escuchar cada uno por separado»?
-4. **Nivel del dron.** El pedido dice unos 7 dB bajo la melodía: sale una amplitud de 0,107 a 0,128. El respaldo numpy de 06 usa 0,048 (unos 15 dB por debajo). El plan sigue el pedido.
-5. **`web/js/package.json`.** Es un archivo nuevo de una línea que se publica con la web y no afecta al navegador. La alternativa es renombrar el módulo a `.mjs`. ¿Vale así?
-6. **Prueba de Node fuera de `evaluar.py`.** Como no se toca Python, la prueba se corre aparte (`node --test`). ¿Se quiere además una prueba en `evaluar.py` que la lance (sería tocar `evaluar.py`)?
-7. **Safari e iOS.** No hay forma de probarlos en esta máquina. ¿Quién hace el punto 10 de la lista manual, o se entrega con esa parte sin probar y se dice en el PR?
+Las siete dudas de la primera versión de este plan se cerraron en la sección 1b.
+
+## 9. Desviaciones durante la ejecución
+
+(Se añaden aquí, con el número de paso, las diferencias entre lo escrito y lo hecho.)
