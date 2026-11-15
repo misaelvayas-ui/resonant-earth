@@ -1,0 +1,10 @@
+{
+  "name": "rocola-web-pruebas",
+  "private": true,
+  "description": "Dependencias de web/pruebas/verificar.cjs (Playwright + axe)",
+  "scripts": { "verificar": "node verificar.cjs" },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "playwright": "1.65.1"
+  }
+}

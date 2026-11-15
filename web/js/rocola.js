@@ -6,6 +6,7 @@ import { cargarRasgos, cargarMapeo } from "./datos.js";
 import * as vivo from "./vivo.js";
 import { dibujarGraficoPista } from "./grafico.js";
 import * as lectura from "./lectura.js";
+import * as explorar from "./explorar.js";
 
 const $ = (id) => document.getElementById(id);
 let pistas = [];
@@ -139,6 +140,7 @@ export async function elegir(id, opciones = {}) {
   doc = null;
   mapeoActual = null;
   vivo.activar(false);                 // la pista anterior deja de sonar en vivo hasta saber qué trae esta
+  explorar.fijarPista(null, null);
   audio.fijarModo("original");
   estadoSelector(false, AYUDA.sinPista);
   marcarFichas(false);
@@ -153,6 +155,8 @@ export async function elegir(id, opciones = {}) {
   $("leyenda-pista").textContent = p.leyenda;
   $("btn-reproducir").disabled = false;
   $("btn-cambiar").disabled = false;
+  $("btn-comparar").disabled = false;
+  comparacion = null;
   $("avance").disabled = false;
   $("avance").max = String(p.duracion_s);
   $("avance").value = 0;
@@ -162,6 +166,7 @@ export async function elegir(id, opciones = {}) {
     if (actual !== p) return;
     doc = d;
     mapeoActual = d ? m : null;
+    explorar.fijarPista(p, mapeoActual);
     dibujarGraficoPista($("grafico-pista"), p, d, saltarA);
     if (d) lectura.actualizar(p, d, 0, false, true); else lectura.sinLectura();
     prepararModo(p);
@@ -183,7 +188,9 @@ export async function elegir(id, opciones = {}) {
 }
 
 export async function cambiar() {
-  const otra = pistas.find((x) => !actual || x.id !== actual.id);
+  // la siguiente de la lista, en ciclo (sirve con 2 pistas o con más)
+  const i = actual ? pistas.findIndex((x) => x.id === actual.id) : -1;
+  const otra = pistas[(i + 1) % pistas.length];
   const sonaba = audio.estado().sonando;
   await elegir(otra.id, { reproducir: sonaba });
 }
@@ -192,6 +199,31 @@ export async function cambiar() {
 function saltarA(seg) {
   audio.buscar(seg);
   if (actual && doc) lectura.actualizar(actual, doc, seg, false, true);
+}
+
+/* «Antes y después»: suenan los primeros TRAMO s de la pista y, enseguida, los últimos. Así se oye el cambio sin esperar. */
+const TRAMO = 5;
+let comparacion = null;             // null, o { fase: 1 | 2, inicio2 }
+async function comparar() {
+  if (!actual) return;
+  audio.desbloquear();                      // primero y sin await: es un gesto del usuario
+  const dur = audio.estado().duracion || actual.duracion_s;
+  if (dur < 2 * TRAMO + 1) return;
+  comparacion = null;
+  saltarA(0);
+  const ok = await audio.reproducir();
+  if (!ok) { decir("Pulsa Reproducir para escuchar."); return; }
+  comparacion = { fase: 1, inicio2: dur - TRAMO };
+  decir(`Antes: los primeros ${TRAMO} segundos de «${actual.titulo}».`);
+}
+function seguirComparacion(e) {
+  if (!comparacion) return;
+  if (!e.sonando) { comparacion = null; return; }           // pausa, final o cambio de pista: se cancela
+  if (comparacion.fase === 1 && e.tiempo >= TRAMO) {
+    comparacion.fase = 2;
+    saltarA(comparacion.inicio2);
+    decir(`Después: los últimos ${TRAMO} segundos.`);
+  }
 }
 
 async function alternar() {
@@ -233,6 +265,10 @@ export function iniciarRocola(lista) {
   $("btn-reproducir").addEventListener("click", alternar);
   document.addEventListener("keydown", atajos);
   $("btn-cambiar").addEventListener("click", cambiar);
+  $("btn-comparar").addEventListener("click", comparar);
+  explorar.iniciarExplorar({ boton: $("btn-explorar"), zona: $("zona-explorar"), mira: $("mira"), texto: $("explorar-texto"), video: $("medio") },
+    { alSalir: () => { if (actual && !audio.estado().sonando) decir(`En pausa: ${actual.titulo}`); } });
+  audio.alCambiar(seguirComparacion);
   $("volumen").addEventListener("input", (ev) => {
     audio.fijarVolumen(ev.target.value / 100);
     ev.target.setAttribute("aria-valuetext", `${ev.target.value} %`);

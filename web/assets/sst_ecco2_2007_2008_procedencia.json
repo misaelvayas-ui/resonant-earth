@@ -4,7 +4,7 @@
  "video_original": "ecco2_sst_flow.mp4",
  "rocola_wav_sha256": "e601294c0ddefcd43544ff47647f37f4336319354b358aee02f8cd088bb0681e",
  "rasgos_sha256": "1ab0d49efe791aab940071925de5699e81d88119f31e788ad7eab244d54b5b87",
- "mp4_sha256": "9261584eecb20d562ef76115b8290c44de65c87c8350d35c5ba50caa7dc70ccf",
+ "mp4_sha256": "4ced19794c7c95563c5dad6a6170a7ac596d4e76ee99b0307a44628b7f9d7bed",
  "demos_comprobados": [
   "demo_sst.mp4"
  ],
@@ -12,5 +12,6 @@
   "rms_db": 1.5,
   "balance_db": 3.0,
   "piso_db": -45.0
- }
+ },
+ "nota": "Ronda 38: el video se recodificó desde el MP4 anterior (libx264 crf 33, 10,1 -> 4,4 MB) con el audio copiado sin tocar (-c:a copy; mismo MD5 del flujo de audio)."
 }

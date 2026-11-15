@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Escucha la Tierra | Resonant Earth</title>
   <meta name="description" content="Resonant Earth convierte visualizaciones de la NASA en sonido: la temperatura del planeta desde 1881 y la del mar en 2007–2008. NASA Space Apps Challenge 2026, Quito.">
+  <link rel="canonical" href="https://misaelvayas-ui.github.io/rocola_practica/">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="es_EC">
+  <meta property="og:title" content="Escucha la Tierra | Resonant Earth">
+  <meta property="og:description" content="Convertimos visualizaciones de la NASA en música: 143 años de temperatura del planeta en 30 segundos.">
+  <meta property="og:url" content="https://misaelvayas-ui.github.io/rocola_practica/">
+  <meta property="og:image" content="https://misaelvayas-ui.github.io/rocola_practica/assets/compartir.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Portada de Escucha la Tierra: el globo terrestre y el título del proyecto.">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#000000">
   <link rel="icon" type="image/png" sizes="64x64" href="assets/icono-64.png">
   <link rel="apple-touch-icon" href="assets/icono-180.png">
@@ -73,7 +84,7 @@
         <ul class="cifras" aria-label="Cifras del proyecto">
           <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="143">143</span><span class="cifra-texto">años de temperatura del planeta en una pista de 30 segundos</span></li>
           <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="344">344</span><span class="cifra-texto">días de océano en una pista de 30,5 segundos</span></li>
-          <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="45">45</span><span class="cifra-texto">pruebas automáticas comprueban que el audio sigue a los datos</span></li>
+          <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="47">47</span><span class="cifra-texto">pruebas automáticas vigilan el camino del dato al sonido</span></li>
         </ul>
         <div class="heroe-tarjetas">
           <article id="tarjeta-temperatura" class="vidrio vidrio--globo" data-brillo data-inclinar>
@@ -101,8 +112,12 @@
             <div class="marco">
               <video id="medio" playsinline preload="none"></video>
               <div id="fecha-video" class="fecha-video" aria-hidden="true" hidden></div>
+              <div id="zona-explorar" class="zona-explorar" role="application" tabindex="0" aria-label="Mapa explorable. Mueve el cursor o usa las flechas para oír cada punto; con Mayúsculas se avanza más; Escape para salir." aria-describedby="explorar-texto" hidden>
+                <span id="mira" class="mira" aria-hidden="true"></span>
+              </div>
               <canvas id="visualizador" aria-hidden="true"></canvas>
             </div>
+            <p id="explorar-texto" class="explorar-texto" role="status" aria-live="polite"></p>
             <div class="cabecera-pista">
               <h3 id="titulo-pista">Elige una pista</h3>
               <p id="fuente-pista" class="fuente"></p>
@@ -111,8 +126,9 @@
             <div class="controles" role="group" aria-label="Controles de la rocola">
               <button id="btn-reproducir" class="boton boton-lleno" type="button" disabled>Reproducir</button>
               <button id="btn-cambiar" class="boton boton-contorno" type="button" disabled>Cambiar de pista</button>
-              <label class="volumen" for="volumen">Volumen</label>
-              <input id="volumen" type="range" min="0" max="100" step="1" value="80" aria-valuetext="80 %">
+              <button id="btn-explorar" class="boton boton-contorno" type="button" disabled title="Oye el valor de cada punto del mapa, en tiempo real">Explorar el mapa</button>
+              <button id="btn-comparar" class="boton boton-contorno" type="button" disabled title="Suena el principio de la pista y, enseguida, el final">Antes y después</button>
+              <span class="grupo-volumen"><label class="volumen" for="volumen">Volumen</label><input id="volumen" type="range" min="0" max="100" step="1" value="80" aria-valuetext="80 %"></span>
               <span id="tiempo" class="dato">0:00 / 0:00</span>
             </div>
             <fieldset id="modo-sonido" class="grupo-sonido" aria-describedby="modo-ayuda" disabled>
@@ -183,6 +199,7 @@
           <div class="porque-bloque revelar">
             <h3>Por qué escuchar el clima</h3>
             <p>En nuestra medición del mapa de GISTEMP, la anomalía media pasa de −0,24 °C en 1881 a +1,06 °C en 2023. Dicho así es un número. Oído, es una melodía que durante un siglo se queda abajo y en los últimos cuarenta años no deja de subir.</p>
+            <p>Comparada con la <a href="https://data.giss.nasa.gov/gistemp/">serie oficial GISTEMP de la NASA</a>, nuestra lectura coincide con una correlación de 0,99 en 58 años y queda, en promedio, 0,09 °C por debajo: la serie oficial va de −0,09 °C en 1881 a +1,17 °C en 2023. Cualquiera puede repetir la cuenta con un comando del repositorio.</p>
             <p>El sonido llega a quien no puede ver el mapa y también a quien ya lo vio demasiadas veces.</p>
           </div>
           <div class="porque-bloque revelar">
@@ -211,6 +228,7 @@
           <li>Todo se usa con teclado y el foco siempre se ve.</li>
           <li>En Sonido en vivo puedes dejar un solo rasgo para aprender a reconocerlo: melodía, volumen, lado o nota grave.</li>
           <li>Atajos, fuera de un campo de texto: <kbd>Espacio</kbd> reproduce o pausa; <kbd>←</kbd> y <kbd>→</kbd> retroceden o adelantan 5 s. En el gráfico, <kbd>←</kbd> y <kbd>→</kbd> eligen un momento y <kbd>Enter</kbd> salta hasta él (o haz clic).</li>
+          <li><strong>Explorar el mapa:</strong> pausa la pista, mueve el cursor o las flechas sobre el mapa y oye el valor de cada punto, con su latitud, longitud y temperatura en texto. El sonido se calcula en ese instante a partir del color del fotograma. En teléfonos que vibran, se siente un toque al cambiar de nota.</li>
           <li>Cada pista explica qué se ve y qué se oye, y qué significan los colores.</li>
           <li>Contraste AA o mejor en todo el texto.</li>
           <li>Si pides menos movimiento al sistema, la página deja de moverse.</li>
@@ -221,7 +239,7 @@
     <section id="equipo" class="seccion" aria-labelledby="t-equipo">
       <div class="contenedor">
         <h2 id="t-equipo" class="revelar">Equipo</h2>
-        <p class="entrada revelar">Cinco estudiantes de la Universidad de Las Américas (UDLA), Quito.</p>
+        <p class="entrada revelar">Estudiantes de la Universidad de Las Américas (UDLA), Quito.</p>
         <ul id="lista-equipo" class="equipo revelar"></ul>
       </div>
     </section>
@@ -230,7 +248,7 @@
   <footer class="pie">
     <div class="contenedor pie-rejilla">
       <p>Resonant Earth. Código con licencia MIT. <a href="https://github.com/misaelvayas-ui/rocola_practica">Repositorio en GitHub</a></p>
-      <p>Datos y visualizaciones: NASA Scientific Visualization Studio: <a href="https://svs.gsfc.nasa.gov/5207/">SVS 5207</a> («Anomalías de temperatura global 1880–2023») y <a href="https://svs.gsfc.nasa.gov/3912/">SVS 3912</a> y Earth Information Center. Texturas del globo: Blue Marble y Black Marble, NASA Earth Observatory.</p>
+      <p>Visualizaciones: <a href="https://svs.gsfc.nasa.gov/5207/">SVS 5207</a>, «Global Temperature Anomalies from 1880 to 2023», NASA's Scientific Visualization Studio, con datos de Robert B. Schmunk (NASA/GSFC GISS); y <a href="https://svs.gsfc.nasa.gov/3912/">SVS 3912</a>, «Global Sea Surface Currents and Temperature» (modelo ECCO2), NASA/Goddard Space Flight Center Scientific Visualization Studio. Serie de comparación: GISTEMP v4, NASA GISS. Texturas del globo: Blue Marble y Black Marble, NASA Earth Observatory.</p>
       <p>Proyecto estudiantil para el NASA Space Apps Challenge 2026. No es un sitio oficial de la NASA. Hecho con ayuda de IA (Claude).</p>
     </div>
   </footer>

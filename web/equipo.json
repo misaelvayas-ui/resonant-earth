@@ -1,10 +1,9 @@
 {
   "universidad": "Universidad de Las Américas (UDLA), Quito",
   "integrantes": [
-    { "nombre": "Misael Vayas", "carrera": "Networking y Telecomunicaciones", "aporte": "Aporte al proyecto (editar)" },
-    { "nombre": "Roberth Procel", "carrera": "Electrónica y Automatización", "aporte": "Aporte al proyecto (editar)" },
-    { "nombre": "Juan Martin", "carrera": "Inteligencia Artificial", "aporte": "Aporte al proyecto (editar)" },
-    { "nombre": "Nombre Apellido 4", "carrera": "Inteligencia Artificial", "aporte": "Aporte al proyecto (editar)" },
-    { "nombre": "Nombre Apellido 5", "carrera": "Inteligencia Artificial", "aporte": "Aporte al proyecto (editar)" }
+    { "nombre": "Misael Vayas", "carrera": "Networking y Telecomunicaciones", "aporte": "" },
+    { "nombre": "Roberth Procel", "carrera": "Electrónica y Automatización", "aporte": "" },
+    { "nombre": "Juan Martin", "carrera": "Inteligencia Artificial", "aporte": "" },
+    { "nombre": "Sebastian Valverde", "carrera": "Ingeniería de Software", "aporte": "" }
   ]
 }

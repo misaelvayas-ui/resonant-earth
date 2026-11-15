@@ -1,4 +1,4 @@
-/* Pruebas de la web con Playwright y axe-core (V1 a V29).
+/* Pruebas de la web con Playwright y axe-core (V1 a V32).
    Uso:  NODE_PATH=<carpeta con node_modules> node web/pruebas/verificar.cjs <url> <carpeta de capturas>
    Imprime [PASA], [FALLA] u [OMITIDA] por comprobación y sale con código 1 si hay alguna [FALLA].
 
@@ -20,6 +20,11 @@ let fallas = 0;
 function informar(id, estado, texto) {
   if (estado === "FALLA") fallas++;
   console.log(`[${estado}] ${id} ${texto}`);
+}
+/* Una captura que falla (página muy alta, sin GPU) es un aviso: no debe esconder las comprobaciones que siguen. */
+async function captura(pagina, opciones) {
+  try { await pagina.screenshot(opciones); }
+  catch (e) { console.log(`[AVISO] no se pudo capturar ${path.basename(opciones.path)}: ${String(e.message).split("\n")[0]}`); }
 }
 const comprobar = (id, ok, texto) => informar(id, ok ? "PASA" : "FALLA", texto);
 
@@ -87,7 +92,7 @@ async function desplazarTodo(page) {
     const b = await page.evaluate(() => window.__web.globo().rotacionY);
     comprobar("V12", Math.abs(b - a) > 0.01, `rotacionY ${a.toFixed(4)} -> ${b.toFixed(4)} en 1,5 s`);
   }
-  await page.screenshot({ path: path.join(carpeta, "heroe-1440.png") });
+  await captura(page, { path: path.join(carpeta, "heroe-1440.png") });
 
   // V6 teclado
   await page.evaluate(() => { window.scrollTo({ top: 0, behavior: "instant" }); document.activeElement && document.activeElement.blur(); });
@@ -121,7 +126,7 @@ async function desplazarTodo(page) {
   comprobar("V8", fechasG.includes(fecha) && fecha !== fechasG[0] && texto.includes("°C"), `fecha «${fecha}»; texto «${texto}»`);
   await page.evaluate(() => document.querySelector(".rocola-rejilla").scrollIntoView({ behavior: "instant" }));
   await esperar(500);
-  await page.screenshot({ path: path.join(carpeta, "rocola-1440.png") });
+  await captura(page, { path: path.join(carpeta, "rocola-1440.png") });
 
   // V9 avance y gráfico
   await page.evaluate(() => { const a = document.getElementById("avance"); a.value = 27; a.dispatchEvent(new Event("input", { bubbles: true })); });
@@ -155,7 +160,7 @@ async function desplazarTodo(page) {
   // V15 capturas de página completa (1440)
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await desplazarTodo(page);
-  await page.screenshot({ path: path.join(carpeta, "pagina-1440.png"), fullPage: true });
+  await captura(page, { path: path.join(carpeta, "pagina-1440.png"), fullPage: true });
 
   // V2 axe 1440
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
@@ -169,7 +174,7 @@ async function desplazarTodo(page) {
     await esperar(400);
     const r = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
     if (r[0] > r[1]) desbordes.push(`${w}px: ${r[0]}`);
-    if (w === 768) { await desplazarTodo(page); await page.screenshot({ path: path.join(carpeta, "pagina-768.png"), fullPage: true }); }
+    if (w === 768) { await desplazarTodo(page); await captura(page, { path: path.join(carpeta, "pagina-768.png"), fullPage: true }); }
   }
   comprobar("V3", desbordes.length === 0, desbordes.length ? "desborde horizontal en " + desbordes.join(", ") : "sin desborde horizontal a 360, 390, 768, 1024 y 1440 px");
   await ctx.close();
@@ -178,10 +183,10 @@ async function desplazarTodo(page) {
   const mov = await nuevaPagina(browser, { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await mov.page.goto(url, { waitUntil: "load" });
   await esperar(2500);
-  await mov.page.screenshot({ path: path.join(carpeta, "heroe-390.png") });
+  await captura(mov.page, { path: path.join(carpeta, "heroe-390.png") });
   const ax2 = await new AxeBuilder({ page: mov.page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
   await desplazarTodo(mov.page);
-  await mov.page.screenshot({ path: path.join(carpeta, "pagina-390.png"), fullPage: true });
+  await captura(mov.page, { path: path.join(carpeta, "pagina-390.png"), fullPage: true });
   await mov.ctx.close();
   const resumen = (r) => r.violations.map((v) => `${v.id}(${v.nodes.length}): ${v.nodes[0].target.join(" ")}`).join("; ");
   comprobar("V2", ax1.violations.length === 0 && ax2.violations.length === 0,
@@ -233,7 +238,7 @@ async function desplazarTodo(page) {
   const unaLinea = geo.altos.every((h) => h < 40);
   comprobar("V22", unaLinea && !geo.solapa && geo.fuera <= 1,
     `1118 px: altos de los enlaces ${geo.altos.map((h) => Math.round(h)).join("/")} (una línea < 40); cifras ${Math.round(geo.fichaDer)} px vs tarjeta desde ${Math.round(geo.tarjetaIzq)} px; solapan: ${geo.solapa}`);
-  await pg.screenshot({ path: path.join(carpeta, "heroe-1118.png") });
+  await captura(pg, { path: path.join(carpeta, "heroe-1118.png") });
   const cifrasTab = await pg.$eval(".cifras", (e) => e.getAttribute("tabindex"));
 
   // V16: textos y cifras
@@ -249,7 +254,7 @@ async function desplazarTodo(page) {
   const desc = await pg.$eval("#descripcion-pista", (e) => e.textContent);
   const leyenda = await pg.$eval("#leyenda-pista", (e) => e.textContent);
   const hero = await pg.$eval(".heroe-sub", (e) => e.textContent);
-  comprobar("V16", t1.includes("1881–2023") && !fueraCredito && reloj0.endsWith("/ 0:30") && relojMar === "0:00,0 / 0:30,5" && desc.startsWith("344 días de océano (mar 2007–mar 2008)")
+  comprobar("V16", t1.includes("1881–2023") && !fueraCredito && reloj0.endsWith("/ 0:30") && /^0:00,0 \/ 0:(29,[5-9]|30,\d|31,[0-5])$/.test(relojMar) && desc.startsWith("344 días de océano (mar 2007–mar 2008)")
     && !/un año/i.test(desc + hero) && /índice relativo/.test(leyenda) && /colores del video original/.test(leyenda) && mar.duracion_s === 30.5,
     `título «${t1}»; "1880" fuera del crédito: ${fueraCredito}; reloj GISTEMP «${reloj0}», mar «${relojMar}»; descripción «${desc.slice(0, 48)}…»`);
 
@@ -344,7 +349,7 @@ async function desplazarTodo(page) {
   await mp.tap("#btn-menu");
   await esperar(300);
   const abierto = await mp.evaluate(() => ({ exp: document.getElementById("btn-menu").getAttribute("aria-expanded"), nav: getComputedStyle(document.getElementById("menu-principal")).display, enlaces: [...document.querySelectorAll("#menu-principal a")].filter((a) => a.offsetParent).map((a) => a.textContent.trim()) }));
-  await mp.screenshot({ path: path.join(carpeta, "menu-390.png") });
+  await captura(mp, { path: path.join(carpeta, "menu-390.png") });
   await mp.keyboard.press("Escape");
   const trasEsc = await mp.evaluate(() => ({ exp: document.getElementById("btn-menu").getAttribute("aria-expanded"), foco: document.activeElement.id }));
   await mp.tap("#btn-menu"); await esperar(200);
@@ -518,7 +523,7 @@ async function desplazarTodo(page) {
   await mv.page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await esperar(800);
   const axeM27 = await new AxeBuilder({ page: mv.page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
-  await mv.page.screenshot({ path: path.join(carpeta, "vivo-390.png") });
+  await captura(mv.page, { path: path.join(carpeta, "vivo-390.png") });
   await mv.ctx.close();
   const resumen27 = (r) => r.violations.map((v) => `${v.id}(${v.nodes.length}): ${v.nodes[0].target.join(" ")}`).join("; ");
   comprobar("V27", sst27.marcado === "original" && sst27.modo === "original" && sst27.rasgos === true && gis27.marcado === "vivo" && gis27.modo === "vivo" && gis27.activo && gis27.rasgos === false
@@ -527,7 +532,79 @@ async function desplazarTodo(page) {
     `SST: «${sst27.marcado}»; GISTEMP al volver: «${gis27.marcado}» (modo ${gis27.modo}); axe 1440 ${axe27.violations.length} ${resumen27(axe27)}, 390 ${axeM27.violations.length} ${resumen27(axeM27)}; 390 px: ancho ${mov27.ancho}/${mov27.ventana}; posición de las casillas y del gráfico (original / vivo / original): ${antesVivo27.join("+")} / ${trasVivo27.join("+")} / ${trasOriginal27.join("+")}`);
   await vi.ctx.close();
 
+  // V30: «Antes y después»: suena el principio y salta solo al final (con teclado)
+  const ad = await nuevaPagina(browser, {});
+  await ad.page.goto(url, { waitUntil: "load" });
+  await esperar(1500);
+  const desactivado30 = await ad.page.$eval("#btn-comparar", (b) => b.disabled);
+  await ad.page.click("button.pista >> nth=0");
+  await ad.page.waitForFunction(() => window.__web.audio.estado().sonando, null, { timeout: 15000 }).catch(() => {});
+  await ad.page.focus("#btn-comparar");
+  await ad.page.keyboard.press("Enter");
+  await esperar(1500);
+  const fase1 = await ad.page.evaluate(() => ({ t: window.__web.audio.estado().tiempo, estado: document.getElementById("estado-rocola").textContent }));
+  const salto30 = await ad.page.waitForFunction(() => window.__web.audio.estado().tiempo >= 24.9, null, { timeout: 9000 }).then(() => true).catch(() => false);
+  await esperar(400);
+  const fase2 = await ad.page.evaluate(() => ({ t: window.__web.audio.estado().tiempo, sonando: window.__web.audio.estado().sonando, estado: document.getElementById("estado-rocola").textContent }));
+  await ad.ctx.close();
+  comprobar("V30", desactivado30 && fase1.t < 4 && fase1.estado.startsWith("Antes") && salto30 && fase2.t >= 24.9 && fase2.t < 28 && fase2.sonando && fase2.estado.startsWith("Después"),
+    `sin pista: deshabilitado ${desactivado30}; fase 1 a ${fase1.t.toFixed(1)} s «${fase1.estado}»; salto al final: ${salto30}; fase 2 a ${fase2.t.toFixed(1)} s «${fase2.estado}»`);
+
+  // V31: «Explorar el mapa»: el color del fotograma bajo la mira se convierte en valor, nota y texto (teclado y axe)
+  const ex = await nuevaPagina(browser, {});
+  await ex.page.goto(url, { waitUntil: "load" });
+  await esperar(1500);
+  const sinPista31 = await ex.page.$eval("#btn-explorar", (b) => b.disabled);
+  await ex.page.click("button.pista >> nth=0");
+  await ex.page.waitForFunction(() => window.__web.audio.estado().sonando && window.__web.explorar.estado().disponible, null, { timeout: 15000 }).catch(() => {});
+  const medir31 = async (t) => {
+    await ex.page.evaluate(() => window.__web.explorar.salir());
+    await ex.page.evaluate((s) => { window.__web.audio.buscar(s); return window.__web.audio.reproducir(); }, t);
+    await esperar(900);
+    await ex.page.focus("#btn-explorar");
+    await ex.page.keyboard.press("Enter");
+    await esperar(300);
+    return ex.page.evaluate(() => {
+      const pts = [];
+      for (let y = 0.15; y < 0.9; y += 0.1) for (let x = 0.05; x < 1; x += 0.1) { window.__web.explorar.mover(x, y); const e = window.__web.explorar.estado(); if (e.valor != null) pts.push(e.valor); }
+      window.__web.explorar.mover(0.5, 0.3);
+      return { n: pts.length, media: pts.reduce((a, b) => a + b, 0) / Math.max(1, pts.length), sonando: window.__web.audio.estado().sonando, e: window.__web.explorar.estado(),
+        foco: document.activeElement.id, texto: document.getElementById("explorar-texto").textContent };
+    });
+  };
+  const frio31 = await medir31(3);                       // hacia 1898
+  const calor31 = await medir31(29);                     // 2023
+  // solo la rocola: el héroe, fuera de pantalla, está a media transparencia por la animación de desplazamiento
+  const axe31 = await new AxeBuilder({ page: ex.page }).include("#rocola").withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  const x31 = calor31.e.x;
+  await ex.page.keyboard.press("ArrowRight");
+  const trasFlecha31 = await ex.page.evaluate(() => ({ x: window.__web.explorar.estado().x, t: window.__web.audio.estado().tiempo }));
+  await ex.page.keyboard.press("Escape");
+  const fin31 = await ex.page.evaluate(() => ({ activo: window.__web.explorar.estado().activo, foco: document.activeElement.id, oculto: document.getElementById("zona-explorar").hidden }));
+  await captura(ex.page, { path: path.join(carpeta, "explorar-1440.png") });
+  await ex.ctx.close();
+  comprobar("V31", sinPista31 && frio31.n >= 40 && calor31.n >= 40 && calor31.media - frio31.media > 0.8 && !calor31.sonando && calor31.e.suena && calor31.foco === "zona-explorar"
+    && /°C/.test(calor31.texto) && /norte|sur|ecuador/.test(calor31.texto) && trasFlecha31.x > x31 && trasFlecha31.t > 28 && !fin31.activo && fin31.foco === "btn-explorar" && fin31.oculto && axe31.violations.length === 0,
+    `media de ${frio31.n} puntos hacia 1898: ${frio31.media.toFixed(2)} °C; de ${calor31.n} puntos en 2023: ${calor31.media.toFixed(2)} °C; pista en pausa: ${!calor31.sonando}; suena la voz: ${calor31.e.suena}; texto «${calor31.texto}»; `
+    + `flecha derecha mueve la mira (${x31.toFixed(3)} -> ${trasFlecha31.x.toFixed(3)}) y no la pista; Esc: foco en ${fin31.foco}; axe ${axe31.violations.length} ${axe31.violations.map((v) => v.id).join(",")}`);
+
+  // V32: contenido de entrega (sin navegador): nada de textos de relleno y la cifra de pruebas al día
+  const raiz = path.join(__dirname, "..");
+  const equipo = fs.readFileSync(path.join(raiz, "equipo.json"), "utf8");
+  const relleno = (equipo.match(/\(editar\)|Nombre Apellido/g) || []).length;
+  const html = fs.readFileSync(path.join(raiz, "index.html"), "utf8");
+  const cifra = Number((html.match(/data-valor="(\d+)">\d+<\/span><span class="cifra-texto">pruebas/) || [])[1]);
+  const evaluar = fs.readFileSync(path.join(raiz, "..", "evaluar.py"), "utf8");
+  const nPruebas = (evaluar.slice(evaluar.indexOf("EVALUACIONES = [")).match(/^    \("[A-Z]\d+",/gm) || []).length;
+  comprobar("V32", relleno === 0 && cifra === nPruebas && /og:image/.test(html),
+    `textos de relleno en equipo.json: ${relleno}; cifra de pruebas en la portada ${cifra} = evaluar.py ${nPruebas}; og:image: ${/og:image/.test(html)}`);
+
   await browser.close();
   console.log(fallas ? `\n${fallas} FALLA` : "\nTodo PASA (o está OMITIDA)");
   process.exit(fallas ? 1 : 0);
-})().catch((e) => { console.error(e); process.exit(2); });
+})().catch((e) => {
+  // un error inesperado no borra lo ya informado: se dice dónde se cortó y se sale con código 2
+  console.error(e);
+  console.log(`\n[FALLA] el programa se interrumpió antes de terminar: ${String(e.message).split("\n")[0]} (${fallas} FALLA hasta aquí)`);
+  process.exit(2);
+});

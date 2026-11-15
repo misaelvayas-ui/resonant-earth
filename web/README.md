@@ -17,6 +17,8 @@ Abre <http://localhost:8001>. Con doble clic (`file://`) no carga: necesita un s
 
 - **Hero:** globo 3D (Three.js, texturas Blue Marble y Black Marble de NASA) con un anillo de sonido que se deforma con el audio real, órbitas y una atmósfera que brilla con la amplitud.
 - **La rocola:** dos tarjetas de pista y un reproductor con visualizador (Web Audio, `AnalyserNode`), gráfico con cursor, lectura en vivo («1976: +0,02 °C respecto al promedio…») y la descripción accesible de cada pista.
+- **Explorar el mapa:** con la pista en pausa, el cursor o las flechas mueven una mira sobre el fotograma; el color de ese punto se convierte en valor con la barra de la pista (`assets/<id>_paleta.json`), suena al instante y se describe en texto (latitud, longitud, fecha y valor). La nota se apaga sola a los 2,5 s de quietud; Esc sale.
+- **Antes y después:** suenan los primeros 5 s de la pista y, enseguida, los últimos 5 s.
 - **Cómo funciona, El porqué, Accesibilidad, Equipo y pie.**
 - Animaciones con GSAP + ScrollTrigger; con `prefers-reduced-motion` el globo no gira y solo hay fundidos.
 
@@ -26,12 +28,13 @@ Abre <http://localhost:8001>. Con doble clic (`file://`) no carga: necesita un s
 |---|---|
 | `index.html`, `estilos.css` | estructura, textos fijos, tokens de diseño y componentes |
 | `pistas.json` | las 2 pistas: textos, rutas, plantilla de la lectura en vivo, resumen del gráfico |
-| `equipo.json` | los 5 integrantes (nombres de ejemplo: edítalos) |
+| `equipo.json` | integrantes: nombre, carrera y aporte (si `aporte` está vacío, no se muestra) |
 | `js/principal.js` | arranque y bucle único de animación |
 | `js/audio.js` | cargar, reproducir, volumen, amplitud y espectro; dos buses (audio del mp4 y sonido en vivo) y `desbloquear()` |
 | `js/mapeo.js` | cálculo puro del sonido en vivo (notas, dron, volumen, paneo, golpes) a partir de `_mapeo.json`; sin DOM ni Web Audio |
 | `js/vivo.js` | motor Web Audio del sonido en vivo: nodos, planificador y sincronía con el video; `renderizar()` sin conexión |
 | `js/package.json` | `{"type": "module"}`: deja que Node importe `js/*.js` para la prueba; el navegador lo ignora |
+| `js/explorar.js` | «Explorar el mapa»: color del fotograma → valor → nota y texto, en tiempo real |
 | `js/rocola.js`, `js/lectura.js`, `js/grafico.js`, `js/visualizador.js` | reproductor y sus partes |
 | `js/globo.js`, `js/animaciones.js`, `js/tarjetas.js` | globo 3D, GSAP y brillo del cursor |
 | `vendor/` | three, GSAP y ScrollTrigger (ver `vendor/LICENCIAS.md`) |
@@ -48,6 +51,7 @@ Los mp4 y los rasgos de `assets/` salen del pipeline, con la misma salida que el
 ```bash
 python -m herramientas.exportar_web      # mp4, _rasgos.json y _procedencia.json
 python -m herramientas.exportar_mapeo    # _mapeo.json y _esperado.json
+python -m herramientas.exportar_paleta   # _paleta.json (barra de colores, para «Explorar el mapa»)
 ```
 
 ## Sonido en vivo
@@ -71,15 +75,18 @@ Los textos de cada pista están en `pistas.json`. La frase de la lectura en vivo
 
 ## Pruebas
 
-Necesitan Node 18 y Playwright, fuera del repositorio:
+Necesitan Node 18 o más. Las dependencias están fijadas en `web/pruebas/package.json`:
 
 ```bash
-mkdir /tmp/verif && cd /tmp/verif && npm init -y && npm i playwright @axe-core/playwright && npx playwright install chromium
-cd web && python -m http.server 8137 &
-NODE_PATH=/tmp/verif/node_modules node web/pruebas/verificar.cjs http://localhost:8137/ /tmp/capturas
+cd web/pruebas && npm install && npx playwright install chromium && cd ../..
+mkdir -p /tmp/webm && for id in gistemp_1880_2023 sst_ecco2_2007_2008; do ffmpeg -y -v error -i web/assets/$id.mp4 -c:v libvpx -b:v 400k -c:a libopus /tmp/webm/$id.webm; done
+(cd web && python -m http.server 8137 &)
+WEBM_DIR=/tmp/webm node web/pruebas/verificar.cjs http://localhost:8137/ /tmp/capturas
 ```
 
-El Chromium de Playwright no trae H.264 ni AAC. Para que reproduzca las pistas, convierte los mp4 a webm y pasa `WEBM_DIR` (ver la cabecera de `verificar.cjs`). Lighthouse se corre con `--preset=desktop`.
+El Chromium de Playwright no trae H.264 ni AAC: por eso las pruebas usan copias webm (`WEBM_DIR`). Son 31 comprobaciones (V1 a V31).
+Una captura que falla es un `[AVISO]` y no corta el informe. V32 falla si `equipo.json` tiene textos de relleno o si la cifra de
+pruebas de la portada no coincide con `evaluar.py`. V30 prueba el botón «Antes y después» y V31 «Explorar el mapa». Lighthouse se corre con `--preset=desktop`.
 
 ## Accesibilidad
 

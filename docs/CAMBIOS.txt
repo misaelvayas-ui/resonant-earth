@@ -1025,3 +1025,74 @@ Origen: revisión con Claude en Chrome (0 errores de consola; sincronía, autopl
 3. Gráfico: aria-valuenow y aria-valuetext siguen la reproducción solo al cambiar de fotograma y como mucho una vez por segundo, no pisan lo que se elige con las flechas (4 s) y cambian al instante con el clic. Prueba V29 (6 cambios en 6 s, separación mínima 1000 ms).
 4. A 390 px el texto de ayuda del modo reserva su alto (2 líneas; 3 hasta 480 px): las casillas y el gráfico no se mueven al cambiar de modo. V27 lo mide; sin la reserva se movían 25 px.
 Comprobado: node --test 13 PASA; evaluar.py 46 PASA, 0 FALLA; verificar.cjs completo (V1-V29) PASA. El scratchpad de pruebas se limpió durante la ronda: se reinstalaron Playwright y los webm fuera del repo.
+
+RONDA 39 - mejoras de docs/REVISION_Y_MEJORAS.md: macOS, informes que no se cortan, validación oficial, web de entrega (rama mejoras/ronda-38)   (2026-11-15)
+Base: master (ronda 36) + fusión de misael/en-vivo (ronda 37, modo de sonido en vivo). Máquina: macOS Intel, Python 3.13.4, ffmpeg 8.0.1 de Homebrew, Node 24, sin FluidSynth.
+1. Video en macOS (fallo 1 del PROMPT_SIGUIENTE_AGENTE y hallazgo H2). video_io.py nuevo: abrir_escritor() prueba cada método con un video diminuto que se vuelve a leer y usa el primero que sirve
+   (opencv mp4v -> ffmpeg mpeg4 -> ffmpeg h264 sin pérdida -> ffmpeg h264 -> opencv avc1); aborta con mensaje si ninguno. En esta Mac elige "ffmpeg mpeg4" (el mismo códec que mp4v en Linux).
+   Lo usan 04 y los 4 escritores de evaluar.py. 04 sale con error si el video no se puede releer. Medido: antes 04 no creaba archivo y evaluar.py moría sin tabla; con "opencv avc1" C1 fallaba (error 0,0130 > 0,01);
+   con "ffmpeg mpeg4" C1 pasa sin tocar el umbral.
+2. 08 sin drawtext (H2): el ffmpeg de Homebrew no trae ese filtro. 08 lo detecta (ffmpeg -filters) y dibuja cada rótulo en un PNG con Pillow (DejaVuSans de matplotlib) que superpone con overlay y un
+   ffconcat de duraciones; con drawtext sigue igual que antes. Además, al estirar el video se fija la cadencia del original (fps=...): con ffmpeg >= 7 el retardo de los B-frames pasaba de 0,1 a 0,2 s
+   (D1 fallaba; es lo que Juan vio en Windows, hallazgo 14 de la auditoría 3). Ahora D1 mide 0,100 s. No se tocó ningún umbral.
+3. evaluar.py: main() atrapa SystemExit (un sys.exit dentro de una prueba es un FALLA y la tabla se imprime) y Ctrl+C; si B1 falló, las que dependen de sus archivos salen OMITIDA con el motivo.
+   L1 lee el resumen de node --test de Node 22+ ("ℹ pass") además del de Node 18-20 ("# pass"): en Node 24 daba FALLA con las 13 pruebas pasando.
+   05: claves numéricas escritas como texto ("fps_muestreo": "4") dan un mensaje claro en vez de una traza (H15).
+4. Validación reproducible (H6): herramientas/validar_gistemp.py compara la media por año con la tabla oficial GISTEMP v4 (docs/datos_oficiales/GLB.Ts+dSST.csv, descargada el 15-nov-2026; --descargar la refresca).
+   Medido: 58 años, r = 0,9918, sesgo -0,09 °C, RMSE 0,11 °C, pendiente 1980-2023 0,196 (video) vs 0,183 °C/década (oficial), año más frío 1911 en los dos. Prueba nueva M1 (47 pruebas).
+5. Web:
+   - equipo.json: 4 integrantes (se añade Sebastian Valverde, Ingeniería de Software); se quitaron "Nombre Apellido 4/5" y los "Aporte al proyecto (editar)". Si "aporte" está vacío no se muestra.
+     El texto dice "Estudiantes de la UDLA" (antes "Cinco estudiantes"). FALTA: el quinto nombre, si lo hay, y el aporte de cada persona.
+   - Honestidad (H5): la tarjeta de la portada y el resumen del gráfico dicen "leído del mapa"; "El porqué" añade la comparación con la serie oficial (0,99; -0,09 y +1,17 °C).
+   - Créditos (H9) con el texto que piden las páginas de SVS 5207 y 3912. Vista previa al compartir (H11): Open Graph, canonical y assets/compartir.jpg (1200x630, 101 KB).
+   - Pista del mar (H7): 10,1 -> 4,4 MB recodificando solo el video (libx264 crf 33) con el audio copiado (-c:a copy, mismo MD5 del flujo); _procedencia.json lo anota. exportar_web: MAX_MB 25 -> 5.
+   - Más de dos pistas (H10): datos.js ya no exige exactamente 2 y "Cambiar de pista" recorre la lista en ciclo.
+   - Medidor (H13): la caída del nivel en pausa depende del tiempo y no de los cuadros por segundo (V11 fallaba en equipos lentos). Controles táctiles (H14): casillas de 24 px y barras de 24 px de alto.
+   - Botón "Antes y después": suenan los primeros 5 s y enseguida los últimos 5 s de la pista; se cancela al pausar o cambiar de pista.
+   - La cifra de pruebas de la portada pasa a 47 y V29 la compara con evaluar.py.
+6. Pruebas de la web: verificar.cjs pasa a V1-V30. Las capturas que fallan son [AVISO] (antes cortaban el informe en la línea 184 y escondían V2 y V14-V23); un error inesperado informa dónde se cortó.
+   V29: sin textos de relleno en equipo.json, cifra de pruebas = evaluar.py y og:image. V30: "Antes y después" con teclado. web/pruebas/package.json fija playwright 1.65.1 y @axe-core/playwright 4.14.0.
+7. CI: .github/workflows/pruebas.yml (evaluar.py en ubuntu-latest y macos-latest; verificar.cjs en Ubuntu) en cada PR y en master. NO se ha ejecutado en GitHub todavía (no se hizo push).
+   .gitignore: .DS_Store, .claude/, node_modules/, capturas/. README: guía de 5 minutos para el jurado, macOS, validar_gistemp. web/README: pruebas en una línea.
+Comprobado en esta Mac: evaluar.py 46 PASA, 0 FALLA, 1 OMITIDA (K1, sin FluidSynth); verificar.cjs V1-V30 todo PASA (Chromium de Playwright + axe, webm), con un AVISO de captura (pagina-768.png);
+node --test 13 PASA; camino real GISTEMP 05 -> 06 -> 07 -> 08 de punta a punta con el año sobre el video.
+NO comprobado: Linux y Windows (la ruta "opencv mp4v" no cambia, pero no se ejecutó); FluidSynth (K1); el CI en GitHub; Safari, iOS y Firefox para el modo en vivo; lector de pantalla y teléfono reales; escucha humana.
+NO hecho (queda en docs/REVISION_Y_MEJORAS.md): versión en inglés, "Adivina el año", descarga MIDI, tercera pista, CSP, cargar el 3D solo en equipos capaces, partir evaluar.py, limpieza de ramas e historial,
+la guía por voz (rama juan/guia-voz-ia-v2) y la decisión sobre el paneo de GISTEMP. No se publicó la web ni se hizo push.
+
+RONDA 40 - lo que pide el enunciado: «Explorar el mapa» en tiempo real (rama mejoras/ronda-38)   (2026-11-15)
+Se leyó el enunciado oficial («The Earth Information Jukebox», spaceappschallenge.org/2026/challenges/the-earth-information-jukebox/). Pide una experiencia donde se elige una visualización del EIC y se oye
+su sonificación, generada en tiempo real a partir de los fotogramas; nombra la exploración interactiva, y la accesibilidad (lector de pantalla, respuesta táctil, texto descriptivo) como tema central.
+Con ese criterio se eligió UNA función nueva y se descartaron las demás ideas (juego de adivinar, «tu año», descargas, kit docente): no las pide el enunciado.
+1. «Explorar el mapa» (web/js/explorar.js): con la pista en pausa, el cursor o las flechas mueven una mira sobre el fotograma; se lee el color (3x3 px de una copia de 256x128), se busca en la barra de
+   colores de la pista y suena la nota de la misma escala, al instante. Un texto (role=status) dice latitud, longitud, fecha y valor. Esc sale; si la pista vuelve a sonar, se sale solo.
+   GISTEMP usa distancia de color (como 05 en modo lab); el mar usa el matiz con brillo y saturación mínimos (como 05 en modo matiz): la tierra gris da «sin dato».
+   Vibración de 12 ms al cambiar de nota donde el navegador la permite (navigator.vibrate; no existe en iPhone).
+2. herramientas/exportar_paleta.py: escribe web/assets/<id>_paleta.json (64 colores de vmin a vmax) desde la MISMA barra y el mismo rango que usa 05 (config_eic.json, config_sst.json).
+   La barra del mar (sst_ecco2_cbar.png) se descargó de SVS 3912.
+3. Prueba V31: 80 puntos del mapa de GISTEMP dan de media entre -0,28 y -0,33 °C hacia 1898 (según el fotograma exacto) y +1,17 °C en 2023 (se exige una diferencia > 0,8 °C); pista en pausa, voz sonando, texto con latitud y °C, flechas que mueven
+   la mira y no la pista, Esc devuelve el foco al botón, axe sin violaciones en la rocola. Probado a mano: en el mar, los continentes dan «sin dato» y el ecuador unos 26-27 °C.
+4. README: tabla «Cómo respondemos al reto» (cada frase del enunciado y dónde se cumple) y la guía del jurado con el paso nuevo.
+Límites: el valor de un punto se lee de un video comprimido y reducido, así que es aproximado (la web dice «según el color» en el mar); los valores saturan en ±2 °C, el rango de la barra.
+NO comprobado: pantallas táctiles reales (el arrastre con el dedo y la vibración), lector de pantalla real, Safari.
+
+RONDA 41 - auditoría de las rondas 38 y 39 y pulido (rama mejoras/ronda-38)   (2026-11-15)
+Se revisó cada cambio propio (diff contra master, sin contar la rama del modo en vivo). Lo comprobado y lo corregido:
+1. 08 con el respaldo de imágenes: se regeneró el demo sintético con el código actual y se miraron los rótulos en 0,3 s, 7,3 s y 19,6 s: «media = 0,112», «0,299» y «0,633», los esperados para ese fotograma
+   (el último, en el límite entre dos rótulos). Video a 20 fotogramas/s, primer pts 0,100 s. En GISTEMP el año sobre el mapa coincide con el rasgo de ese instante (1978 en 20,0 s; 1981 empieza en 20,07 s).
+2. Explorar el mapa: (a) la nota ya no suena para siempre: se apaga sola 2,5 s después de dejar quieta la mira; (b) silencio al sacar el cursor del mapa, al perder el foco y al ocultar la pestaña;
+   (c) el botón cambia de texto («Explorar el mapa» / «Dejar de explorar») y ya no lleva además aria-pressed, que un lector de pantalla leía como «Dejar de explorar, pulsado».
+   Probado con toque en una pantalla de 390 px (emulada): la mira sigue al dedo, texto y nota correctos, sin desborde; controles de 44 px de alto y casillas de 27 px.
+3. Antes y después: se quitó una rama de código que nunca se ejecutaba.
+4. Imagen para compartir: la primera captura (1200x630 directa) no mostraba el título «Escucha la Tierra». Se rehízo desde 1600x840 reducida a 1200x630: ahora se ven título, globo, cifras y gráfico (101 KB).
+5. web/README: «Qué tiene» y la tabla de archivos nombran Explorar el mapa, Antes y después y js/explorar.js.
+Revisado sin cambios: video_io.py (en Linux y Windows se sigue usando «opencv mp4v»; el sondeo solo cambia de método donde ese falla), evaluar.py (SystemExit y OMITIDA por B1), validar_gistemp.py,
+exportar_paleta.py, V29-V31, el flujo de CI (sounddevice se importa solo al reproducir, no hace falta PortAudio) y los textos de la web.
+Riesgos que quedan anotados: el CI no se ha ejecutado en GitHub; tras publicar, un visitante que ya tenía la web abierta puede mezclar archivos viejos y nuevos hasta 10 min (caché de GitHub Pages);
+el valor de un punto del mapa es aproximado (video comprimido); nada de lo táctil se probó en un teléfono real.
+Comprobado: verificar.cjs V1-V31 todo PASA; evaluar.py 46 PASA, 0 FALLA, 1 OMITIDA (sin cambios de Python en esta ronda).
+
+RONDA 42 - primer fallo del CI: coma final de ffprobe (rama mejoras/ronda-38)   (2026-11-15)
+Primera ejecución de .github/workflows/pruebas.yml: Ubuntu 46 PASA + K1 con FluidSynth y la web V1-V31 en verde; macos-latest (arm64) 45 PASA, 1 FALLA: D1 con
+"ValueError: could not convert string to float: '4.093832,'". El ffprobe de ese equipo termina cada línea del CSV con una coma. Se quita la coma al leer en D1 (evaluar.py), en duracion() y
+alto_video() de 08 y en duracion() de exportar_web (duracion_real y cadencia ya lo hacían). Aquí: evaluar.py 46 PASA, 0 FALLA, 1 OMITIDA.
