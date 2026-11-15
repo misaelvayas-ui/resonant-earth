@@ -8,7 +8,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { interpretarComando, normalizar, buscarFecha, buscarPista, ejecutar, resumenSerie, guionRecorrido, valorDicho, ACCIONES_RECORRIDO, SUGERENCIAS,
-  elegirVozDe, fechaDicha, normalizarEN, TEXTOS, INTERFAZ, TONO_VOZ, VELOCIDAD_VOZ, AYUDA, AYUDA_EN } = require("../guia-voz.js");
+  elegirVozDe, calidadVoz, prepararParaVoz, fechaDicha, normalizarEN, TEXTOS, INTERFAZ, TONO_VOZ, VELOCIDAD_VOZ, AYUDA, AYUDA_EN } = require("../guia-voz.js");
 const SUGERENCIAS_ES = SUGERENCIAS.es;
 
 /* frase -> acción esperada. Incluye errores típicos del reconocimiento: sin tildes ni ñ, mayúsculas,
@@ -416,23 +416,54 @@ test("«repite» y «no entendí» sin IA repiten más despacio; las preguntas s
   assert.ok(!/ayuda/i.test(INTERFAZ.es.saludo + INTERFAZ.es.inicial) && INTERFAZ.es.saludo.split(/[.?!]/).filter((x) => x.trim()).length <= 2, "el saludo es corto y no recita la ayuda");
 });
 
-test("voz: elige sola una voz masculina según el idioma (británica en inglés), serena", () => {
+test("voz: elige sola la más natural (Natural u Online, luego Google, luego locales) y por país; sin tono grave", () => {
   const v = (name, lang, extra = {}) => ({ name, lang, ...extra });
-  const windows = [v("Microsoft Zira - English (United States)", "en-US", { default: true }), v("Microsoft David - English (United States)", "en-US"), v("Microsoft Hazel - English (United Kingdom)", "en-GB"),
-    v("Microsoft George - English (United Kingdom)", "en-GB"), v("Microsoft Helena - Spanish (Spain)", "es-ES"), v("Microsoft Pablo - Spanish (Spain)", "es-ES"), v("Microsoft Sabina - Spanish (Mexico)", "es-MX"), v("Microsoft Raul - Spanish (Mexico)", "es-MX")];
-  assert.equal(elegirVozDe(windows, "en").name, "Microsoft George - English (United Kingdom)");
-  assert.equal(elegirVozDe(windows, "es").name, "Microsoft Pablo - Spanish (Spain)");
-  const chrome = [v("Google US English", "en-US"), v("Google UK English Female", "en-GB"), v("Google UK English Male", "en-GB"), v("Google español", "es-ES"), v("Google español de Estados Unidos", "es-US")];
-  assert.equal(elegirVozDe(chrome, "en").name, "Google UK English Male");
-  assert.equal(elegirVozDe(chrome, "es").name, "Google español de Estados Unidos");          // sin voz masculina con nombre: una en español, no de España primero
-  const edge = [v("Microsoft Sonia Online (Natural) - English (United Kingdom)", "en-GB"), v("Microsoft Ryan Online (Natural) - English (United Kingdom)", "en-GB"), v("Microsoft Guy Online (Natural) - English (United States)", "en-US"),
-    v("Microsoft Dalia Online (Natural) - Spanish (Mexico)", "es-MX"), v("Microsoft Jorge Online (Natural) - Spanish (Mexico)", "es-MX"), v("Microsoft Luis Online (Natural) - Spanish (Ecuador)", "es-EC")];
-  assert.match(elegirVozDe(edge, "en").name, /Ryan/); assert.match(elegirVozDe(edge, "es").name, /Jorge/);
-  const mac = [v("Samantha", "en-US"), v("Daniel", "en-GB"), v("Karen", "en-AU"), v("Mónica", "es-ES"), v("Paulina", "es-MX"), v("Juan", "es-MX")];
-  assert.equal(elegirVozDe(mac, "en").name, "Daniel"); assert.equal(elegirVozDe(mac, "es").name, "Juan");
-  assert.equal(elegirVozDe([v("Microsoft David - English (United States)", "en-US"), v("Microsoft Zira", "en-US")], "en").name, "Microsoft David - English (United States)");   // sin británica: masculina de otro país
-  assert.equal(elegirVozDe([v("Samantha", "en-US"), v("Kate", "en-GB")], "en").name, "Kate");                                    // sin masculina: británica
-  assert.equal(elegirVozDe(windows, "en", "Microsoft Zira - English (United States)|en-US").name, "Microsoft Zira - English (United States)");   // la elegida a mano gana
+  // Edge: voces neuronales en línea. Español: Ecuador antes que México y España. Inglés: Estados Unidos antes que Reino Unido.
+  const edge = [v("Microsoft Helena - Spanish (Spain)", "es-ES"), v("Microsoft Elvira Online (Natural) - Spanish (Spain)", "es-ES"), v("Microsoft Dalia Online (Natural) - Spanish (Mexico)", "es-MX"),
+    v("Microsoft Luis Online (Natural) - Spanish (Ecuador)", "es-EC"), v("Microsoft Andrea Online (Natural) - Spanish (Ecuador)", "es-EC"),
+    v("Microsoft David - English (United States)", "en-US"), v("Microsoft Sonia Online (Natural) - English (United Kingdom)", "en-GB"), v("Microsoft Aria Online (Natural) - English (United States)", "en-US")];
+  assert.equal(elegirVozDe(edge, "es").name, "Microsoft Luis Online (Natural) - Spanish (Ecuador)");
+  assert.equal(elegirVozDe(edge, "en").name, "Microsoft Aria Online (Natural) - English (United States)");
+  assert.match(elegirVozDe(edge.filter((x) => x.lang !== "es-EC"), "es").name, /Dalia Online \(Natural\).*Mexico/);
+  assert.match(elegirVozDe(edge.filter((x) => !/es-(EC|MX)/.test(x.lang)), "es").name, /Elvira Online \(Natural\)/);        // una natural de España antes que una local
+  // Chrome: las de Google antes que las locales del sistema, aunque la local sea de un país preferido
+  const chrome = [v("Microsoft Sabina - Spanish (Mexico)", "es-MX"), v("Google español", "es-ES"), v("Google español de Estados Unidos", "es-US"),
+    v("Microsoft Zira - English (United States)", "en-US", { default: true }), v("Google UK English Female", "en-GB"), v("Google US English", "en-US")];
+  assert.equal(elegirVozDe(chrome, "es").name, "Google español");
+  assert.equal(elegirVozDe(chrome, "en").name, "Google US English");
+  // solo voces locales: por país; valen igual masculinas y femeninas
+  const windows = [v("Microsoft Zira - English (United States)", "en-US", { default: true }), v("Microsoft Hazel - English (United Kingdom)", "en-GB"),
+    v("Microsoft Helena - Spanish (Spain)", "es-ES"), v("Microsoft Sabina - Spanish (Mexico)", "es-MX")];
+  assert.equal(elegirVozDe(windows, "es").name, "Microsoft Sabina - Spanish (Mexico)");
+  assert.equal(elegirVozDe(windows, "en").name, "Microsoft Zira - English (United States)");
+  // macOS: nunca una voz de adorno, aunque sea la primera de la lista
+  const mac = [v("Albert", "en-US"), v("Bad News", "en-US"), v("Samantha", "en-US"), v("Daniel", "en-GB"), v("Eddy (español (México))", "es-MX"), v("Paulina", "es-MX"), v("Mónica", "es-ES")];
+  assert.equal(elegirVozDe(mac, "en").name, "Samantha"); assert.equal(elegirVozDe(mac, "es").name, "Paulina");
+  assert.equal(elegirVozDe([v("Albert", "en-US")], "en").name, "Albert");                                                    // si es la única, se usa
+  assert.deepEqual([calidadVoz(edge[1]), calidadVoz(chrome[1]), calidadVoz(windows[0]), calidadVoz(mac[0])], [3, 2, 1, 0]);
+  assert.equal(elegirVozDe(windows, "en", "Microsoft Hazel - English (United Kingdom)|en-GB").name, "Microsoft Hazel - English (United Kingdom)");   // la elegida a mano gana
+  assert.equal(elegirVozDe(edge, "es", "una que ya no existe|es-ES").name, "Microsoft Luis Online (Natural) - Spanish (Ecuador)");
   assert.equal(elegirVozDe(windows.filter((x) => x.lang.startsWith("es")), "en"), null); assert.equal(elegirVozDe([], "es"), null);
-  assert.equal(VELOCIDAD_VOZ, 0.95); assert.ok(TONO_VOZ < 1 && TONO_VOZ >= 0.7);
+  assert.equal(VELOCIDAD_VOZ, 1); assert.equal(TONO_VOZ, 1);
+});
+
+test("voz: el texto se prepara antes de hablar (grados, signos, años, meses, sin símbolos, con pausas)", () => {
+  const es = (t) => prepararParaVoz(t, "es"), en = (t) => prepararParaVoz(t, "en");
+  assert.equal(es("1898: −0,36 °C respecto al promedio de 1951–1980."), "1898: menos 0,36 grados respecto al promedio de 1951 a 1980.");
+  assert.equal(es("Sube +1,06 °C. El 57 % del mapa."), "Sube más 1,06 grados. El 57 por ciento del mapa.");
+  assert.equal(es("Subió 1 °C y luego 2°C."), "Subió 1 grado y luego 2 grados.");
+  assert.equal(es("mar 2007: índice 22,44, +0,47 respecto a la media."), "marzo de 2007: índice 22,44, más 0,47 respecto a la media.");
+  assert.equal(es("de feb 2008 a dic. 2008"), "de febrero de 2008 a diciembre de 2008");
+  assert.equal(es("Temperatura del mar 2007–2008"), "Temperatura del mar 2007 a 2008");                    // «mar» de océano no es marzo
+  assert.equal(es("Di «reproduce» o **pausa** (cuando quieras)."), "Di reproduce o pausa, cuando quieras.");
+  assert.equal(es("La guía — tu ayuda — responde. Pistas: • una → dos"), "La guía, tu ayuda, responde. Pistas: una, dos");
+  assert.equal(es("Primera línea\nSegunda línea"), "Primera línea. Segunda línea");
+  assert.equal(es("Hola.Sigue,bien 🌍"), "Hola. Sigue, bien");
+  assert.equal(es("año 1990 y 22,44"), "año 1990 y 22,44");                                                // años y decimales quedan para que la voz los lea natural
+  assert.equal(en("2023: +1.06 °C above the 1951–1980 average (the warmest)."), "2023: plus 1.06 degrees above the 1951 to 1980 average, the warmest.");
+  assert.equal(en("Mar 2007: index 22.44, −0.3 % lower"), "March 2007: index 22.44, minus 0.3 percent lower");
+  assert.equal(en("It may 2008 times"), "It May 2008 times");                                               // límite conocido: «may» + año se toma por mayo
+  assert.equal(en("Say “play” or “pause”. It rose 1 °C."), "Say play or pause. It rose 1 degree.");
+  assert.equal(es(""), ""); assert.equal(es(null), "");
+  for (const t of ["−0,36 °C", "57 %", "«hola»", "a → b"]) assert.ok(!/[°%«»→−]/.test(es(t)), t);
 });

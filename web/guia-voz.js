@@ -652,34 +652,75 @@
     }
   }
 
-  /* ================================================================== C0. qué voz usa la guía */
+  /* ================================================================== C0. qué voz usa la guía y cómo prepara el texto */
 
-  /* Nombres de voces masculinas que traen Windows, Edge, Chrome, macOS, iOS y Android, por orden de preferencia.
-     Inglés: primero británicas. Español: cualquier país. La lista es de nombres de voces del sistema. */
-  const VOCES_PREFERIDAS = {
-    en: [/\bgeorge\b/i, /\bryan\b/i, /google uk english male/i, /\bdaniel\b/i, /\b(thomas|oliver|arthur|alfie|elliot|ethan|noah)\b/i,
-      /\b(david|mark|guy|james|andrew|brian|christopher|eric|roger|steffan|william|liam|alex|fred|tom|aaron|reed|eddy)\b/i],
-    es: [/\bpablo\b/i, /\bra[uú]l\b/i, /\bjorge\b/i, /\b([aá]lvaro|alonso|luis|diego|carlos|enrique|andr[eé]s|miguel|tom[aá]s|gonzalo|mateo|emilio|el[ií]as|dar[ií]o|juan|rodrigo|sebasti[aá]n|eddy|reed)\b/i],
-  };
-  const TONO_VOZ = 0.85, VELOCIDAD_VOZ = 0.95;        // algo más grave y un poco más despacio: voz serena
+  /* Voces de adorno o de baja calidad que traen algunos sistemas (macOS sobre todo): nunca se eligen solas. */
+  const VOCES_RARAS = /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|junior|ralph|fred|kathy|eloquence|eddy|flo|grandma|grandpa|reed|rocko|sandy|shelley|hysterical|pipe organ|princess)\b/i;
+  /* Países preferidos por idioma (de más a menos). Las demás variantes valen, pero después. */
+  const PAISES_VOZ = { es: ["es-ec", "es-mx", "es-es", "es-us", "es-co", "es-419"], en: ["en-us", "en-gb"] };
+  const TONO_VOZ = 1, VELOCIDAD_VOZ = 1;              // voz tal cual la da el navegador: ni más grave ni más lenta
 
-  /* voces = las del navegador ({ name, lang, default }). Devuelve la mejor para el idioma, o null si no hay ninguna.
+  /* Qué tan natural suena una voz, por su nombre: 3 = neuronal en línea (Edge: «Natural», «Online»), 2 = de Google
+     (Chrome), 1 = instalada en el sistema, 0 = de adorno. */
+  function calidadVoz(v) {
+    const nombre = String((v && v.name) || "");
+    if (VOCES_RARAS.test(nombre)) return 0;
+    if (/natural|online|neural/i.test(nombre)) return 3;
+    if (/^google\b/i.test(nombre)) return 2;
+    return 1;
+  }
+  /* voces = las del navegador ({ name, lang }). Devuelve la más natural para el idioma, o null si no hay ninguna.
+     Orden: primero las «Natural» u «Online», luego las de Google, luego las locales; dentro de cada grupo, por país
+     (español: Ecuador, México, España…; inglés: Estados Unidos, Reino Unido). Masculinas y femeninas valen igual.
      preferida = "nombre|idioma" elegida a mano en las opciones (gana siempre que exista). */
   function elegirVozDe(voces, idioma = "es", preferida = "") {
-    const del = (voces || []).filter((v) => v && String(v.lang).toLowerCase().replace("_", "-").startsWith(idioma));
-    if (!del.length) return null;
     const pais = (v) => String(v.lang).toLowerCase().replace("_", "-");
+    const del = (voces || []).filter((v) => v && pais(v).startsWith(idioma));
+    if (!del.length) return null;
     const aMano = del.find((v) => `${v.name}|${v.lang}` === preferida);
     if (aMano) return aMano;
-    const mujer = (v) => /\bfemale\b|\bmujer\b|\bfemenin/i.test(v.name), hombre = (v) => /\bmale\b|\bhombre\b|\bmasculin/i.test(v.name) && !mujer(v);
-    const grupos = idioma === "en" ? [del.filter((v) => pais(v) === "en-gb"), del] : [del];
-    for (const grupo of grupos) {
-      for (const patron of VOCES_PREFERIDAS[idioma] || []) { const v = grupo.find((x) => patron.test(x.name) && !mujer(x)); if (v) return v; }
-      const v = grupo.find(hombre);
-      if (v) return v;
+    const paises = PAISES_VOZ[idioma] || [];
+    const puesto = (v) => { const i = paises.indexOf(pais(v)); return i < 0 ? paises.length : i; };
+    let mejor = null, nota = -1;
+    for (const v of del) {                              // a igual nota, gana la primera de la lista del navegador
+      const n = calidadVoz(v) * 100 - puesto(v);
+      if (n > nota) { mejor = v; nota = n; }
     }
-    if (idioma === "en") return del.find((v) => pais(v) === "en-gb") || del.find((v) => v.default) || del[0];
-    return del.find((v) => pais(v) === "es-ec") || del.find((v) => !/^es(-es)?$/.test(pais(v))) || del.find((v) => v.default) || del[0];
+    return mejor;
+  }
+
+  const MESES_ABREV = {
+    es: { ene: "enero", feb: "febrero", mar: "marzo", abr: "abril", may: "mayo", jun: "junio", jul: "julio", ago: "agosto", sep: "septiembre", sept: "septiembre", oct: "octubre", nov: "noviembre", dic: "diciembre" },
+    en: { jan: "January", feb: "February", mar: "March", apr: "April", may: "May", jun: "June", jul: "July", aug: "August", sep: "September", sept: "September", oct: "October", nov: "November", dec: "December" },
+  };
+  /* Deja el texto listo para decirlo en voz alta: lo que se ve en el subtítulo no cambia.
+     «°C» se dice «grados», los signos se dicen con palabras, los rangos de años llevan «a», los meses abreviados se
+     dicen enteros, no se leen símbolos, y los paréntesis y las rayas se vuelven pausas (comas). */
+  function prepararParaVoz(texto, idioma = "es") {
+    const en = idioma === "en";
+    const meses = MESES_ABREV[en ? "en" : "es"];
+    let t = String(texto == null ? "" : texto);
+    t = t.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, " ");                      // emojis y adornos
+    t = t.replace(/[«»“”"*_#`~|<>\[\]{}]/g, "").replace(/[•·→←↑↓]/g, ", ");                              // símbolos que no se leen
+    t = t.replace(/\s*\n+\s*/g, ". ");
+    t = t.replace(/(\d{4})\s*[–—-]\s*(\d{4})/g, en ? "$1 to $2" : "$1 a $2");                            // 1880–2023
+    t = t.replace(/(^|[\s(:;,])[−-]\s?(\d)/g, en ? "$1minus $2" : "$1menos $2");                        // −0,36
+    t = t.replace(/(^|[\s(:;,])\+\s?(\d)/g, en ? "$1plus $2" : "$1más $2");                             // +0,47
+    t = t.replace(/(^|[^\d.,])1\s?°\s?C\b/g, en ? "$11 degree" : "$11 grado");                           // 1 °C
+    t = t.replace(/\s?°\s?C\b/g, en ? " degrees" : " grados").replace(/\s?°/g, en ? " degrees" : " grados");
+    t = t.replace(/(\d)\s?%/g, en ? "$1 percent" : "$1 por ciento");
+    t = t.replace(/\bCO2\b/g, en ? "C O 2" : "C O 2");
+    t = t.replace(/(?<!\b(?:del|el|al) )\b([A-Za-zé]{3,4})\.? (\d{4})\b/gi, (todo, mes, anio) => {                            // «mar 2007» -> «marzo de 2007»
+      const m = meses[mes.toLowerCase()];
+      return m ? (en ? `${m} ${anio}` : `${m} de ${anio}`) : todo;
+    });
+    if (!en) t = t.replace(/\bp\. ?ej\./gi, "por ejemplo").replace(/\betc\./gi, "etcétera");
+    t = t.replace(/\s*[(]\s*/g, ", ").replace(/\s*[)]\s*([.,;:!?])/g, "$1").replace(/\s*[)]\s*/g, ", ");   // paréntesis = pausa
+    t = t.replace(/\s+[–—-]\s+/g, ", ").replace(/[–—]/g, ", ");                                          // rayas = pausa
+    t = t.replace(/\s*\/\s*/g, en ? " or " : " o ");
+    t = t.replace(/([.,;:!?])(?=[^\s\d.,;:!?])/g, "$1 ");                                                // espacio tras el signo: la voz hace la pausa
+    t = t.replace(/\s+([.,;:!?])/g, "$1").replace(/,\s*,/g, ",").replace(/,\s*([.;:!?])/g, "$1").replace(/([.;:!?])\s*,\s*/g, "$1 ").replace(/\s+/g, " ").trim();
+    return t.replace(/^[,;:]\s*/, "");
   }
 
   /* ================================================================== D. la esfera, la tarjeta y la conexión (B y C van dentro) */
@@ -702,7 +743,7 @@
       idioma: "Idioma (Language)",
       lector: "Uso un lector de pantalla (NVDA, JAWS, VoiceOver, TalkBack). La guía responderá solo por escrito, para que no se mezclen dos voces.",
       tecla: "Usar la tecla H para hablar",
-      seguir: "Escuchar de nuevo después de cada respuesta", voz: "Voz", vozAuto: "Automática", velocidad: "Velocidad", probar: "Probar la voz", prueba: "Esta es la voz de la guía.",
+      seguir: "Escuchar de nuevo después de cada respuesta", voz: "Voz", vozAuto: "La más natural", velocidad: "Velocidad", probar: "Probar la voz", prueba: "Esta es la voz de la guía.",
       velocidades: ["lenta", "normal", "rápida"],
       privacidad: "El micrófono solo se abre al pulsar la esfera o después de una respuesta. Tu navegador convierte la voz en texto; esta página no la guarda.",
       saltar: "Saltar a la guía por voz",
@@ -734,7 +775,7 @@
       idioma: "Language (Idioma)",
       lector: "I use a screen reader (NVDA, JAWS, VoiceOver, TalkBack). The guide will answer in writing only, so two voices do not overlap.",
       tecla: "Use the H key to talk",
-      seguir: "Listen again after each answer", voz: "Voice", vozAuto: "Automatic", velocidad: "Speed", probar: "Test the voice", prueba: "This is the guide's voice.",
+      seguir: "Listen again after each answer", voz: "Voice", vozAuto: "Most natural", velocidad: "Speed", probar: "Test the voice", prueba: "This is the guide's voice.",
       velocidades: ["slow", "normal", "fast"],
       privacidad: "The microphone only opens when you press the sphere or after an answer. Your browser turns your voice into text; this page does not store it.",
       saltar: "Skip to the voice guide",
@@ -888,7 +929,9 @@
       if (!sintesis) return;
       voces = sintesis.getVoices();
       const guardada = (leer().voces || {})[guia.idioma] || "auto";
-      ui.voz.replaceChildren(new ventana.Option(u().vozAuto, "auto"), ...vocesIdioma().map((v) => new ventana.Option(`${v.name} (${v.lang})`, `${v.name}|${v.lang}`)));
+      const mejor = elegirVozDe(voces, guia.idioma);    // la más natural ya viene elegida; el nombre se ve en la primera opción
+      const lista = vocesIdioma().slice().sort((a, b) => calidadVoz(b) - calidadVoz(a));
+      ui.voz.replaceChildren(new ventana.Option(mejor ? `${u().vozAuto}: ${mejor.name}` : u().vozAuto, "auto"), ...lista.map((v) => new ventana.Option(`${v.name} (${v.lang})`, `${v.name}|${v.lang}`)));
       ui.voz.value = [...ui.voz.options].some((o) => o.value === guardada) ? guardada : "auto";
       pintarEstado();
     }
@@ -909,7 +952,7 @@
       sintesis.cancel();
       if (alCallar) { const fin = alCallar; alCallar = null; fin(false); }
       const voz = elegirVoz(), en = guia.idioma === "en";
-      const hablado = texto.replace(/[−-](\d)/g, en ? "minus $1" : "menos $1").replace(/\+(\d)/g, en ? "plus $1" : "más $1").replace(/[«»“”]/g, "");   // signos que la voz se salta
+      const hablado = prepararParaVoz(texto, guia.idioma) || texto;   // «°C» -> «grados», signos con palabras, sin símbolos, con pausas
       // frases cortas (Chrome corta las muy largas). El punto de un decimal ("1.06") no termina la frase.
       const frases = (hablado.match(/.+?(?:[.!?]+(?=\s|$)|$)/g) || [hablado]).map((f) => f.trim()).filter(Boolean);
       guia.frases = [];                                              // se guardan: algunos navegadores las descartan a medias
@@ -1277,6 +1320,6 @@
   }
 
   return { interpretarComando, interpretarES, interpretarEN, normalizar, normalizarEN, palabrasANumeros, palabrasANumerosEN, buscarFecha, buscarPista, leerFecha,
-    fechaDicha, resumenSerie, guionRecorrido, valorDicho, elegirVozDe, ACCIONES_RECORRIDO, SUGERENCIAS, TEXTOS: L, INTERFAZ: U, TONO_VOZ, VELOCIDAD_VOZ,
+    fechaDicha, resumenSerie, guionRecorrido, valorDicho, elegirVozDe, calidadVoz, prepararParaVoz, ACCIONES_RECORRIDO, SUGERENCIAS, TEXTOS: L, INTERFAZ: U, TONO_VOZ, VELOCIDAD_VOZ,
     ESPERA_SEGUIR_MS, ESPERA_AVISO_MS, SILENCIO_MS, HABLA_MAX_MS, ejecutar, montar, AYUDA, AYUDA_EN };
 });

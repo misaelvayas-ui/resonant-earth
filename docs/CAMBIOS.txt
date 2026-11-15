@@ -1124,3 +1124,17 @@ tiempo), que ya fallaba antes de esta ronda con el código anterior; no es de la
 NO probado: micrófono real (el modo continuo del reconocimiento se probó con un micrófono de mentira), voces reales,
 lectores de pantalla reales, Firefox, Safari, teléfonos.
 No hace falta volver a publicar el servicio por esta fase si ya se publicó con la lista de modelos nueva.
+
+RONDA 38 - guía por voz, fase 2: voz natural   (2026-11-15)
+Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit a704f88 (fase 1).
+Tocados: web/guia-voz.js, web/pruebas/guia-voz.test.js, web/README.md.
+5. elegirVozDe() ya no busca voces masculinas por nombre: ordena por naturalidad (calidadVoz: «Natural», «Online» o «Neural»
+   = 3; Google = 2; locales = 1; voces de adorno = 0) y, a igual naturalidad, por país (es: Ecuador, México, España, EE. UU.;
+   en: EE. UU., Reino Unido). Velocidad 1 y tono 1. El selector muestra «La más natural: (nombre)» y la lista ordenada.
+   prepararParaVoz() arregla el texto antes de hablar: grados, menos y más, por ciento, rangos de años con «a», meses
+   abreviados enteros, sin símbolos ni emojis, paréntesis y rayas como pausas. «Más despacio» pasa a ser velocidad × 0,8 = 0,8.
+Verificado: node --test web (25); navegador 133 comprobaciones (voz elegida, velocidad 1 y tono 1 en español e inglés, axe
+0 violaciones, sin voces dobles con lector); 5 expectativas del guion de prueba eran de la voz anterior y se actualizaron.
+NO probado: cómo suenan las voces reales de cada navegador (la elección se probó con listas de nombres de Edge, Chrome,
+Windows y macOS). Límite conocido: en inglés, «may 2008» se lee como el mes de mayo.
+No hace falta volver a publicar el servicio por esta fase.
