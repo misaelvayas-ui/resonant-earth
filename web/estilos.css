@@ -167,6 +167,8 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 6px; border: 1px solid
 #modo-ayuda, #rasgos-ayuda { margin-top: calc(-1 * var(--e-2)); }
 .volumen { font-size: var(--t-chico); color: var(--tinta-2); }
 input[type="range"], input[type="checkbox"] { accent-color: var(--acento); }
+input[type="checkbox"] { width: 1.5rem; height: 1.5rem; flex: none; }
+input[type="range"] { min-height: 1.5rem; }
 #volumen { width: 120px; }
 #avance { width: 100%; margin: 0; }
 .grafico-pista { border: 1px solid var(--linea); border-radius: var(--r-control); padding: var(--e-3); }

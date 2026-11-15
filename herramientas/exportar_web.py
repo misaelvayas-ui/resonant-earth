@@ -21,7 +21,7 @@ from scipy.io import wavfile
 SEG_POR_FOTOGRAMA = 0.5            # igual que en 06_rasgos_a_audio.py
 PISTAS = {"gistemp_1880_2023": "gistemp", "sst_ecco2_2007_2008": "sst"}
 VIDEOS = {"gistemp_1880_2023": "2023GISTEMP_Map_SOS.mp4", "sst_ecco2_2007_2008": "ecco2_sst_flow.mp4"}   # video original de cada pista
-MAX_MB = 25
+MAX_MB = 5          # cada pista se descarga entera antes de sonar: que pese poco (ronda 38)
 VENTANA = 0.5                      # s
 PISO_DB = -45.0                    # solo se comparan las ventanas con más señal que esto (en las casi mudas el AAC dominaría)
 TOL_RMS_DB, TOL_BALANCE_DB = 1.5, 3.0
@@ -89,7 +89,7 @@ def crear_mp4(video, wav, salida, ancho=1024, alto=512):
     """MP4 de la web: el video estirado al largo del audio, escalado, con ese audio. Devuelve (MB, crf)."""
     factor = duracion(wav) / duracion(video)
     filtro = f"scale={ancho}:{alto}" if 0.99 <= factor <= 1.01 else f"setpts=PTS*{factor:.6f},scale={ancho}:{alto}"
-    for crf in (28, 30, 32, 36):
+    for crf in (28, 30, 33, 36, 40):
         ejecutar(["ffmpeg", "-y", "-v", "error", "-i", video, "-i", wav, "-map", "0:v:0", "-map", "1:a:0", "-vf", filtro,
                   "-c:v", "libx264", "-preset", "slow", "-crf", str(crf), "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k",
                   "-shortest", "-movflags", "+faststart", salida])

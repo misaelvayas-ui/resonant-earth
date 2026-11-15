@@ -183,7 +183,9 @@ export async function elegir(id, opciones = {}) {
 }
 
 export async function cambiar() {
-  const otra = pistas.find((x) => !actual || x.id !== actual.id);
+  // la siguiente de la lista, en ciclo (sirve con 2 pistas o con más)
+  const i = actual ? pistas.findIndex((x) => x.id === actual.id) : -1;
+  const otra = pistas[(i + 1) % pistas.length];
   const sonaba = audio.estado().sonando;
   await elegir(otra.id, { reproducir: sonaba });
 }

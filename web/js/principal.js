@@ -32,7 +32,8 @@ cargarEquipo().then((eq) => {
     const h = document.createElement("h3"); h.textContent = p.nombre;
     const c = document.createElement("p"); c.className = "carrera"; c.textContent = p.carrera;
     const a = document.createElement("p"); a.textContent = p.aporte;
-    li.append(h, c, a);
+    li.append(h, c);
+    if (p.aporte) li.append(a);                // sin aporte escrito no se muestra nada (nunca un texto de relleno)
     ul.appendChild(li);
   }
 }).catch(() => { $("lista-equipo").textContent = "No pude leer equipo.json."; });

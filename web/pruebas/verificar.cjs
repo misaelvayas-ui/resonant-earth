@@ -21,6 +21,11 @@ function informar(id, estado, texto) {
   if (estado === "FALLA") fallas++;
   console.log(`[${estado}] ${id} ${texto}`);
 }
+/* Una captura que falla (página muy alta, sin GPU) es un aviso: no debe esconder las comprobaciones que siguen. */
+async function captura(pagina, opciones) {
+  try { await pagina.screenshot(opciones); }
+  catch (e) { console.log(`[AVISO] no se pudo capturar ${path.basename(opciones.path)}: ${String(e.message).split("\n")[0]}`); }
+}
 const comprobar = (id, ok, texto) => informar(id, ok ? "PASA" : "FALLA", texto);
 
 async function nuevaPagina(browser, opciones, peticiones) {
@@ -87,7 +92,7 @@ async function desplazarTodo(page) {
     const b = await page.evaluate(() => window.__web.globo().rotacionY);
     comprobar("V12", Math.abs(b - a) > 0.01, `rotacionY ${a.toFixed(4)} -> ${b.toFixed(4)} en 1,5 s`);
   }
-  await page.screenshot({ path: path.join(carpeta, "heroe-1440.png") });
+  await captura(page, { path: path.join(carpeta, "heroe-1440.png") });
 
   // V6 teclado
   await page.evaluate(() => { window.scrollTo({ top: 0, behavior: "instant" }); document.activeElement && document.activeElement.blur(); });
@@ -121,7 +126,7 @@ async function desplazarTodo(page) {
   comprobar("V8", fechasG.includes(fecha) && fecha !== fechasG[0] && texto.includes("°C"), `fecha «${fecha}»; texto «${texto}»`);
   await page.evaluate(() => document.querySelector(".rocola-rejilla").scrollIntoView({ behavior: "instant" }));
   await esperar(500);
-  await page.screenshot({ path: path.join(carpeta, "rocola-1440.png") });
+  await captura(page, { path: path.join(carpeta, "rocola-1440.png") });
 
   // V9 avance y gráfico
   await page.evaluate(() => { const a = document.getElementById("avance"); a.value = 27; a.dispatchEvent(new Event("input", { bubbles: true })); });
@@ -155,7 +160,7 @@ async function desplazarTodo(page) {
   // V15 capturas de página completa (1440)
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await desplazarTodo(page);
-  await page.screenshot({ path: path.join(carpeta, "pagina-1440.png"), fullPage: true });
+  await captura(page, { path: path.join(carpeta, "pagina-1440.png"), fullPage: true });
 
   // V2 axe 1440
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
@@ -169,7 +174,7 @@ async function desplazarTodo(page) {
     await esperar(400);
     const r = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
     if (r[0] > r[1]) desbordes.push(`${w}px: ${r[0]}`);
-    if (w === 768) { await desplazarTodo(page); await page.screenshot({ path: path.join(carpeta, "pagina-768.png"), fullPage: true }); }
+    if (w === 768) { await desplazarTodo(page); await captura(page, { path: path.join(carpeta, "pagina-768.png"), fullPage: true }); }
   }
   comprobar("V3", desbordes.length === 0, desbordes.length ? "desborde horizontal en " + desbordes.join(", ") : "sin desborde horizontal a 360, 390, 768, 1024 y 1440 px");
   await ctx.close();
@@ -178,10 +183,10 @@ async function desplazarTodo(page) {
   const mov = await nuevaPagina(browser, { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await mov.page.goto(url, { waitUntil: "load" });
   await esperar(2500);
-  await mov.page.screenshot({ path: path.join(carpeta, "heroe-390.png") });
+  await captura(mov.page, { path: path.join(carpeta, "heroe-390.png") });
   const ax2 = await new AxeBuilder({ page: mov.page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
   await desplazarTodo(mov.page);
-  await mov.page.screenshot({ path: path.join(carpeta, "pagina-390.png"), fullPage: true });
+  await captura(mov.page, { path: path.join(carpeta, "pagina-390.png"), fullPage: true });
   await mov.ctx.close();
   const resumen = (r) => r.violations.map((v) => `${v.id}(${v.nodes.length}): ${v.nodes[0].target.join(" ")}`).join("; ");
   comprobar("V2", ax1.violations.length === 0 && ax2.violations.length === 0,
@@ -233,7 +238,7 @@ async function desplazarTodo(page) {
   const unaLinea = geo.altos.every((h) => h < 40);
   comprobar("V22", unaLinea && !geo.solapa && geo.fuera <= 1,
     `1118 px: altos de los enlaces ${geo.altos.map((h) => Math.round(h)).join("/")} (una línea < 40); cifras ${Math.round(geo.fichaDer)} px vs tarjeta desde ${Math.round(geo.tarjetaIzq)} px; solapan: ${geo.solapa}`);
-  await pg.screenshot({ path: path.join(carpeta, "heroe-1118.png") });
+  await captura(pg, { path: path.join(carpeta, "heroe-1118.png") });
   const cifrasTab = await pg.$eval(".cifras", (e) => e.getAttribute("tabindex"));
 
   // V16: textos y cifras
@@ -344,7 +349,7 @@ async function desplazarTodo(page) {
   await mp.tap("#btn-menu");
   await esperar(300);
   const abierto = await mp.evaluate(() => ({ exp: document.getElementById("btn-menu").getAttribute("aria-expanded"), nav: getComputedStyle(document.getElementById("menu-principal")).display, enlaces: [...document.querySelectorAll("#menu-principal a")].filter((a) => a.offsetParent).map((a) => a.textContent.trim()) }));
-  await mp.screenshot({ path: path.join(carpeta, "menu-390.png") });
+  await captura(mp, { path: path.join(carpeta, "menu-390.png") });
   await mp.keyboard.press("Escape");
   const trasEsc = await mp.evaluate(() => ({ exp: document.getElementById("btn-menu").getAttribute("aria-expanded"), foco: document.activeElement.id }));
   await mp.tap("#btn-menu"); await esperar(200);
@@ -487,7 +492,7 @@ async function desplazarTodo(page) {
   await mv.page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await esperar(800);
   const axeM27 = await new AxeBuilder({ page: mv.page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
-  await mv.page.screenshot({ path: path.join(carpeta, "vivo-390.png") });
+  await captura(mv.page, { path: path.join(carpeta, "vivo-390.png") });
   await mv.ctx.close();
   const resumen27 = (r) => r.violations.map((v) => `${v.id}(${v.nodes.length}): ${v.nodes[0].target.join(" ")}`).join("; ");
   comprobar("V27", sst27.marcado === "original" && sst27.modo === "original" && sst27.rasgos === true && gis27.marcado === "vivo" && gis27.modo === "vivo" && gis27.activo && gis27.rasgos === false
@@ -495,7 +500,23 @@ async function desplazarTodo(page) {
     `SST: «${sst27.marcado}»; GISTEMP al volver: «${gis27.marcado}» (modo ${gis27.modo}); axe 1440 ${axe27.violations.length} ${resumen27(axe27)}, 390 ${axeM27.violations.length} ${resumen27(axeM27)}; 390 px: ancho ${mov27.ancho}/${mov27.ventana}`);
   await vi.ctx.close();
 
+  // V29: contenido de entrega (sin navegador): nada de textos de relleno y la cifra de pruebas al día
+  const raiz = path.join(__dirname, "..");
+  const equipo = fs.readFileSync(path.join(raiz, "equipo.json"), "utf8");
+  const relleno = (equipo.match(/\(editar\)|Nombre Apellido/g) || []).length;
+  const html = fs.readFileSync(path.join(raiz, "index.html"), "utf8");
+  const cifra = Number((html.match(/data-valor="(\d+)">\d+<\/span><span class="cifra-texto">pruebas/) || [])[1]);
+  const evaluar = fs.readFileSync(path.join(raiz, "..", "evaluar.py"), "utf8");
+  const nPruebas = (evaluar.slice(evaluar.indexOf("EVALUACIONES = [")).match(/^    \("[A-Z]\d+",/gm) || []).length;
+  comprobar("V29", relleno === 0 && cifra === nPruebas && /og:image/.test(html),
+    `textos de relleno en equipo.json: ${relleno}; cifra de pruebas en la portada ${cifra} = evaluar.py ${nPruebas}; og:image: ${/og:image/.test(html)}`);
+
   await browser.close();
   console.log(fallas ? `\n${fallas} FALLA` : "\nTodo PASA (o está OMITIDA)");
   process.exit(fallas ? 1 : 0);
-})().catch((e) => { console.error(e); process.exit(2); });
+})().catch((e) => {
+  // un error inesperado no borra lo ya informado: se dice dónde se cortó y se sale con código 2
+  console.error(e);
+  console.log(`\n[FALLA] el programa se interrumpió antes de terminar: ${String(e.message).split("\n")[0]} (${fallas} FALLA hasta aquí)`);
+  process.exit(2);
+});

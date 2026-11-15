@@ -23,6 +23,7 @@ const frec8 = new Uint8Array(FFT / 2);
 // límites de cada banda en el espectro (escala logarítmica); no cambian, se calculan una vez
 const LIMITES = Array.from({ length: N_BANDAS + 1 }, (_, k) => Math.floor(INDICE_MAX ** (k / N_BANDAS)));
 let nivel = 0;
+let tMuestra = 0;
 
 function avisar() {
   const e = estado();
@@ -186,9 +187,13 @@ export function fijarVolumen(v) {
 
 export function muestrear() {
   const sonando = analizador && medio && !medio.paused && !medio.ended;
+  const ahora = performance.now();
+  const dt = Math.min(0.25, (ahora - (tMuestra || ahora)) / 1000);
+  tMuestra = ahora;
   if (!sonando) {
-    nivel *= 0.9;
-    for (let i = 0; i < N_BANDAS; i++) bandas[i] *= 0.9;
+    const k = Math.pow(0.9, dt * 60);          // igual que x0,9 por cuadro a 60 cuadros/s, en cualquier equipo
+    nivel *= k;
+    for (let i = 0; i < N_BANDAS; i++) bandas[i] *= k;
     return;
   }
   analizador.getByteTimeDomainData(onda8);

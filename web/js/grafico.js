@@ -141,7 +141,7 @@ export async function iniciarMiniGrafico(contenedor, parrafo) {
     const pts = R.map((r, i) => [(i / (R.length - 1)) * w, y(r.media, h, m)]);
     const primero = R[0], ultimo = R[R.length - 1];
     const f = (n) => (n < 0 ? "−" : "+") + Math.abs(n).toFixed(2).replace(".", ",");
-    const texto = `De ${f(primero.media)} °C en ${primero.fecha} a ${f(ultimo.media)} °C en ${ultimo.fecha}, frente al promedio de 1951–1980`;
+    const texto = `Leído del mapa: de ${f(primero.media)} °C en ${primero.fecha} a ${f(ultimo.media)} °C en ${ultimo.fecha}, frente al promedio de 1951–1980`;
     contenedor.textContent = "";
     const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, role: "img", "aria-label": texto }, contenedor);
     if (doc.referencia != null) {

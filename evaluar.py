@@ -1142,6 +1142,17 @@ def l1():
     return r.returncode == 0 and cuenta.get("fail") == 0 and cuenta.get("pass", 0) > 0, f"node {version}: {cuenta.get('pass')} pruebas pasan, {cuenta.get('fail')} fallan"
 
 
+def m1():
+    """La pista de GISTEMP de la web sigue la serie oficial GISTEMP v4 (docs/datos_oficiales)."""
+    from herramientas import validar_gistemp as vg
+    if not os.path.exists(vg.TABLA):
+        return None, f"falta {vg.TABLA}"
+    c = vg.comparar()
+    return (c["r"] >= 0.98 and c["n"] >= 50 and abs(c["sesgo"]) < 0.2 and c["mas_frio_video"] == c["mas_frio_oficial"],
+            f"r = {c['r']:.4f} en {c['n']} años; sesgo {c['sesgo']:+.3f} °C; pendiente 1980+ {c['pendiente_video']:.3f} vs "
+            f"{c['pendiente_oficial']:.3f} °C/década; año más frío {c['mas_frio_video']} = {c['mas_frio_oficial']}")
+
+
 EVALUACIONES = [
     ("A1", "fase inicial = 0", "|x[0]| < 1e-12", a1),
     ("A2", "tono(440) → 440 Hz", "440 ± 1 Hz", a2),
@@ -1187,6 +1198,7 @@ EVALUACIONES = [
     ("K1", "06: dron continuo (FluidSynth)", "ninguna ventana de 0,5 s < -40 dB ni caída > 12 dB con notas ligadas", k1),
     ("K2", "exportar_web: audio web = rocola.wav", "acepta el MP4 de ese WAV; rechaza canales invertidos y 10 dB menos", k2),
     ("L1", "web: motor del modo en vivo (Node)", "node --test web/pruebas/motor.test.mjs: 0 fallan", l1),
+    ("M1", "GISTEMP: pista vs serie oficial", "r ≥ 0,98, ≥ 50 años, |sesgo| < 0,2 °C, mismo año más frío", m1),
     ("I1", "especificación modo en vivo", "fórmulas de la ESPEC = control.json: notas exactas, pan ± 0,02 (4 casos sintéticos + 2 pistas)", i1),
     ("E3", "06: respaldo numpy", "07 PASA, mismo .mid, 4,0 s, pico ≤ 0,85, aviso con apt si no hay fluidsynth", e3),
 ]
