@@ -4,11 +4,16 @@
 "use strict";
 
 import * as audio from "./audio.js";
-import { calcularSerie, aislar, eventos, nivelDron } from "./mapeo.js";
+import { calcularSerie, aislar, eventos, nivelDron, valorEn, primerEvento, NIVEL_VOZ, NIVEL_GOLPE, VEL_REF, GOLPE_A, GOLPE_D } from "./mapeo.js";
 
 // Constantes de timbre y de tiempo (el resto sale del mapeo; ver plan 3.6)
 const ARMONICOS = [1, 0.35, 0.15];            // forma «suave»: seno + 2.º y 3.er armónico, ÷ 1,5
 const TAU_PUERTA = 0.015;                     // s: entrada y salida del sonido sin clic
+const TAU_NOTA = 0.01;                        // s: glide de la voz (06:296)
+const TAU_GANANCIA = 0.08;                    // s: suavizado de la ganancia (06:297)
+const TICK = 25;                              // ms entre revisiones del planificador
+const HORIZONTE = 0.2;                        // s de pista que se programan por adelantado
+const HORIZONTE_OCULTA = 1.2;                 // con la pestaña oculta los temporizadores se frenan: se programa más lejos
 const TODOS = { tono: true, volumen: true, paneo: true, dron: true };
 
 let medio = null;
@@ -19,6 +24,11 @@ let rasgos = { ...TODOS };                    // casillas: qué rasgos modulan e
 let activo = false;                           // el modo seleccionado es «en vivo»
 let nodos = null;
 let abierta = false;                          // la puerta está abierta (suena)
+let sig = 0;                                  // siguiente golpe por programar
+let ancla = null;                             // { pos, ctx }: posición de la pista y reloj de audio en el mismo instante
+let intervalo = null;
+let programados = 0, ultimo = null;           // diagnóstico: golpes programados y el último { t, cuando }
+const pendientes = new Set();                 // golpes programados que aún no han empezado
 
 const hz = (nota) => 440 * 2 ** ((nota - 69) / 12);
 
@@ -94,20 +104,98 @@ function puerta(abrir) {
   nodos.puerta.gain.setTargetAtTime(abrir ? 1 : 0, nodos.ctx.currentTime, TAU_PUERTA);
 }
 
+/* Posición de la pista en este instante. currentTime avanza a saltos en algunos navegadores: entre dos anclas
+   se estima con el reloj de audio, y solo se vuelve a anclar si se separan más de 60 ms (salto, seeking, lag) */
+function reloj() {
+  const ahora = nodos.ctx.currentTime;
+  const est = ancla.pos + (ahora - ancla.ctx) * medio.playbackRate;
+  if (Math.abs(medio.currentTime - est) > 0.06) ancla = { pos: medio.currentTime, ctx: ahora };
+  return ancla.pos + (ahora - ancla.ctx) * medio.playbackRate;
+}
+
+function golpe(e, cuando) {
+  const { ctx, voz, gMelodia } = nodos;
+  const f = hz(e.nota), fin = cuando + GOLPE_A + GOLPE_D;
+  voz.frequency.setTargetAtTime(f, cuando, TAU_NOTA);
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = "triangle";
+  o.frequency.value = f;
+  g.gain.setValueAtTime(0, cuando);
+  g.gain.linearRampToValueAtTime((NIVEL_GOLPE * e.vel) / VEL_REF, cuando + GOLPE_A);
+  g.gain.linearRampToValueAtTime(0, fin);
+  o.connect(g).connect(gMelodia);
+  o.start(cuando);
+  o.stop(fin + 0.02);
+  const p = { o, g, cuando };
+  pendientes.add(p);
+  o.onended = () => { o.disconnect(); g.disconnect(); pendientes.delete(p); };
+  programados++;
+  ultimo = { t: e.t, cuando };
+}
+
+function tick() {
+  if (!activo || !nodos || medio.paused || medio.seeking || medio.readyState < 3) return;
+  const { ctx, gVoz, paneador } = nodos;
+  const pos = reloj(), vel = medio.playbackRate, ahora = ctx.currentTime, T = mapeo.seg_por_fotograma;
+  const horizonte = (document.hidden ? HORIZONTE_OCULTA : HORIZONTE) * vel;
+  while (sig < ev.length && ev[sig].t < pos + horizonte) {
+    const e = ev[sig++];
+    if (e.t < pos - 0.05) continue;                                   // quedó atrás
+    golpe(e, ahora + Math.max(0, (e.t - pos) / vel));
+  }
+  gVoz.gain.setTargetAtTime(NIVEL_VOZ * valorEn(serie, "ganancia", pos, T), ahora, TAU_GANANCIA);
+  if (paneador) paneador.pan.setTargetAtTime(valorEn(serie, "pan", pos, T), ahora, mapeo.paneo.suavizado_s);
+}
+
+function cancelarPendientes() {
+  const ahora = nodos.ctx.currentTime;
+  for (const p of pendientes) {
+    if (p.cuando <= ahora) continue;                                  // el que ya suena termina solo (< 0,13 s)
+    try { p.o.stop(); } catch (e) { /* ya parado */ }
+    p.o.disconnect(); p.g.disconnect();
+    pendientes.delete(p);
+  }
+}
+
+/* Vuelve a leer la posición del video: nada programado antes sirve y la voz recupera la nota que toca en ese punto */
+function resincronizar() {
+  cancelarPendientes();
+  const { ctx, voz } = nodos;
+  ancla = { pos: medio.currentTime, ctx: ctx.currentTime };
+  sig = primerEvento(ev, ancla.pos);
+  const vigente = ev[Math.max(0, sig - 1)];
+  voz.frequency.cancelScheduledValues(ctx.currentTime);
+  voz.frequency.setTargetAtTime(hz(vigente.nota), ctx.currentTime, TAU_NOTA);
+}
+
+function arrancar() {
+  resincronizar();
+  if (!intervalo) intervalo = setInterval(tick, TICK);
+  tick();
+  puerta(true);
+}
+
+function parar() {
+  clearInterval(intervalo);
+  intervalo = null;
+  if (nodos) { cancelarPendientes(); puerta(false); }
+}
+
 function alMedio(nombre) {
   if (!activo || !nodos) return;
-  if (nombre === "play" || nombre === "playing") puerta(true);
-  else puerta(false);                           // pause, ended
+  if (nombre === "play") arrancar();
+  else if (nombre === "playing") { if (!intervalo) arrancar(); }      // ya está en marcha tras "play": no se reprograma
+  else parar();                                                       // pause, ended
 }
 
 /* Selecciona o deja el modo «en vivo». Hay que haber llamado a audio.fijarModo("vivo") y a audio.desbloquear() en el gesto */
 export function activar(si) {
   if (si && (!mapeo || !crearNodos())) return false;
   activo = si;
-  if (nodos) puerta(si && !medio.paused && !medio.ended);
+  if (si && !medio.paused && !medio.ended) arrancar(); else parar();
   return true;
 }
 
 export function estado() {
-  return { listo: !!mapeo, activo, sonando: abierta, rasgos: { ...rasgos }, ampDron };
+  return { listo: !!mapeo, activo, sonando: abierta, programados, ultimo, rasgos: { ...rasgos }, ampDron };
 }
