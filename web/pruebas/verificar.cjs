@@ -1,4 +1,4 @@
-/* Pruebas de la web con Playwright y axe-core (V1 a V27).
+/* Pruebas de la web con Playwright y axe-core (V1 a V28).
    Uso:  NODE_PATH=<carpeta con node_modules> node web/pruebas/verificar.cjs <url> <carpeta de capturas>
    Imprime [PASA], [FALLA] u [OMITIDA] por comprobación y sale con código 1 si hay alguna [FALLA].
 
@@ -357,7 +357,7 @@ async function desplazarTodo(page) {
     `menú cerrado: nav ${cerrado.nav}; abierto: ${abierto.enlaces.join(", ")}; Esc -> aria-expanded ${trasEsc.exp}, foco en #${trasEsc.foco}; al elegir -> ${trasElegir.exp}, sección a ${trasElegir.y} px; carrusel de cifras enfocable: ${cifras390}`);
   await m3.ctx.close();
 
-  // ---- Sonido en vivo (V24 a V27) ----
+  // ---- Sonido en vivo (V24 a V28) ----
   const vi = await nuevaPagina(browser);
   const vp = vi.page;
   await vp.goto(url, { waitUntil: "load" });
@@ -440,6 +440,25 @@ async function desplazarTodo(page) {
   await vp.check("#rasgo-tono"); await vp.check("#rasgo-volumen"); await vp.check("#rasgo-paneo"); await vp.check("#rasgo-dron");
   comprobar("V26", hab26 && /^Suenan: Dron\.?$/.test(txt26a) && g1 === g0 && amp26 > 0.02 && r26.dron === false && r26.tono && /Suenan: Melodía, Volumen, Paneo\./.test(txt26b) && h1 > h0 && txt26c === "No suena ningún rasgo.",
     `solo dron: «${txt26a}», amplitud ${amp26.toFixed(2)}, golpes ${g0} -> ${g1}; sin dron (teclado): «${txt26b}», golpes ${h0} -> ${h1}; nada: «${txt26c}»`);
+
+
+  // V28: render sin conexión de las dos pistas: dron ~7 dB bajo la melodía y dron continuo (ESPEC §6)
+  const r28 = await vp.evaluate(async () => {
+    const D = await import("/js/datos.js"); const salida = [];
+    const potDb = (bf, a, z) => { let t = 0; for (let c = 0; c < bf.numberOfChannels; c++) { const d = bf.getChannelData(c); for (let i = a; i < z; i++) t += d[i] * d[i]; } return 10 * Math.log10(t / (z - a) + 1e-20); };
+    for (const pi of await D.cargarPistas()) {
+      const m = await D.cargarMapeo(pi), R = (await D.cargarRasgos(pi)).rasgos, V = window.__web.vivo;
+      const todo = await V.renderizar(m, R);
+      const mel = await V.renderizar(m, R, { tono: true, volumen: true, paneo: true, dron: false });
+      const dron = await V.renderizar(m, R, { tono: false, volumen: false, paneo: false, dron: true });
+      const w = Math.round(todo.sampleRate * 0.5), n = Math.floor(todo.length / w);
+      const db = Array.from({ length: n }, (_, k) => potDb(todo, k * w, (k + 1) * w));
+      salida.push({ id: pi.id, dif: potDb(mel, 0, mel.length) - potDb(dron, 0, dron.length), minimo: Math.min(...db), caida: Math.max(...db.slice(1).map((v, i) => db[i] - v)) });
+    }
+    return salida;
+  });
+  comprobar("V28", r28.length === 2 && r28.every((r) => r.dif >= 5.5 && r.dif <= 8.5 && r.minimo > -40 && r.caida <= 12),
+    r28.map((r) => `${r.id}: dron ${r.dif.toFixed(2)} dB bajo la melodía (5,5 a 8,5), ventana más baja ${r.minimo.toFixed(1)} dB (> −40), mayor caída ${r.caida.toFixed(1)} dB (≤ 12)`).join("; "));
 
   // V27: modo recordado por pista, axe con los controles habilitados, y 390 px
   await vp.click("#modo-sonido input[value=vivo]");

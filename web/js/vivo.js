@@ -15,6 +15,7 @@ const TAU_GANANCIA = 0.08;                    // s: suavizado de la ganancia (06
 const TICK = 25;                              // ms entre revisiones del planificador
 const HORIZONTE = 0.2;                        // s de pista que se programan por adelantado
 const HORIZONTE_OCULTA = 1.2;                 // con la pestaña oculta los temporizadores se frenan: se programa más lejos
+const RODILLA = 0.8, TECHO = 0.95;           // limitador: de qué nivel empieza a comprimir y a qué nivel tiende
 const TODOS = { tono: true, volumen: true, paneo: true, dron: true };
 
 let medio = null;
@@ -53,9 +54,11 @@ function recalcular() {
   ev = eventos(mapeo, serie);
 }
 
-function crearNodos() {
-  const ctx = audio.contexto(), salida = audio.entradaVivo();
-  if (nodos || !ctx || !salida) return !!nodos;
+/* Los nodos del motor sobre un contexto (en vivo o sin conexión) y su salida:
+   voz → gVoz ┐
+   golpes ────┴→ gMelodia → paneador ┐
+   dron → gDron ─────────────────────┴→ puerta → limitador → salida */
+function construir(ctx, salida) {
   const voz = ctx.createOscillator();
   try {
     const imag = new Float32Array([0, ...ARMONICOS.map((a) => a / 1.5)]);
@@ -68,18 +71,32 @@ function crearNodos() {
   const dron = ctx.createOscillator();
   dron.type = "sine";
   gVoz.gain.value = 0; gDron.gain.value = 0; puerta.gain.value = 0;
-  const curva = new Float32Array(2049);         // limitador suave: 0,85·tanh(1,5·x) (sintesis.limitar, sin normalizar)
-  curva.forEach((_, i, c) => { c[i] = 0.85 * Math.tanh(1.5 * ((i / 1024) - 1)); });
+  // Limitador de rodilla: lineal hasta RODILLA (no toca el nivel relativo dron/melodía) y comprime los picos hacia TECHO.
+  // (0,85·tanh(1,5·x), como sintesis.limitar, subía el dron 2 dB y bajaba la melodía 1,3 dB: quedaba a 3,7 dB y no a 7)
+  const curva = new Float32Array(2049);
+  curva.forEach((_, i, c) => {
+    const x = (i / 1024) - 1, a = Math.abs(x);
+    c[i] = Math.sign(x) * (a <= RODILLA ? a : RODILLA + (TECHO - RODILLA) * Math.tanh((a - RODILLA) / (TECHO - RODILLA)));
+  });
   const limitador = ctx.createWaveShaper();
   limitador.curve = curva;
   limitador.oversample = "2x";
   voz.connect(gVoz).connect(gMelodia);
   if (paneador) gMelodia.connect(paneador).connect(puerta); else gMelodia.connect(puerta);
-  dron.connect(gDron).connect(puerta);          // el dron no se panea (ESPEC §2.4)
+  // el dron no sigue al paneo de la melodía (ESPEC §2.4), pero va CENTRADO con la misma ley de potencia constante que
+  // 06 (paneo(dron, 0.0): 0,707 por canal); directo a los dos canales sonaría 3 dB más fuerte que en el pipeline
+  if (ctx.createStereoPanner) dron.connect(gDron).connect(ctx.createStereoPanner()).connect(puerta);
+  else dron.connect(gDron).connect(puerta);
   puerta.connect(limitador).connect(salida);
   voz.start();
   dron.start();
-  nodos = { ctx, voz, gVoz, gMelodia, paneador, dron, gDron, puerta };
+  return { ctx, voz, gVoz, gMelodia, paneador, dron, gDron, puerta };
+}
+
+function crearNodos() {
+  const ctx = audio.contexto(), salida = audio.entradaVivo();
+  if (nodos || !ctx || !salida) return !!nodos;
+  nodos = construir(ctx, salida);
   aplicarPista();
   return true;
 }
@@ -124,22 +141,26 @@ function reloj() {
   return ancla.pos + (ahora - ancla.ctx) * medio.playbackRate;
 }
 
-function golpe(e, cuando) {
-  const { ctx, voz, gMelodia } = nodos;
+/* Programa un golpe en 'cuando' (s del reloj del contexto): la voz cambia de nota y suena un golpe triangular con su envolvente */
+function programar(n, e, cuando) {
   const f = hz(e.nota), fin = cuando + GOLPE_A + GOLPE_D;
-  voz.frequency.setTargetAtTime(f, cuando, TAU_NOTA);
-  const o = ctx.createOscillator(), g = ctx.createGain();
+  n.voz.frequency.setTargetAtTime(f, cuando, TAU_NOTA);
+  const o = n.ctx.createOscillator(), g = n.ctx.createGain();
   o.type = "triangle";
   o.frequency.value = f;
   g.gain.setValueAtTime(0, cuando);
   g.gain.linearRampToValueAtTime((NIVEL_GOLPE * e.vel) / VEL_REF, cuando + GOLPE_A);
   g.gain.linearRampToValueAtTime(0, fin);
-  o.connect(g).connect(gMelodia);
+  o.connect(g).connect(n.gMelodia);
   o.start(cuando);
   o.stop(fin + 0.02);
-  const p = { o, g, cuando };
+  return { o, g, cuando };
+}
+
+function golpe(e, cuando) {
+  const p = programar(nodos, e, cuando);
   pendientes.add(p);
-  o.onended = () => { o.disconnect(); g.disconnect(); pendientes.delete(p); };
+  p.o.onended = () => { p.o.disconnect(); p.g.disconnect(); pendientes.delete(p); };
   programados++;
   ultimo = { t: e.t, cuando };
 }
@@ -221,4 +242,25 @@ export function fijarRasgos(nuevos) {
 
 export function estado() {
   return { listo: !!mapeo, activo, sonando: abierta, programados, ultimo, rasgos: { ...rasgos }, ampDron };
+}
+
+/* Render sin conexión de una pista entera (sin video ni reloj): lo que oiría el modo en vivo, en un AudioBuffer estéreo.
+   Sirve para medir niveles (prueba V28). 'activos' son las casillas de rasgos. */
+export async function renderizar(m, R, activos = TODOS) {
+  const base = calcularSerie(m, R), sr = aislar(m, base, activos), evs = eventos(m, sr);
+  const T = m.seg_por_fotograma, D = sr.length * T, FS = 44100;
+  const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(2, Math.ceil(D * FS), FS);
+  const n = construir(ctx, ctx.destination);
+  n.dron.frequency.value = m.dron.hz;
+  n.gDron.gain.value = activos.dron ? nivelDron(m, base, eventos(m, base)) : 0;
+  const melodia = activos.tono || activos.volumen || activos.paneo;
+  n.gMelodia.gain.value = melodia ? 1 : 0;
+  n.puerta.gain.value = 1;
+  n.voz.frequency.setValueAtTime(hz(sr[0].nota), 0);
+  if (melodia) evs.forEach((e) => programar(n, e, e.t));
+  for (let t = 0; t < D; t += TICK / 1000) {                           // lo mismo que hace tick() en vivo
+    n.gVoz.gain.setTargetAtTime(NIVEL_VOZ * valorEn(sr, "ganancia", t, T), t, TAU_GANANCIA);
+    if (n.paneador) n.paneador.pan.setTargetAtTime(valorEn(sr, "pan", t, T), t, m.paneo.suavizado_s);
+  }
+  return ctx.startRendering();
 }
