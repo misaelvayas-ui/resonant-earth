@@ -937,3 +937,35 @@ Decisión de Misael: rehacer la web desde cero mostrando solo lo importante del 
    (Chromium sin GPU). El Chromium de Playwright no trae H.264: las pruebas sustituyen los mp4 por webm con WEBM_DIR (solo para probar).
 6. .github/workflows/pages.yml: publica web/ en GitHub Pages solo a mano (workflow_dispatch). README raíz con la sección Web.
 Pendiente: nombres del equipo (web/equipo.json), 60 fps en una laptop real, versión en inglés, y qué hacer con el PR #9 (reescribe la web anterior; chocará con esta rama).
+
+RONDA 33 - guía por voz con IA sobre la web nueva (rama juan/guia-voz-ia-v2)   (2026-11-15)
+Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit 3e20b29 (master, con la web nueva del PR #10).
+Esta ronda reemplaza a las rondas "32" y "33" de las ramas juan/guia-voz y juan/guia-voz-ia (hechas sobre la web anterior, sin
+fusionar): mismo trabajo, renumerado después de la ronda 32 de master y conectado a la web nueva.
+Archivos traídos de juan/guia-voz-ia: web/guia-voz.js, guia-voz-ia.js, guia-voz-config.js, guia-voz.css,
+web/pruebas/guia-voz.test.js, guia-voz-ia.test.js y la carpeta servicio-ia/ (Cloudflare Worker + Gemini, con LEEME.md).
+Archivo reescrito: web/guia-voz-adaptador.js. Tocados: web/index.html (solo las líneas <script> de la guía), web/README.md y
+este archivo. NO se tocó ningún módulo de web/js/, ni estilos.css, ni pistas.json, ni nada de Python.
+NINGUNA CLAVE en el repositorio ni en la web: la clave de Gemini va solo como secreto del servicio.
+1. Qué es: un panel con el botón "Hablar con la guía" (o la tecla H) y un campo para escribir. Entiende órdenes en español
+   (reproducir, pausar, cambiar de pista, "año 1990", "noviembre de 2007", "segundo diez", avanzar, volumen, "qué pasa
+   ahora", leyenda, "dónde estoy", ayuda). Pregunta "¿usas un lector de pantalla?": con "sí" no usa su voz y escribe en una
+   región aria-live; con "no" habla con la voz del navegador. Una respuesta, un solo camino.
+2. Adaptador nuevo: usa window.__web (audio.estado, reproducir, buscar, fijarVolumen; rocola.elegir, pistaActual), el botón
+   #btn-reproducir para pausar (así la página escribe "En pausa") y los textos que la página ya pinta (#ahora-texto,
+   #leyenda-pista, "Qué vas a oír"). Fechas y serie: los lee de pistas.json y de los _rasgos.json.
+3. guia-voz.js: paginaAnuncia(que) distingue elegir y pausar (la página siempre lo escribe en #estado-rocola) de saltar
+   (solo si la casilla de la lectura en vivo está marcada); "reproduce" sin pista elegida pone la primera; el panel se
+   coloca donde dice el adaptador (antes de la sección de la rocola).
+4. IA (opcional, apagada): web/guia-voz-config.js trae la dirección vacía. Con el servicio publicado, las frases libres van a
+   servicio-ia/, que consulta Gemini y devuelve { accion, parametros, respuesta }; la web lo valida contra trece acciones
+   permitidas y, si algo falla (sin red, 429, error, más de 6 s, respuesta rara), responde el intérprete sin mostrar errores.
+Verificado (Windows 11, Node 24, Chrome sin ventana, axe-core 4.10.2; micrófono, voz y servicio de IA de mentira):
+  - web/pruebas/verificar.cjs con la guía puesta: V1 a V14 PASA (axe 0 violaciones a 1440 y 390 px, sin desborde).
+    Se corrió con el Chrome instalado (trae H.264), no con el Chromium de Playwright y los webm.
+  - node --test: guia-voz.test.js y guia-voz-ia.test.js, 15 pruebas pasan; servicio-ia, 12 pruebas pasan.
+  - navegador, 53 comprobaciones, todas pasan: axe 0 violaciones en escritorio y móvil (pregunta, panel con IA y escuchando);
+    18 comandos de punta a punta; con lector, 13 comandos, 0 frases por voz y la guía y la página nunca dicen lo mismo a la
+    vez (casilla de la lectura marcada y sin marcar); sin IA configurada no sale ninguna petición; con IA, 9 respuestas
+    manipuladas o caídas descartadas sin avisos, HTML como texto y corte a los 6 s.
+NO probado: micrófono real, lectores de pantalla reales, Firefox, Safari, teléfonos, ni una llamada real a Gemini.

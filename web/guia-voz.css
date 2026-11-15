@@ -1,0 +1,159 @@
+/* Resonant Earth — estilos del panel de la guía por voz (lo carga guia-voz.js).
+   Usa las variables de estilos.css (colores, radios, tamaños); los valores tras la coma son de respaldo. */
+
+.guia-voz {
+  /* nombres que usa esta hoja -> tokens de la web (estilos.css) */
+  --texto: var(--tinta); --texto-2: var(--tinta-2); --texto-3: var(--tinta-3);
+  --panel: var(--vidrio); --panel-solido: #0b0d10; --panel-interior: rgba(255, 255, 255, 0.06);
+  --linea-fuerte: var(--linea-control); --violeta: var(--acento);
+  --boton-fondo: var(--tinta); --boton-texto: var(--negro);
+  --radio: var(--r-tarjeta); --radio-chico: var(--r-control); --pildora: var(--r-pildora); --mono: var(--f-dato);
+  position: relative;
+  z-index: 1;
+  width: min(1280px, 100% - 32px);
+  margin: var(--separacion, 1.6rem) auto 0;
+  padding: var(--relleno, 1.6rem);
+  background: var(--panel, rgba(10, 11, 18, 0.86));
+  border: 1px solid var(--linea, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radio, 16px);
+  box-shadow: inset 0 1px 0 var(--linea-luz, rgba(255, 255, 255, 0.07));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: var(--texto, #f5f4fb);
+}
+@media (min-width: 760px) {
+  .guia-voz { width: min(1280px, 100% - 64px); }
+}
+.guia-voz [hidden] { display: none !important; }
+
+.gv-intro, .gv-nota, .gv-estado { color: var(--texto-2, #d6d5e1); font-size: var(--t-chico, 0.85rem); max-width: 60em; }
+.gv-intro { margin-bottom: 1rem; }
+.gv-pregunta-texto { font-weight: 600; margin-bottom: 0.3rem; }
+.gv-pregunta .gv-nota { margin-bottom: 0.9rem; }
+
+.gv-fila { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; }
+
+/* el botón grande: mismo estilo que "Reproducir" */
+.gv-hablar {
+  min-height: 3.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--boton-texto, #000000);
+  background: var(--boton-fondo, linear-gradient(100deg, #ece8ff, #e3f6f2));
+  border: 2px solid transparent;
+  border-radius: var(--pildora, 100px);
+  padding: 0.6rem 1.8rem;
+  cursor: pointer;
+}
+.gv-hablar svg { flex: none; }
+/* escuchando: cambia el texto del botón y además el borde y el fondo (no solo el color) */
+.gv-hablar[aria-pressed="true"] {
+  color: var(--texto, #f5f4fb);
+  background: transparent;
+  border: 2px dashed var(--texto, #f5f4fb);
+}
+
+.gv-boton {
+  min-height: 2.6rem;
+  font: inherit;
+  font-size: var(--t-chico, 0.85rem);
+  font-weight: 600;
+  color: var(--texto, #f5f4fb);
+  background: transparent;
+  border: 1px solid var(--linea-fuerte, #8d8c9c);
+  border-radius: var(--pildora, 100px);
+  padding: 0.4rem 1.2rem;
+  cursor: pointer;
+}
+.gv-boton:hover { background: var(--panel-interior, rgba(255, 255, 255, 0.03)); }
+.gv-boton:disabled, .guia-voz select:disabled, .guia-voz input:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.gv-estado { margin-top: 0.8rem; }
+
+/* conversación con IA: aviso de que las frases se envían y etiqueta de las respuestas de la IA */
+.gv-ia-aviso {
+  margin-top: 0.8rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--linea-fuerte, #8d8c9c);
+  border-radius: var(--radio-chico, 8px);
+  color: var(--texto, #f5f4fb);
+  font-size: var(--t-chico, 0.85rem);
+  width: fit-content;
+  max-width: 100%;
+}
+.gv-ia-etiqueta {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.05rem 0.6rem;
+  border: 1px solid var(--linea-fuerte, #8d8c9c);
+  border-radius: var(--pildora, 100px);
+  font-family: var(--mono, monospace);
+  font-size: var(--t-rotulo, 0.64rem);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--texto, #f5f4fb);
+  white-space: nowrap;
+}
+
+.gv-formulario { margin-top: 1rem; }
+.gv-formulario label, .gv-campo-opcion label { display: block; font-size: var(--t-chico, 0.85rem); color: var(--texto-2, #d6d5e1); margin-bottom: 0.3rem; }
+.gv-formulario input[type="text"], .guia-voz select {
+  min-height: 2.6rem;
+  font: inherit;
+  font-size: var(--t-chico, 0.85rem);
+  color: var(--texto, #f5f4fb);
+  background: var(--panel-solido, #0a0b12);
+  border: 1px solid var(--linea-fuerte, #8d8c9c);
+  border-radius: var(--radio-chico, 8px);
+  padding: 0.3rem 0.8rem;
+}
+.gv-formulario input[type="text"] { flex: 1 1 14rem; min-width: 0; max-width: 32rem; }
+.guia-voz select { max-width: 100%; }
+
+.gv-lista-ayuda { margin: 1rem 0 0; padding-left: 1.2rem; color: var(--texto-2, #d6d5e1); font-size: var(--t-chico, 0.85rem); }
+.gv-lista-ayuda li + li { margin-top: 0.25rem; }
+
+.gv-dialogo { margin: 1.1rem 0 0; display: grid; gap: 0.45rem; }
+.gv-dialogo div { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 0.8rem; align-items: baseline; }
+.gv-dialogo dt {
+  font-family: var(--mono, monospace);
+  font-size: var(--t-rotulo, 0.64rem);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--texto-3, #b7b6c6);
+}
+.gv-dialogo dd { margin: 0; overflow-wrap: anywhere; }
+#gv-respuesta { font-weight: 600; }
+
+.gv-opciones { margin-top: 1.1rem; font-size: var(--t-chico, 0.85rem); }
+.gv-opciones summary { cursor: pointer; color: var(--texto, #f5f4fb); font-weight: 600; min-height: 2rem; display: list-item; width: fit-content; }
+.gv-opciones > * + * { margin-top: 0.8rem; }
+.gv-casilla { display: flex; gap: 0.6rem; align-items: flex-start; color: var(--texto-2, #d6d5e1); cursor: pointer; }
+.gv-casilla input { width: 1.2rem; height: 1.2rem; margin: 0.15rem 0 0; flex: none; accent-color: var(--violeta, #cdbfff); }
+.gv-campo-opcion input[type="range"] { width: min(100%, 18rem); min-height: 1.5rem; accent-color: var(--violeta, #cdbfff); }
+
+.gv-solo-lector {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 480px) {
+  .gv-hablar { width: 100%; padding-left: 1rem; padding-right: 1rem; }
+  .gv-dialogo div { grid-template-columns: minmax(0, 1fr); gap: 0.1rem; }
+}
+
+@media (forced-colors: active) {
+  .gv-hablar, .gv-boton { border: 1px solid ButtonText; }
+  .gv-hablar[aria-pressed="true"] { border: 2px dashed Highlight; }
+}
