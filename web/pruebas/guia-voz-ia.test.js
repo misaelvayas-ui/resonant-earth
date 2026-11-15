@@ -156,6 +156,6 @@ test("la web espera hasta 9 s al servicio", () => { assert.equal(ESPERA_MS, 9000
 
 test("lo que se ve de la IA está en los dos idiomas", () => {
   assert.equal(Object.keys(TEXTOS.es).sort().join(), Object.keys(TEXTOS.en).sort().join());
-  assert.equal(TEXTOS.es.aviso, "Tus frases se envían a un servicio de IA para responderte."); assert.match(TEXTOS.en.aviso, /sent to an AI service/);
+  assert.equal(TEXTOS.es.aviso, "Tus frases se envían a un servicio de IA."); assert.match(TEXTOS.en.aviso, /sent to an AI service/);
   assert.match(TEXTOS.es.etiqueta, /generada por IA/); assert.match(TEXTOS.en.etiqueta, /AI-generated/);
 });

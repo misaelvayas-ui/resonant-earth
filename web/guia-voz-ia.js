@@ -26,15 +26,13 @@
   const PAUSA_MS = 60000;             // tras un "límite" o dos fallos seguidos, no se insiste durante un minuto
   const MAX_FRASE = 300;              // el servicio no acepta frases más largas
   const MAX_CONTEXTO = 8500;          // caracteres del contexto ya serializado (el servicio corta en 9000)
-  const AVISO = "Tus frases se envían a un servicio de IA para responderte.";
-  /* Lo que se ve de la IA, en los dos idiomas de la guía. */
+  const AVISO = "Tus frases se envían a un servicio de IA.";
+  /* Lo que se ve de la IA, en los dos idiomas de la guía. Poco texto: el aviso, la etiqueta y una casilla que lo explica todo. */
   const TEXTOS = {
     es: { aviso: AVISO, etiqueta: "Respuesta generada por IA", firma: "Respuesta generada por IA. ",
-      casilla: "Conversar con IA (si la apagas, la guía solo entiende comandos y no envía nada)",
-      nota: "Con la IA encendida, lo que dices o escribes aquí y el estado de la página (pista, momento, datos y textos de la web) se envían a un servicio del proyecto, que consulta un modelo de IA de Google (Gemini). No digas datos personales. Las respuestas de la IA pueden tener errores." },
-    en: { aviso: "Your phrases are sent to an AI service to answer you.", etiqueta: "AI-generated answer", firma: "AI-generated answer. ",
-      casilla: "Talk with AI (if you turn it off, the guide only understands commands and sends nothing)",
-      nota: "With AI on, what you say or type here and the state of the page (track, moment, data and site texts) are sent to a project service, which queries a Google AI model (Gemini). Do not share personal data. AI answers may contain mistakes." },
+      casilla: "Conversar con IA. Lo que dices y lo que suena se envía a un servicio de IA de Google. No digas datos personales; la IA puede equivocarse." },
+    en: { aviso: "Your phrases are sent to an AI service.", etiqueta: "AI-generated answer", firma: "AI-generated answer. ",
+      casilla: "Talk with AI. What you say and what is playing are sent to a Google AI service. Do not share personal data; the AI can make mistakes." },
   };
 
   /* Comandos cortos y claros: se hacen al instante, sin IA (no esperan ni gastan cupo). "pausa" debe pausar ya. */
@@ -186,14 +184,13 @@
 
     const casilla = doc.createElement("label");
     casilla.className = "gv-casilla";
-    casilla.innerHTML = '<input type="checkbox" id="gv-ia" aria-describedby="gv-ia-nota"> <span></span>';
-    const nota = doc.createElement("p");
-    nota.id = "gv-ia-nota"; nota.className = "gv-nota";
-    panel.querySelector("#gv-lector").closest("label").before(casilla, nota);
+    casilla.innerHTML = '<input type="checkbox" id="gv-ia"> <span></span>';
+    const grupo = panel.querySelector("#gv-grupo-escucha");                 // junto a las demás opciones de conversación
+    if (grupo) grupo.append(casilla); else panel.querySelector("#gv-lector").closest("label").before(casilla);
     const interruptor = casilla.querySelector("input");
     interruptor.checked = preferencias.leer().ia !== false;                 // encendida, salvo que la persona la haya apagado
     const pintar = () => { aviso.hidden = !interruptor.checked; if (!interruptor.checked) etiqueta.hidden = true; };
-    const traducir = () => { const t = T(); aviso.textContent = t.aviso; etiqueta.textContent = t.etiqueta; casilla.querySelector("span").textContent = t.casilla; nota.textContent = t.nota; };
+    const traducir = () => { const t = T(); aviso.textContent = t.aviso; etiqueta.textContent = t.etiqueta; casilla.querySelector("span").textContent = t.casilla; };
     interruptor.addEventListener("change", () => { preferencias.guardar({ ia: interruptor.checked }); pintar(); });
     traducir();
     pintar();

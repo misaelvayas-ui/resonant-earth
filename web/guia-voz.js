@@ -689,83 +689,91 @@
     es: ["¿Qué estoy escuchando?", "¿Por qué sube el tono?", "Llévame al año más cálido"],
     en: ["What am I hearing?", "Why does the pitch rise?", "Take me to the warmest year"],
   };
-  /* Textos de la tarjeta, en los dos idiomas. */
+  /* Textos de la tarjeta, en los dos idiomas. Frases cortas y sin jerga: deben entenderse a la primera. */
   const U = {
     es: {
-      nombre: "Guía por voz", hablar: "Háblame", escuchando: "Te escucho…", cerrar: "Cerrar la guía", inicial: "Pulsa la esfera y háblame.",
-      saludo: "Hola, soy la guía de Resonant Earth. ¿Qué quieres escuchar?",
-      pistaLector: "Atajo: tecla H. La guía responde con voz. Si usas un lector de pantalla, marca primero «Uso lector de pantalla» en Ayuda y opciones para que responda por escrito.",
-      pensando: "Un momento…", espera: "Un momento.", teEscucho: "Te escucho.", sigo: "Sigo escuchando unos segundos…", silencio: "(en silencio)",
-      escribir: "Escribir", campo: "Escribe lo que quieres", enviar: "Enviar", sugeridas: "Frases sugeridas", recorrido: "Dame un recorrido", detener: "Detener el recorrido",
-      opciones: "Ayuda y opciones", quePuedoDecir: "Qué puedo decir",
-      ayudaLista: ["«Reproduce», «pausa», «siguiente pista», «pista dos», «qué pistas hay».", "«Año 1990», «noviembre de 2007», «segundo diez», «avanza diez segundos», «al inicio».",
-        "«Qué estoy escuchando», «por qué sube el tono», «llévame al año más cálido», «dame un recorrido».", "«Qué es este proyecto», «cómo funciona», «quiénes son».",
-        "«Qué pasa ahora», «lee la leyenda», «dónde estoy», «volumen 50», «repite», «más simple», «silencio», «ayuda»."],
-      idioma: "Idioma de la guía (Guide language)", lector: "Uso lector de pantalla (la guía responde por escrito, sin su propia voz)", tecla: "Usar la tecla H para hablar con la guía",
-      seguir: "Seguir escuchando unos segundos después de cada respuesta", voz: "Voz de la guía", vozAuto: "Automática (voz masculina serena)", velocidad: "Velocidad de la voz", probar: "Probar la voz", prueba: "Esta es la voz de la guía.",
+      nombre: "Eco, la guía por voz", alias: "Eco", rol: "Guía por voz", hablar: "Háblame", escuchando: "Te escucho…", cerrar: "Cerrar la guía", inicial: "Pulsa la esfera y háblame.",
+      saludo: "Hola, soy Eco, la guía de Resonant Earth. ¿Qué quieres escuchar?",
+      pistaLector: "Atajo: tecla H. Si usas un lector de pantalla, márcalo en Ayuda y opciones y la guía responderá por escrito.",
+      lista: "Lista.", pensando: "Un momento…", espera: "Un momento.", teEscucho: "Te escucho.", hablando: "Hablando…", sigo: "Sigo escuchando…", silencio: "(en silencio)",
+      escribir: "Escribir", campo: "Escribe tu pregunta", enviar: "Enviar", sugeridas: "Atajos", recorrido: "Dame un recorrido", detener: "Detener el recorrido",
+      opciones: "Ayuda y opciones", quePuedoDecir: "Puedes decir",
+      ayudaLista: ["«Reproduce» o «pausa»", "«Llévame a 1990»", "«¿Qué estoy escuchando?»", "«Dame un recorrido»"],
+      idioma: "Idioma (Language)",
+      lector: "Uso un lector de pantalla (NVDA, JAWS, VoiceOver, TalkBack). La guía responderá solo por escrito, para que no se mezclen dos voces.",
+      tecla: "Usar la tecla H para hablar",
+      seguir: "Escuchar de nuevo después de cada respuesta", voz: "Voz", vozAuto: "Automática", velocidad: "Velocidad", probar: "Probar la voz", prueba: "Esta es la voz de la guía.",
       velocidades: ["lenta", "normal", "rápida"],
-      privacidad: "El micrófono solo se abre después de que pulsas la esfera o la tecla H: al pulsarla y, si lo dejas activado, unos segundos después de cada respuesta. El reconocimiento lo hace tu navegador; en Chrome y Edge el audio se envía al servicio de voz del propio navegador. Esta página no lo guarda ni usa claves.",
+      privacidad: "El micrófono solo se abre al pulsar la esfera o después de una respuesta. Tu navegador convierte la voz en texto; esta página no la guarda.",
       saltar: "Saltar a la guía por voz",
-      lectorSi: "De acuerdo. No usaré mi propia voz: tu lector de pantalla leerá mis respuestas. Pulsa la tecla H o el botón Háblame para hablar.",
+      lectorSi: "De acuerdo. Responderé solo por escrito y tu lector de pantalla lo leerá. Para hablarme, pulsa la tecla H o el botón Háblame.",
       lectorNo: "De acuerdo. Te responderé con mi voz.", idiomaListo: "Listo, sigo en español.",
       sinRecorrido: "No hay ningún recorrido en marcha. Di «dame un recorrido» para empezar uno.", recorridoDetenido: "Recorrido detenido.",
-      noPude: "No pude hacerlo: el reproductor no respondió.", sinMicro: "No pude abrir el micrófono. Puedes escribir lo que quieres hacer.",
-      sinReconocimiento: "Este navegador no tiene reconocimiento de voz (pasa, por ejemplo, en Firefox). Usa Chrome, Edge o Safari, o escribe lo que quieres hacer.",
-      sinVoz: "Este navegador no tiene voz: las respuestas salen por escrito.", sinVozIdioma: "No hay una voz en español instalada: las respuestas salen por escrito.",
-      https: "El micrófono solo funciona en páginas https o en localhost. Puedes escribir lo que quieres hacer.",
-      errorVoz: (e) => `El reconocimiento de voz falló (${e}). Puedes escribir lo que quieres hacer.`,
+      noPude: "No pude hacerlo: el reproductor no respondió.", sinMicro: "No pude abrir el micrófono. Puedes escribir tu pregunta.",
+      sinReconocimiento: "Este navegador no entiende la voz. Escribe tu pregunta, o usa Chrome, Edge o Safari.",
+      sinVoz: "Este navegador no tiene voz: respondo por escrito.", sinVozIdioma: "No hay una voz en español instalada: respondo por escrito.",
+      https: "El micrófono solo funciona en páginas seguras (https). Puedes escribir tu pregunta.",
+      errorVoz: (e) => `No pude escucharte (${e}). Puedes escribir tu pregunta.`,
       errores: {
-        "not-allowed": "No tengo permiso para usar el micrófono. Actívalo en el candado de la barra de direcciones y vuelve a pulsar la esfera. También puedes escribir lo que quieres hacer.",
-        "service-not-allowed": "El navegador no permite el reconocimiento de voz en esta página. Puedes escribir lo que quieres hacer.",
-        "audio-capture": "No encuentro ningún micrófono. Conecta uno o escribe lo que quieres hacer.",
+        "not-allowed": "No tengo permiso para usar el micrófono. Dámelo desde el candado de la barra de direcciones y pulsa la esfera otra vez. También puedes escribir tu pregunta.",
+        "service-not-allowed": "El navegador no deja usar el micrófono en esta página. Puedes escribir tu pregunta.",
+        "audio-capture": "No encuentro ningún micrófono. Conecta uno o escribe tu pregunta.",
         "no-speech": "No escuché nada. Pulsa la esfera o la tecla H y habla después del pitido.",
-        "network": "El reconocimiento de voz de este navegador necesita internet y no respondió. Puedes escribir lo que quieres hacer.",
-        "language-not-supported": "Este navegador no reconoce voz en español. Puedes escribir lo que quieres hacer.",
+        "network": "Para entender tu voz, este navegador necesita internet y no respondió. Puedes escribir tu pregunta.",
+        "language-not-supported": "Este navegador no entiende voz en español. Puedes escribir tu pregunta.",
       },
     },
     en: {
-      nombre: "Voice guide", hablar: "Talk to me", escuchando: "Listening…", cerrar: "Close the guide", inicial: "Press the sphere and talk to me.",
-      saludo: "Hello, I am the Resonant Earth guide. What would you like to hear?",
-      pistaLector: "Shortcut: H key. The guide answers with its voice. If you use a screen reader, first tick “I use a screen reader” under Help and options so it answers in writing.",
-      pensando: "One moment…", espera: "One moment.", teEscucho: "I am listening.", sigo: "Still listening for a few seconds…", silencio: "(silent)",
-      escribir: "Type", campo: "Type what you want", enviar: "Send", sugeridas: "Suggested phrases", recorrido: "Give me a tour", detener: "Stop the tour",
-      opciones: "Help and options", quePuedoDecir: "What I can say",
-      ayudaLista: ["“Play”, “pause”, “next track”, “track two”, “what tracks are there”.", "“Year 1990”, “November 2007”, “second ten”, “forward ten seconds”, “start over”.",
-        "“What am I hearing”, “why does the pitch rise”, “take me to the warmest year”, “give me a tour”.", "“What is this project”, “how does it work”, “who made this”.",
-        "“What is happening”, “read the legend”, “where am I”, “volume 50”, “repeat”, “simpler”, “quiet”, “help”."],
-      idioma: "Guide language (Idioma de la guía)", lector: "I use a screen reader (the guide answers in writing, without its own voice)", tecla: "Use the H key to talk to the guide",
-      seguir: "Keep listening for a few seconds after each answer", voz: "Guide voice", vozAuto: "Automatic (calm male voice)", velocidad: "Voice speed", probar: "Test the voice", prueba: "This is the guide's voice.",
+      nombre: "Eco, the voice guide", alias: "Eco", rol: "Voice guide", hablar: "Talk to me", escuchando: "Listening…", cerrar: "Close the guide", inicial: "Press the sphere and talk to me.",
+      saludo: "Hello, I am Eco, the Resonant Earth guide. What would you like to hear?",
+      pistaLector: "Shortcut: H key. If you use a screen reader, tick it under Help and options and the guide will answer in writing.",
+      lista: "Ready.", pensando: "One moment…", espera: "One moment.", teEscucho: "I am listening.", hablando: "Speaking…", sigo: "Still listening…", silencio: "(silent)",
+      escribir: "Type", campo: "Type your question", enviar: "Send", sugeridas: "Shortcuts", recorrido: "Give me a tour", detener: "Stop the tour",
+      opciones: "Help and options", quePuedoDecir: "You can say",
+      ayudaLista: ["“Play” or “pause”", "“Take me to 1990”", "“What am I hearing?”", "“Give me a tour”"],
+      idioma: "Language (Idioma)",
+      lector: "I use a screen reader (NVDA, JAWS, VoiceOver, TalkBack). The guide will answer in writing only, so two voices do not overlap.",
+      tecla: "Use the H key to talk",
+      seguir: "Listen again after each answer", voz: "Voice", vozAuto: "Automatic", velocidad: "Speed", probar: "Test the voice", prueba: "This is the guide's voice.",
       velocidades: ["slow", "normal", "fast"],
-      privacidad: "The microphone only opens after you press the sphere or the H key: when you press it and, if you leave it on, for a few seconds after each answer. Recognition is done by your browser; in Chrome and Edge the audio is sent to the browser's own speech service. This page does not store it and uses no keys.",
+      privacidad: "The microphone only opens when you press the sphere or after an answer. Your browser turns your voice into text; this page does not store it.",
       saltar: "Skip to the voice guide",
-      lectorSi: "All right. I will not use my own voice: your screen reader will read my answers. Press the H key or the Talk to me button to speak.",
+      lectorSi: "All right. I will answer in writing only and your screen reader will read it. To talk to me, press the H key or the Talk to me button.",
       lectorNo: "All right. I will answer with my voice.", idiomaListo: "Sure, I will speak English from now on.",
       sinRecorrido: "There is no tour running. Say “give me a tour” to start one.", recorridoDetenido: "Tour stopped.",
-      noPude: "I could not do that: the player did not respond.", sinMicro: "I could not open the microphone. You can type what you want.",
-      sinReconocimiento: "This browser has no speech recognition (Firefox, for example). Use Chrome, Edge or Safari, or type what you want.",
-      sinVoz: "This browser has no voice: answers are shown in writing.", sinVozIdioma: "No English voice is installed: answers are shown in writing.",
-      https: "The microphone only works on https pages or on localhost. You can type what you want.",
-      errorVoz: (e) => `Speech recognition failed (${e}). You can type what you want.`,
+      noPude: "I could not do that: the player did not respond.", sinMicro: "I could not open the microphone. You can type your question.",
+      sinReconocimiento: "This browser cannot understand speech. Type your question, or use Chrome, Edge or Safari.",
+      sinVoz: "This browser has no voice: I answer in writing.", sinVozIdioma: "No English voice is installed: I answer in writing.",
+      https: "The microphone only works on secure pages (https). You can type your question.",
+      errorVoz: (e) => `I could not hear you (${e}). You can type your question.`,
       errores: {
-        "not-allowed": "I do not have permission to use the microphone. Enable it from the padlock in the address bar and press the sphere again. You can also type what you want.",
-        "service-not-allowed": "The browser does not allow speech recognition on this page. You can type what you want.",
-        "audio-capture": "I cannot find a microphone. Connect one or type what you want.",
+        "not-allowed": "I do not have permission to use the microphone. Allow it from the padlock in the address bar and press the sphere again. You can also type your question.",
+        "service-not-allowed": "The browser does not allow the microphone on this page. You can type your question.",
+        "audio-capture": "I cannot find a microphone. Connect one or type your question.",
         "no-speech": "I did not hear anything. Press the sphere or the H key and speak after the beep.",
-        "network": "This browser's speech recognition needs the internet and did not respond. You can type what you want.",
-        "language-not-supported": "This browser does not recognise speech in English. You can type what you want.",
+        "network": "To understand your voice, this browser needs the internet and it did not respond. You can type your question.",
+        "language-not-supported": "This browser cannot understand speech in English. You can type your question.",
       },
     },
   };
   const IDIOMAS_VOZ = { es: ["es-EC", "es-ES"], en: ["en-US"] };
   const ESPERA_AVISO_MS = 1500;                       // si la IA tarda más, la guía dice «un momento»
-  const ESPERA_SEGUIR_MS = 6000;                      // cuánto sigue escuchando después de una respuesta
+  const ESPERA_SEGUIR_MS = 10000;                     // tras una respuesta, cuánto espera a que la persona empiece a hablar
+  const SILENCIO_MS = 2500;                           // silencio tras la última palabra para dar la frase por terminada
+  const SILENCIO_SIN_TEXTO_MS = 5000;                 // se oyó voz pero aún no hay palabras: un poco más de margen
+  const HABLA_MAX_MS = 30000;                         // lo máximo que puede durar una frase
 
-  /* La tarjeta no lleva textos: los pone pintarTextos() en el idioma elegido (atributos data-t y data-t-aria). */
+  /* La tarjeta no lleva textos: los pone pintarTextos() en el idioma elegido (atributos data-t y data-t-aria).
+     Orden: cabecera (avatar, nombre, cerrar), subtítulo, estado, «Escribir» y «Ayuda y opciones» plegado. */
   const PLANTILLA = `
     <div class="gv-tarjeta" id="gv-tarjeta" hidden>
-      <button type="button" id="gv-cerrar" class="gv-cerrar" data-t-aria="cerrar">
-        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="16" height="16"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
-      </button>
+      <div class="gv-cabecera">
+        <span class="gv-avatar" aria-hidden="true"></span>
+        <p class="gv-identidad"><strong class="gv-alias" data-t="alias"></strong> <span class="gv-rol" data-t="rol"></span></p>
+        <button type="button" id="gv-cerrar" class="gv-cerrar" data-t-aria="cerrar">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="16" height="16"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+        </button>
+      </div>
       <p id="gv-respuesta" class="gv-subtitulo"></p>
       <p id="gv-escucha" class="gv-escucha" hidden><span class="gv-escucha-barra" aria-hidden="true"></span><span data-t="sigo"></span></p>
       <p id="gv-estado" class="gv-estado"></p>
@@ -779,7 +787,8 @@
             <button type="submit" class="gv-boton" data-t="enviar"></button>
           </div>
         </form>
-        <div class="gv-sugerencias" role="group" data-t-aria="sugeridas">
+        <p class="gv-rotulo" id="gv-rotulo-atajos" data-t="sugeridas"></p>
+        <div class="gv-sugerencias" role="group" aria-labelledby="gv-rotulo-atajos">
           <button type="button" class="gv-chip"></button><button type="button" class="gv-chip"></button><button type="button" class="gv-chip"></button>
           <button type="button" class="gv-chip gv-chip-recorrido" data-t="recorrido"></button>
         </div>
@@ -787,15 +796,25 @@
       <div id="gv-vivo" class="gv-solo-lector" aria-live="polite" aria-atomic="true"></div>
       <details class="gv-opciones" id="gv-opciones">
         <summary data-t="opciones"></summary>
-        <p class="gv-rotulo" data-t="quePuedoDecir"></p>
-        <ul id="gv-lista-ayuda" class="gv-lista-ayuda"></ul>
-        <div class="gv-campo-opcion"><label for="gv-idioma" data-t="idioma"></label><select id="gv-idioma"><option value="es" lang="es">Español</option><option value="en" lang="en">English</option></select></div>
-        <label class="gv-casilla"><input type="checkbox" id="gv-lector"> <span data-t="lector"></span></label>
-        <label class="gv-casilla"><input type="checkbox" id="gv-tecla" checked> <span data-t="tecla"></span></label>
-        <label class="gv-casilla"><input type="checkbox" id="gv-seguir" checked> <span data-t="seguir"></span></label>
-        <div class="gv-campo-opcion"><label for="gv-voz" data-t="voz"></label><select id="gv-voz"><option value="auto"></option></select></div>
-        <div class="gv-campo-opcion"><label for="gv-velocidad" data-t="velocidad"></label><input id="gv-velocidad" type="range" min="0.6" max="1.4" step="0.05" value="${VELOCIDAD_VOZ}"></div>
-        <button type="button" id="gv-probar" class="gv-boton" data-t="probar"></button>
+        <div class="gv-grupo">
+          <p class="gv-rotulo" data-t="quePuedoDecir"></p>
+          <ul id="gv-lista-ayuda" class="gv-lista-ayuda"></ul>
+        </div>
+        <div class="gv-grupo">
+          <div class="gv-campo-opcion"><label for="gv-idioma" data-t="idioma"></label><select id="gv-idioma"><option value="es" lang="es">Español</option><option value="en" lang="en">English</option></select></div>
+        </div>
+        <div class="gv-grupo">
+          <div class="gv-campo-opcion"><label for="gv-voz" data-t="voz"></label><select id="gv-voz"><option value="auto"></option></select></div>
+          <div class="gv-campo-opcion"><label for="gv-velocidad" data-t="velocidad"></label><input id="gv-velocidad" type="range" min="0.6" max="1.4" step="0.05" value="${VELOCIDAD_VOZ}"></div>
+          <button type="button" id="gv-probar" class="gv-boton gv-boton-chico" data-t="probar"></button>
+        </div>
+        <div class="gv-grupo">
+          <label class="gv-casilla"><input type="checkbox" id="gv-lector"> <span data-t="lector"></span></label>
+        </div>
+        <div class="gv-grupo" id="gv-grupo-escucha">
+          <label class="gv-casilla"><input type="checkbox" id="gv-seguir" checked> <span data-t="seguir"></span></label>
+          <label class="gv-casilla"><input type="checkbox" id="gv-tecla" checked> <span data-t="tecla"></span></label>
+        </div>
         <p class="gv-nota" id="gv-privacidad" data-t="privacidad"></p>
       </details>
     </div>
@@ -846,7 +865,10 @@
     const cerrarTarjeta = () => { const dentro = ui.tarjeta.contains(doc.activeElement); ui.tarjeta.hidden = true; ui.hablar.setAttribute("aria-expanded", "false"); if (dentro) ui.hablar.focus(); };
     const abrirEscribir = (abierta = true) => { ui.zonaEscribir.hidden = !abierta; ui.escribir.setAttribute("aria-expanded", String(abierta)); };
     let relojBrillo = 0;
-    const pintarEsfera = () => { panel.dataset.estado = guia.escuchando ? "escuchando" : guia.pensando ? "pensando" : guia.hablando || guia.brillando ? "respondiendo" : "reposo"; };
+    const pintarEsfera = () => {
+      panel.dataset.estado = guia.escuchando ? "escuchando" : guia.pensando ? "pensando" : guia.hablando || guia.brillando ? "respondiendo" : "reposo";
+      pintarLinea();
+    };
     /* la esfera brilla mientras responde: lo que dura la voz o, si la respuesta va por escrito, un rato según su largo */
     const brillar = (texto) => {
       ventana.clearTimeout(relojBrillo);
@@ -954,7 +976,21 @@
       nivelar();
       pintarEstado();
     }
-    /* Abre el micrófono. auto = escucha de seguimiento tras una respuesta: dura ESPERA_SEGUIR_MS y, si nadie habla, se cierra sin decir nada. */
+    /* Junta lo oído hasta ahora. En modo continuo llegan varios trozos; algunos navegadores repiten en cada trozo todo lo
+       anterior, así que un trozo que empieza por lo ya juntado lo sustituye en vez de sumarse. k = número de alternativa. */
+    function juntarOido(resultados, k) {
+      let todo = "";
+      for (const res of Array.from(resultados || [])) {
+        const alt = res[Math.min(k, (res.length || 1) - 1)];
+        const t = String((alt && alt.transcript) || "").replace(/\s+/g, " ").trim();
+        if (!t) continue;
+        todo = todo && !t.toLowerCase().startsWith(todo.toLowerCase()) ? todo + " " + t : t;
+      }
+      return todo;
+    }
+    /* Abre el micrófono y no corta a la persona: la frase termina cuando lleva SILENCIO_MS callada tras su última palabra
+       (o a los HABLA_MAX_MS). auto = escucha de seguimiento tras una respuesta: espera ESPERA_SEGUIR_MS a que empiece a hablar,
+       con un temporizador a la vista que se detiene y se oculta en cuanto habla; si nadie habla, se cierra sin decir nada. */
     function escuchar({ auto = false } = {}) {
       if (detenerRecorrido({ silencio: true })) guia.cortePorEscucha = true;   // la frase que venga sabrá que había recorrido
       if (guia.escuchando) { try { rec.stop(); } catch (e) { pintarEscucha(false); } return; }
@@ -963,30 +999,54 @@
       const idiomas = IDIOMAS_VOZ[guia.idioma];
       const mio = rec = new Reconocedor();
       mio.lang = idiomas[Math.min(idiomaRec, idiomas.length - 1)];
-      mio.interimResults = false;
-      mio.continuous = false;
+      mio.interimResults = true;                                         // resultados parciales: así se sabe que sigue hablando
+      mio.continuous = true;                                             // el navegador no corta en la primera pausa
       mio.maxAlternatives = 4;
-      let hubo = false, reloj = 0;
+      let oido = [], hablo = false, callado = false, fallo = false, cerrado = false, relojInicio = 0, relojSilencio = 0, relojTope = 0;
+      const limpiar = () => { for (const r of [relojInicio, relojSilencio, relojTope]) ventana.clearTimeout(r); };
+      const terminar = () => { try { mio.stop(); } catch (e) { /* ya cerrado */ } };
+      const alHablar = (silencio) => {
+        if (!hablo) {
+          hablo = true;
+          ventana.clearTimeout(relojInicio);                             // empezó a hablar: el temporizador se detiene
+          ui.escucha.hidden = true;                                      // y se oculta
+          relojTope = ventana.setTimeout(terminar, HABLA_MAX_MS);
+        }
+        ventana.clearTimeout(relojSilencio);
+        relojSilencio = ventana.setTimeout(terminar, silencio);
+      };
       mio.onstart = () => {
         pintarEscucha(true, auto); pitido();
-        if (auto) reloj = ventana.setTimeout(() => { if (hubo) return; hubo = true; try { mio.abort(); } catch (e) { /* ya cerrado */ } pintarEscucha(false); }, ESPERA_SEGUIR_MS);
+        if (auto) relojInicio = ventana.setTimeout(() => { callado = true; try { mio.abort(); } catch (e) { /* ya cerrado */ } pintarEscucha(false); }, ESPERA_SEGUIR_MS);
       };
-      mio.onspeechstart = () => ventana.clearTimeout(reloj);              // ya está hablando: no se le corta
+      mio.onspeechstart = () => alHablar(SILENCIO_SIN_TEXTO_MS);
       mio.onresult = (e) => {
-        hubo = true; ventana.clearTimeout(reloj);
-        const opciones = Array.from(e.results[e.results.length - 1]).map((x) => x.transcript);
-        const util = opciones.find((o) => !["desconocido", "nada"].includes(interpretarComando(o, guia.idioma).tipo));
-        atender(util || opciones[0], { auto });                          // la primera alternativa que sea un comando
+        const opciones = [];
+        for (let k = 0; k < 4; k++) { const t = juntarOido(e.results, k); if (t && !opciones.includes(t)) opciones.push(t); }
+        if (!opciones.length) return;
+        oido = opciones;
+        alHablar(SILENCIO_MS);
       };
       mio.onerror = (e) => {
-        hubo = true; ventana.clearTimeout(reloj);
-        if (e.error === "aborted" || auto) return;                       // en la escucha de seguimiento, los fallos no se dicen
+        if (e.error === "aborted") { callado = true; return; }
+        if (oido.length) return;                                         // ya dijo algo: se atiende eso
+        fallo = true;
+        if (auto) return;                                                // en la escucha de seguimiento, los fallos no se dicen
         if (e.error === "language-not-supported" && idiomaRec < idiomas.length - 1) { idiomaRec++; ventana.setTimeout(escuchar, 200); return; }
         let texto = u().errores[e.error] || u().errorVoz(e.error);
         if (e.error === "not-allowed" && ventana.isSecureContext === false) texto = u().https;
         responder(texto, { seguir: false });
       };
-      mio.onend = () => { ventana.clearTimeout(reloj); pintarEscucha(false); if (!hubo) { guia.cortePorEscucha = false; if (!auto) responder(u().errores["no-speech"], { seguir: false }); } };
+      mio.onend = () => {
+        limpiar(); pintarEscucha(false);
+        if (cerrado) return;
+        cerrado = true;
+        if (callado) return;
+        if (oido.length) {
+          const util = oido.find((o) => !["desconocido", "nada"].includes(interpretarComando(o, guia.idioma).tipo));
+          atender(util || oido[0], { auto });                            // la primera alternativa que sea un comando
+        } else if (!fallo) { guia.cortePorEscucha = false; if (!auto) responder(u().errores["no-speech"], { seguir: false }); }
+      };
       try { mio.start(); } catch (e) { pintarEscucha(false); if (!auto) responder(u().sinMicro, { seguir: false }); }
     }
     /* Tras una respuesta dicha por voz, la guía vuelve a escuchar UNA vez. Nunca es lo primero que pasa: siempre
@@ -1098,18 +1158,18 @@
     }
 
     /* ---------- lo que se ve ---------- */
-    function pintarEstado() {
-      pintarEsfera();
-      const partes = [];
-      if (guia.pensando) partes.push(u().pensando);
-      if (guia.escuchando) partes.push(u().teEscucho);
-      else if (!Reconocedor) partes.push(u().sinReconocimiento);
+    /* La línea de estado de la tarjeta: dice con palabras lo mismo que muestra la esfera, y avisa si falta voz o micrófono. */
+    function pintarLinea() {
+      const partes = [guia.escuchando ? u().teEscucho : guia.pensando ? u().pensando : guia.hablando ? u().hablando : u().lista];
+      if (!Reconocedor) partes.push(u().sinReconocimiento);
       if (!modoLector()) {
         if (!sintesis) partes.push(u().sinVoz);
         else if (voces.length && !vocesIdioma().length) partes.push(u().sinVozIdioma);
       }
       ui.estado.textContent = partes.join(" ");
-      ui.estado.hidden = !partes.length;
+    }
+    function pintarEstado() {
+      pintarEsfera();
       const sinVoz = modoLector() || !puedeHablar();
       for (const c of [ui.voz, ui.velocidad, ui.probar]) c.disabled = sinVoz;
     }
@@ -1218,5 +1278,5 @@
 
   return { interpretarComando, interpretarES, interpretarEN, normalizar, normalizarEN, palabrasANumeros, palabrasANumerosEN, buscarFecha, buscarPista, leerFecha,
     fechaDicha, resumenSerie, guionRecorrido, valorDicho, elegirVozDe, ACCIONES_RECORRIDO, SUGERENCIAS, TEXTOS: L, INTERFAZ: U, TONO_VOZ, VELOCIDAD_VOZ,
-    ESPERA_SEGUIR_MS, ESPERA_AVISO_MS, ejecutar, montar, AYUDA, AYUDA_EN };
+    ESPERA_SEGUIR_MS, ESPERA_AVISO_MS, SILENCIO_MS, HABLA_MAX_MS, ejecutar, montar, AYUDA, AYUDA_EN };
 });

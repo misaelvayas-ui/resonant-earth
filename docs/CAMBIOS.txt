@@ -1097,3 +1097,30 @@ español e inglés, no lo dice si la respuesta es rápida, ni con lector de pant
 (tabla, redacción de la clave, tope por prueba).
 NO probado: llamadas reales a Gemini ni qué modelos de respaldo existen en tu cuenta (eso lo dice probar-gemini.mjs con tu clave).
 Para volver a publicar: en servicio-ia/, npx wrangler deploy.
+
+RONDA 38 - guía por voz, fase 1: pulido   (2026-11-15)
+Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit 490ded2 (ronda 37).
+Tocados: web/guia-voz.js, web/guia-voz.css, web/guia-voz-ia.js, web/guia-voz-config.js, web/pruebas/guia-voz-ia.test.js,
+web/README.md, servicio-ia/src/nucleo.js, servicio-ia/wrangler.toml, servicio-ia/pruebas/servicio.test.js, servicio-ia/LEEME.md.
+0. La web apunta al servicio publicado (guia-voz-config.js) y los modelos son gemini-3.5-flash-lite, gemini-3.5-flash y
+   gemini-3.6-flash, en wrangler.toml y como valor por defecto del código (commit 10e393b).
+1. Escuchar tras responder: la espera inicial sube a 10 s. Si la persona empieza a hablar (inicio de voz o resultados
+   parciales), el temporizador se detiene y se oculta, y no se corta hasta 2,5 s de silencio tras su última palabra (máximo
+   30 s). También al pulsar la esfera. El reconocimiento pasa a modo continuo con resultados parciales; los trozos se juntan
+   sin repetir (algunos navegadores mandan en cada trozo todo lo anterior).
+2. Menos texto: panel con cabecera (avatar, «Eco · Guía por voz», cerrar), subtítulo, línea de estado, «Escribir» y «Ayuda
+   y opciones» plegado en grupos cortos (4 ejemplos, idioma, voz y velocidad, lector de pantalla, escuchar de nuevo y tecla
+   H, y una línea sobre el micrófono). Se quitaron la lista larga de comandos y la nota larga de la IA (queda en la casilla).
+   La casilla de la tecla H se conserva: WCAG 2.1.4 pide poder apagar los atajos de una sola tecla.
+3. Textos revisados en español e inglés, sin jerga. Lector de pantalla: «Uso un lector de pantalla (NVDA, JAWS, VoiceOver,
+   TalkBack). La guía responderá solo por escrito, para que no se mezclen dos voces.»
+4. Apartado propio: la guía se llama Eco y usa violeta (la web usa azul), con su borde, su brillo y la esfera como avatar.
+   Las frases rápidas son «atajos» secundarios: una lista de enlaces discretos con flecha, no botones de la web.
+Verificado: node --test (web 24, servicio 13); navegador con micrófono, voz y servicio de mentira: 133 comprobaciones
+(axe 0 violaciones en escritorio y móvil, español e inglés; sin voces dobles con lector de pantalla; temporizador que se
+oculta al hablar, no corta pasados los 10 s y responde tras 2,5 s de silencio). En la corrida completa falló 1 por tiempos
+y pasó al repetir su sección sola (26 de 26). verificar.cjs: pasa todo menos V11 (tras Pausar, la amplitud no baja a
+tiempo), que ya fallaba antes de esta ronda con el código anterior; no es de la guía.
+NO probado: micrófono real (el modo continuo del reconocimiento se probó con un micrófono de mentira), voces reales,
+lectores de pantalla reales, Firefox, Safari, teléfonos.
+No hace falta volver a publicar el servicio por esta fase si ya se publicó con la lista de modelos nueva.

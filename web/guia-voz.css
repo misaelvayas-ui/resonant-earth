@@ -1,7 +1,9 @@
-/* Resonant Earth — estilos de la guía por voz (los carga guia-voz.js).
-   Una esfera luminosa fija abajo a la derecha ("Háblame") y, encima, una tarjeta mínima: un subtítulo con lo
-   último que dijo la guía, el botón "Escribir" y "Ayuda y opciones".
-   Usa los tokens de estilos.css (colores, tipografías, radios); los valores tras la coma son de respaldo.
+/* Resonant Earth — estilos de la guía por voz, «Eco» (los carga guia-voz.js).
+   La guía es un apartado propio, distinto de los botones de la web: una esfera violeta fija abajo a la derecha
+   («Háblame») y, encima, su panel: cabecera (avatar, nombre y cerrar), subtítulo, estado, «Escribir» y
+   «Ayuda y opciones» plegado. La web usa azul; la guía usa violeta, con su propio brillo y su propio borde.
+   Las frases rápidas se ven como atajos secundarios (una lista de enlaces discretos), no como botones de la web.
+   Usa las tipografías y radios de estilos.css; los valores tras la coma son de respaldo.
 
    Estados de la esfera (atributo data-estado de #guia-voz):
      reposo        gira despacio un reflejo
@@ -12,12 +14,14 @@
    Los fondos con texto son opacos para que el contraste no dependa de lo que haya detrás. */
 
 .guia-voz {
-  --gv-acento: var(--acento, #86cdfa);
-  --gv-tinta: var(--tinta, #f3f6f8);
-  --gv-tinta-2: var(--tinta-2, #c3cad2);
-  --gv-borde: var(--linea-control, #7d8792);
-  --gv-fondo: #080b10;
-  --gv-fondo-2: #121820;
+  --gv-acento: #c9b3ff;                 /* violeta claro: 11:1 sobre el fondo del panel */
+  --gv-acento-2: #8f78d6;
+  --gv-luz: 201, 179, 255;              /* el mismo violeta, para brillos con transparencia */
+  --gv-tinta: #f6f3ff;
+  --gv-tinta-2: #cdc6e0;
+  --gv-borde: #8d86a3;
+  --gv-fondo: #100c1e;
+  --gv-fondo-2: #1a1430;
   --gv-esfera: 92px;
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
@@ -28,7 +32,7 @@
   align-items: flex-end;
   gap: 10px;
   max-width: calc(100vw - 24px);
-  pointer-events: none;                 /* solo la esfera y la tarjeta reciben clics, no el hueco entre ellas */
+  pointer-events: none;                 /* solo la esfera y el panel reciben clics, no el hueco entre ellos */
   color: var(--gv-tinta);
   font: 400 var(--t-chico, 0.875rem)/1.5 var(--f-texto, system-ui, sans-serif);
 }
@@ -51,6 +55,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 .gv-hablar:focus-visible { outline: 3px solid var(--gv-tinta); outline-offset: 2px; }
+.gv-esfera, .gv-avatar {
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 24%),
+    radial-gradient(circle at 72% 78%, rgba(var(--gv-luz), 0.9) 0%, rgba(var(--gv-luz), 0) 55%),
+    radial-gradient(circle at 50% 50%, #7a4fd6 0%, #2a1466 58%, #07030f 100%);
+}
 .gv-esfera {
   position: relative;
   display: grid;
@@ -59,11 +69,7 @@
   height: var(--gv-esfera);
   border-radius: 50%;
   color: #ffffff;
-  background:
-    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 24%),
-    radial-gradient(circle at 72% 78%, rgba(134, 205, 250, 0.85) 0%, rgba(134, 205, 250, 0) 55%),
-    radial-gradient(circle at 50% 50%, #2f7ab8 0%, #0d2c4d 58%, #03070d 100%);
-  box-shadow: 0 0 0 1px rgba(134, 205, 250, 0.6), 0 0 26px 4px rgba(134, 205, 250, 0.38), inset 0 0 18px rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 1px rgba(var(--gv-luz), 0.6), 0 0 26px 4px rgba(var(--gv-luz), 0.38), inset 0 0 18px rgba(255, 255, 255, 0.22);
   transition: box-shadow 0.3s, filter 0.3s, transform 0.2s;
 }
 .gv-esfera svg { position: relative; z-index: 1; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7)); }
@@ -85,11 +91,11 @@
   border-radius: 50%;
   border: 2px solid transparent;
 }
-.gv-hablar:hover .gv-esfera { transform: scale(1.04); box-shadow: 0 0 0 1px rgba(134, 205, 250, 0.9), 0 0 34px 8px rgba(134, 205, 250, 0.5), inset 0 0 18px rgba(255, 255, 255, 0.3); }
+.gv-hablar:hover .gv-esfera { transform: scale(1.04); box-shadow: 0 0 0 1px rgba(var(--gv-luz), 0.9), 0 0 34px 8px rgba(var(--gv-luz), 0.5), inset 0 0 18px rgba(255, 255, 255, 0.3); }
 .gv-hablar-texto {
   padding: 7px 14px;
   background: #000000;
-  border: 1px solid var(--gv-borde);
+  border: 1px solid var(--gv-acento-2);
   border-radius: var(--r-pildora, 999px);
   font: 500 0.78rem/1 var(--f-titular, system-ui, sans-serif);
   letter-spacing: -0.01em;
@@ -97,13 +103,13 @@
 }
 
 /* escuchando: palpita, suelta ondas y el rótulo cambia de color y de texto */
-.guia-voz[data-estado="escuchando"] .gv-esfera { animation: gv-latir 1.1s ease-in-out infinite; box-shadow: 0 0 0 2px var(--gv-acento), 0 0 40px 10px rgba(134, 205, 250, 0.6), inset 0 0 22px rgba(255, 255, 255, 0.35); }
+.guia-voz[data-estado="escuchando"] .gv-esfera { animation: gv-latir 1.1s ease-in-out infinite; box-shadow: 0 0 0 2px var(--gv-acento), 0 0 40px 10px rgba(var(--gv-luz), 0.6), inset 0 0 22px rgba(255, 255, 255, 0.35); }
 .guia-voz[data-estado="escuchando"] .gv-esfera::after { border-color: var(--gv-acento); animation: gv-onda 1.4s ease-out infinite; }
 .guia-voz[data-estado="escuchando"] .gv-hablar-texto { background: var(--gv-acento); border-color: var(--gv-acento); color: #000000; }
 /* pensando: el reflejo gira rápido */
 .guia-voz[data-estado="pensando"] .gv-esfera::before { animation-duration: 1.2s; }
 /* respondiendo: brilla */
-.guia-voz[data-estado="respondiendo"] .gv-esfera { filter: brightness(1.25) saturate(1.1); box-shadow: 0 0 0 2px #ffffff, 0 0 52px 16px rgba(134, 205, 250, 0.8), inset 0 0 26px rgba(255, 255, 255, 0.5); animation: gv-brillar 1.8s ease-in-out infinite; }
+.guia-voz[data-estado="respondiendo"] .gv-esfera { filter: brightness(1.25) saturate(1.1); box-shadow: 0 0 0 2px #ffffff, 0 0 52px 16px rgba(var(--gv-luz), 0.8), inset 0 0 26px rgba(255, 255, 255, 0.5); animation: gv-brillar 1.8s ease-in-out infinite; }
 .guia-voz[data-estado="respondiendo"] .gv-esfera::after { border-color: rgba(255, 255, 255, 0.55); }
 
 @keyframes gv-girar { to { transform: rotate(360deg); } }
@@ -111,36 +117,49 @@
 @keyframes gv-onda { 0% { transform: scale(0.94); opacity: 1; } 100% { transform: scale(1.45); opacity: 0; } }
 @keyframes gv-brillar { 0%, 100% { filter: brightness(1.15) saturate(1.1); } 50% { filter: brightness(1.4) saturate(1.15); } }
 
-/* ------------------------------------------------------------------ la tarjeta de la conversación */
+/* ------------------------------------------------------------------ el panel de la guía */
 .gv-tarjeta {
-  width: min(360px, calc(100vw - 24px));
+  width: min(340px, calc(100vw - 24px));
   max-height: calc(100vh - var(--gv-esfera) - 110px);
   max-height: calc(100dvh - var(--gv-esfera) - 110px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 16px 18px;
-  background: var(--gv-fondo);
-  border: 1px solid var(--gv-borde);
+  padding: 0 16px 14px;
+  background: linear-gradient(180deg, var(--gv-fondo-2) 0, var(--gv-fondo) 120px);
+  border: 1px solid var(--gv-acento-2);
+  border-top: 3px solid var(--gv-acento);
   border-radius: var(--r-tarjeta, 18px);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(134, 205, 250, 0.12);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 34px rgba(var(--gv-luz), 0.22);
 }
-/* cerrar: pequeño, en la esquina */
-.gv-cerrar { float: right; display: grid; place-items: center; width: 32px; height: 32px; margin: -6px -8px 4px 10px; padding: 0; background: transparent; border: 1px solid var(--gv-borde); border-radius: 50%; color: var(--gv-tinta); cursor: pointer; }
+/* cabecera: el avatar (la misma esfera, en pequeño), el nombre y cerrar */
+.gv-cabecera { display: flex; align-items: center; gap: 10px; margin: 0 -16px 12px; padding: 10px 12px 10px 16px; border-bottom: 1px solid rgba(var(--gv-luz), 0.25); }
+.gv-avatar { flex: none; width: 28px; height: 28px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(var(--gv-luz), 0.7), 0 0 12px rgba(var(--gv-luz), 0.5); }
+.gv-identidad { flex: 1 1 auto; min-width: 0; margin: 0; line-height: 1.2; }
+.gv-alias { color: var(--gv-acento); font: 600 1rem/1.2 var(--f-titular, system-ui, sans-serif); letter-spacing: -0.01em; }
+.gv-rol { margin-left: 4px; color: var(--gv-tinta-2); font-size: 0.75rem; }
+.gv-cerrar { flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; background: transparent; border: 1px solid var(--gv-borde); border-radius: 50%; color: var(--gv-tinta); cursor: pointer; }
 .gv-cerrar:hover { border-color: var(--gv-tinta); }
 
 /* el subtítulo: lo último que dijo la guía, siempre a la vista */
 .gv-subtitulo { margin: 0 0 10px; font-size: 1rem; line-height: 1.45; overflow-wrap: anywhere; }
-.gv-ia-etiqueta { display: inline-block; margin: -2px 0 10px; padding: 3px 10px; border: 1px solid var(--gv-acento); border-radius: var(--r-pildora, 999px); color: var(--gv-acento); font: 400 0.68rem/1.4 var(--f-dato, ui-monospace, monospace); }
-.gv-ia-aviso { margin: 0 0 10px; color: var(--gv-tinta-2); font-size: 0.75rem; }
+.gv-ia-etiqueta { display: inline-block; margin: -2px 0 10px; padding: 3px 10px; border: 1px solid var(--gv-acento-2); border-radius: var(--r-pildora, 999px); color: var(--gv-acento); font: 400 0.68rem/1.4 var(--f-dato, ui-monospace, monospace); }
+.gv-ia-aviso { margin: 0 0 10px; color: var(--gv-tinta-2); font-size: 0.72rem; }
 
-/* indicador de "sigo escuchando": una barra que se vacía en 6 segundos, con su texto */
+/* indicador de "sigo escuchando": una barra que se vacía en 10 segundos; se oculta en cuanto la persona habla */
 .gv-escucha { display: grid; gap: 6px; margin: 0 0 10px; color: var(--gv-acento); font-size: 0.8rem; font-weight: 600; }
-.gv-escucha-barra { display: block; height: 4px; border-radius: 2px; background: var(--gv-acento); transform-origin: left center; animation: gv-cuenta 6s linear forwards; }
+.gv-escucha-barra { display: block; height: 4px; border-radius: 2px; background: var(--gv-acento); transform-origin: left center; animation: gv-cuenta 10s linear forwards; }
 @keyframes gv-cuenta { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
-.gv-nota, .gv-estado { margin: 0; color: var(--gv-tinta-2); font-size: 0.8rem; }
-.gv-estado { margin-bottom: 10px; }
-.gv-rotulo { margin: 12px 0 0; color: var(--gv-tinta); font-weight: 600; font-size: 0.8rem; }
+/* el estado de la esfera, con palabras: un punto de color y una frase corta */
+.gv-estado { display: flex; gap: 8px; align-items: baseline; margin: 0 0 12px; color: var(--gv-tinta-2); font-size: 0.8rem; }
+.gv-estado::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--gv-borde); transform: translateY(-1px); }
+.guia-voz[data-estado="escuchando"] .gv-estado { color: var(--gv-acento); }
+.guia-voz[data-estado="escuchando"] .gv-estado::before { background: var(--gv-acento); box-shadow: 0 0 8px var(--gv-acento); }
+.guia-voz[data-estado="pensando"] .gv-estado::before { background: transparent; border: 2px dashed var(--gv-acento); width: 6px; height: 6px; }
+.guia-voz[data-estado="respondiendo"] .gv-estado::before { background: #ffffff; box-shadow: 0 0 8px #ffffff; }
+
+.gv-nota { margin: 0; color: var(--gv-tinta-2); font-size: 0.75rem; }
+.gv-rotulo { margin: 0 0 6px; color: var(--gv-tinta-2); font: 600 0.7rem/1.3 var(--f-texto, system-ui, sans-serif); letter-spacing: 0.06em; text-transform: uppercase; }
 .gv-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 .gv-boton {
@@ -155,28 +174,32 @@
 }
 .gv-boton:hover { border-color: var(--gv-tinta); }
 .gv-boton:disabled { opacity: 0.45; cursor: not-allowed; }
+.gv-boton-chico { min-height: 36px; padding: 6px 14px; }
 .gv-detener { width: 100%; margin-bottom: 10px; background: var(--gv-tinta); border-color: var(--gv-tinta); color: #000000; }
 .gv-escribir { min-height: 40px; }
 .gv-escribir[aria-expanded="true"] { border-color: var(--gv-acento); }
 .gv-zona-escribir { margin-top: 12px; }
 .gv-formulario { margin-bottom: 12px; }
 
-/* frases sugeridas */
-.gv-sugerencias { display: flex; flex-wrap: wrap; gap: 8px; }
+/* atajos: frases rápidas. Secundarias a propósito: una lista de enlaces discretos con una flecha, no botones de la web */
+.gv-sugerencias { display: grid; gap: 2px; }
 .gv-chip {
-  min-height: 40px;
-  padding: 8px 14px;
-  background: #0f2233;
-  border: 1px solid rgba(134, 205, 250, 0.55);
-  border-radius: var(--r-pildora, 999px);
-  color: var(--gv-tinta);
-  font: 600 0.8rem/1.25 var(--f-texto, system-ui, sans-serif);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-height: 34px;
+  padding: 6px 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: var(--gv-acento);
+  font: 400 0.85rem/1.3 var(--f-texto, system-ui, sans-serif);
   text-align: left;
   cursor: pointer;
 }
-.gv-chip:hover { border-color: var(--gv-acento); background: #143049; }
-.gv-chip-recorrido { background: var(--gv-acento); border-color: var(--gv-acento); color: #000000; }
-.gv-chip-recorrido:hover { background: #a9dcfc; border-color: #a9dcfc; }
+.gv-chip::before { content: "›"; flex: none; color: var(--gv-tinta-2); font-weight: 700; }
+.gv-chip:hover { background: rgba(var(--gv-luz), 0.12); text-decoration: underline; }
+.gv-chip-recorrido { font-weight: 600; color: var(--gv-tinta); }
 
 .gv-formulario label, .gv-campo-opcion label { display: block; margin-bottom: 6px; color: var(--gv-tinta-2); font-size: 0.8rem; }
 .gv-formulario .gv-fila { flex-wrap: nowrap; }
@@ -196,14 +219,19 @@
 
 .gv-solo-lector { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
-.gv-opciones { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--linea, rgba(255, 255, 255, 0.12)); }
+/* ayuda y opciones: plegado; dentro, grupos cortos separados por una línea */
+.gv-opciones { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(var(--gv-luz), 0.25); }
 .gv-opciones summary { min-height: 32px; cursor: pointer; color: var(--gv-tinta-2); font-weight: 600; font-size: 0.8rem; }
-.gv-opciones > * + * { margin-top: 12px; }
-.gv-lista-ayuda { margin: 12px 0 0; padding: 0 0 0 18px; list-style: disc; color: var(--gv-tinta-2); font-size: 0.8rem; }
-.gv-lista-ayuda li + li { margin-top: 4px; }
+.gv-grupo { display: grid; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(var(--gv-luz), 0.14); }
+.gv-opciones summary + .gv-grupo { border-top: 0; padding-top: 0; }
+.gv-grupo .gv-rotulo { margin: 0; }
+.gv-grupo .gv-campo-opcion label { margin-bottom: 4px; }
+.gv-opciones .gv-nota { margin-top: 12px; }
+.gv-lista-ayuda { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--gv-tinta); font-size: 0.8rem; }
 .gv-casilla { display: flex; gap: 10px; align-items: flex-start; font-size: 0.8rem; cursor: pointer; }
 .gv-casilla input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--gv-acento); }
 .gv-campo-opcion input[type="range"] { width: 100%; accent-color: var(--gv-acento); }
+.gv-boton-chico { justify-self: start; }
 
 .guia-voz :is(button, input, select, summary):focus-visible { outline: 2px solid var(--gv-tinta); outline-offset: 2px; }
 
@@ -211,7 +239,6 @@
 @media (max-width: 600px) {
   .guia-voz { --gv-esfera: 72px; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); }
   .gv-esfera svg { width: 26px; height: 26px; }
-  .gv-tarjeta { padding: 16px; }
 }
 
 /* ------------------------------------------------------------------ menos movimiento: nada se mueve */
@@ -225,7 +252,8 @@
 
 /* ------------------------------------------------------------------ alto contraste forzado (Windows) */
 @media (forced-colors: active) {
-  .gv-esfera { border: 2px solid ButtonText; forced-color-adjust: none; background: ButtonFace; color: ButtonText; box-shadow: none; }
+  .gv-esfera, .gv-avatar { border: 2px solid ButtonText; forced-color-adjust: none; background: ButtonFace; color: ButtonText; box-shadow: none; }
   .gv-esfera::before { display: none; }
   .guia-voz[data-estado="escuchando"] .gv-esfera, .guia-voz[data-estado="respondiendo"] .gv-esfera { border-color: Highlight; border-width: 4px; }
+  .gv-chip { color: LinkText; }
 }

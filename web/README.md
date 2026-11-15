@@ -75,19 +75,21 @@ El Chromium de Playwright no trae H.264 ni AAC. Para que reproduzca las pistas, 
 
 > Hecha con ayuda de IA (Claude Code). Sin el servicio de IA configurado, las respuestas de la guía salen de reglas fijas, no de una IA.
 
-Una esfera luminosa fija abajo a la derecha, **«Háblame»** (o la tecla `H`). Funciona **por voz primero**, como una persona que atiende en la web: al abrirla saluda en una frase («Hola, soy la guía de Resonant Earth. ¿Qué quieres escuchar?») y escucha. Está en **español e inglés**; la web de Misael no se traduce.
+Una esfera violeta fija abajo a la derecha, **«Háblame»** (o la tecla `H`). La guía se llama **Eco** y funciona **por voz primero**, como una persona que atiende en la web: al abrirla saluda en una frase («Hola, soy Eco, la guía de Resonant Earth. ¿Qué quieres escuchar?») y escucha. Está en **español e inglés**; la web de Misael no se traduce.
 
-**La tarjeta es mínima.** Encima de la esfera solo hay:
+**Un apartado propio, con poco texto.** La guía no se parece a los botones de la web: la web usa azul y la guía usa violeta, con su borde y su brillo. Su panel, encima de la esfera, solo tiene:
 
+- una **cabecera** con el avatar (la misma esfera en pequeño), el nombre «Eco · Guía por voz» y el botón de cerrar;
 - un **subtítulo** con lo último que dijo la guía, siempre visible (para personas sordas, con ruido o sin voz disponible);
-- el botón **«Escribir»**, que despliega el campo de texto y, dentro, las frases sugeridas;
-- el bloque plegado **«Ayuda y opciones»**, con todo lo demás: ejemplos de lo que se puede decir, idioma, lector de pantalla, tecla H, seguir escuchando, voz, velocidad y la nota del micrófono.
+- una **línea de estado** que dice con palabras lo que muestra la esfera: «Lista.», «Te escucho.», «Un momento…» o «Hablando…»;
+- el botón **«Escribir»**, que despliega el campo de texto y los **atajos** (frases rápidas): se ven como una lista de enlaces discretos con una flecha, no como botones de la web;
+- el bloque plegado **«Ayuda y opciones»**, en grupos cortos: cuatro ejemplos de qué decir, idioma, voz y velocidad, lector de pantalla, escuchar de nuevo y tecla H, y una nota de una línea sobre el micrófono.
 
-No se ven «Entendí», las frases sugeridas ni la lista de comandos. Las frases sugeridas aparecen solas únicamente si el navegador no tiene voz o no tiene reconocimiento de voz. La ayuda con ejemplos solo se dice y se muestra cuando la persona la pide («ayuda», «qué puedes hacer», «help»).
+La opción del lector de pantalla dice: «Uso un lector de pantalla (NVDA, JAWS, VoiceOver, TalkBack). La guía responderá solo por escrito, para que no se mezclen dos voces.» La tecla H se puede apagar porque así lo pide WCAG 2.1.4 para los atajos de una sola tecla. Los atajos aparecen solos únicamente si el navegador no tiene voz o no entiende la voz. La ayuda con ejemplos solo se dice cuando la persona la pide («ayuda», «qué puedes hacer», «help»).
 
 **La esfera** es un `<button>` de verdad: se llega con `Tab` o con el enlace «Saltar a la guía por voz». Gira despacio en reposo, **palpita** cuando escucha y **brilla** cuando responde; con `prefers-reduced-motion` no se mueve y el estado se ve en el anillo y el texto. Atajos: **`H`** para hablar (se puede apagar) y `Esc` para cerrar el micrófono, detener el recorrido o cerrar la tarjeta. **No hay atajo con la barra espaciadora.**
 
-**Conversación seguida.** Después de cada respuesta dicha por voz, la guía vuelve a escuchar **una vez, hasta 6 segundos**, con un indicador visible («Sigo escuchando unos segundos…» y una barra que se vacía). Si nadie habla, se cierra sin decir nada. Si la persona habla, se le responde y vuelve a escuchar. Una frase que no se entiende en esa escucha no abre otra. Se apaga en opciones («Seguir escuchando unos segundos después de cada respuesta»). **El micrófono nunca se abre sin una acción previa de la persona**: al cargar la página no pasa nada.
+**Conversación seguida, sin cortar a la persona.** Después de cada respuesta dicha por voz, la guía vuelve a escuchar **una vez** y espera **hasta 10 segundos** a que la persona empiece a hablar, con un indicador visible («Sigo escuchando…» y una barra que se vacía). En cuanto la persona habla (inicio de voz o resultados parciales del reconocimiento), el temporizador **se detiene y se oculta**, y la frase solo se da por terminada tras **2,5 s de silencio** después de su última palabra, con un máximo de 30 s. Lo mismo al pulsar la esfera: una pausa corta ya no corta la frase. Si nadie habla, se cierra sin decir nada. Una frase que no se entiende en esa escucha no abre otra. Se apaga en «Ayuda y opciones». El micrófono **nunca** se abre sin una acción previa de la persona.
 
 **Dos idiomas (solo la guía).** El idioma inicial es el del navegador (inglés si empieza por `en`; si no, español) y se cambia con el selector «Español / English» de «Ayuda y opciones» o diciendo «habla en inglés» / «español». En los dos idiomas están los comandos (`interpretarES` e `interpretarEN` devuelven los mismos tipos de acción), los textos de la tarjeta, el recorrido y las respuestas fijas. El reconocimiento usa `es-EC` (y `es-ES` si el navegador no lo admite) o `en-US`. Lo que la guía dice en inglés sobre la página (títulos de pista, la lectura de «Ahora», la leyenda) está en `guia-voz-adaptador.js`, calculado con los mismos datos. Con IA, el idioma elegido viaja en el contexto y el modelo responde en ese idioma.
 
@@ -118,13 +120,13 @@ No se ven «Entendí», las frases sugeridas ni la lista de comandos. Las frases
 
 **Cómo se conecta con la web.** `guia-voz-adaptador.js` es el único archivo que conoce la página. Usa `window.__web` (lo crea `js/principal.js`), el botón `#btn-reproducir` y los textos que la página ya pinta. **No se cambió ningún módulo de `js/`**; en `index.html` solo están las cuatro líneas `<script>` de la guía.
 
-**Conversación con IA (opcional).** Viene **apagada**: `guia-voz-config.js` trae la dirección del servicio vacía. Para encenderla se publica `servicio-ia/` (pasos en `servicio-ia/LEEME.md`) y se pone su dirección ahí. **En la web nunca hay una clave.**
+**Conversación con IA.** `guia-voz-config.js` trae la dirección del servicio publicado (`servicio-ia/`, pasos en `servicio-ia/LEEME.md`). Con la dirección vacía (`""`) la guía funciona solo con comandos y no envía nada. **En la web nunca hay una clave.**
 
 - Los comandos cortos, «llévame al año más cálido», el recorrido y los cambios de idioma no pasan por el modelo.
 - Lo que devuelve la IA se comprueba contra trece acciones permitidas y los rangos de la pista; lo que no cuadra se descarta y responde el intérprete.
 - Sin dirección, sin internet, con error, con límite (429) o si tarda más de 9 segundos, la guía responde con sus comandos y no muestra errores.
 - Mientras espera a la IA, la esfera pasa a «pensando» y, si pasan 1,5 s, la guía dice «Un momento.» («One moment.») una sola vez; con lector de pantalla no habla, basta el texto.
-- Mientras la IA está encendida se ve el aviso «Tus frases se envían a un servicio de IA para responderte» y cada respuesta de la IA lleva la etiqueta «Respuesta generada por IA» (en inglés, sus equivalentes).
+- Mientras la IA está encendida se ve el aviso «Tus frases se envían a un servicio de IA» y cada respuesta de la IA lleva la etiqueta «Respuesta generada por IA» (en inglés, sus equivalentes).
 
 **Pruebas de la guía**
 
@@ -137,7 +139,7 @@ En navegador (Chrome sin ventana, con micrófono, voz y servicio de IA **de ment
 
 - axe con 0 violaciones en escritorio (1440 px) y móvil (390 px), en español y en inglés: cerrada, escuchando y con todo desplegado. Sin desborde horizontal.
 - Voz primero: al cargar no se abre el micrófono; `H` abre, saluda y escucha; la barra espaciadora no hace nada; tarjeta mínima; la ayuda solo aparece al pedirla.
-- Escucha de seguimiento: se abre tras responder, se cierra sola a los 6 s sin decir nada, no encadena, y se apaga en opciones.
+- Escucha de seguimiento: se abre tras responder y se cierra sola a los 10 s sin decir nada; si la persona habla, el temporizador se oculta, no se le corta aunque pasen los 10 s, y responde tras 2,5 s de silencio juntando los trozos; no encadena y se apaga en opciones.
 - Sin IA: 20 comandos y frases de punta a punta, «no entendí» repite más despacio, preguntas sobre la web con texto fijo, y no sale ninguna petición.
 - Inglés: idioma por defecto según el navegador, saludo, voz británica masculina, reconocimiento `en-US`, 12 comandos, recorrido, selector y cambio por voz; la web sigue en español.
 - Lector de pantalla: 0 frases por voz en 14 comandos y en el recorrido; la guía y la página nunca dicen lo mismo a la vez; sin escucha de seguimiento.
