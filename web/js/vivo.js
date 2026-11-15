@@ -9,6 +9,7 @@ import { calcularSerie, aislar, eventos, nivelDron, valorEn, primerEvento, NIVEL
 // Constantes de timbre y de tiempo (el resto sale del mapeo; ver plan 3.6)
 const ARMONICOS = [1, 0.35, 0.15];            // forma «suave»: seno + 2.º y 3.er armónico, ÷ 1,5
 const TAU_PUERTA = 0.015;                     // s: entrada y salida del sonido sin clic
+const FUNDIDO_FINAL = 0.05;                   // s: fundido al terminar la pista (06:279)
 const TAU_NOTA = 0.01;                        // s: glide de la voz (06:296)
 const TAU_GANANCIA = 0.08;                    // s: suavizado de la ganancia (06:297)
 const TICK = 25;                              // ms entre revisiones del planificador
@@ -34,7 +35,7 @@ const hz = (nota) => 440 * 2 ** ((nota - 69) / 12);
 
 export function iniciar() {
   medio = audio.elementoMedio();
-  for (const nombre of ["play", "playing", "pause", "ended"]) medio.addEventListener(nombre, () => alMedio(nombre));
+  for (const nombre of ["play", "playing", "pause", "ended", "seeking", "seeked", "waiting", "stalled", "ratechange"]) medio.addEventListener(nombre, () => alMedio(nombre));
 }
 
 /* Prepara una pista: calcula la serie y los golpes (no crea nodos ni suena todavía) */
@@ -98,10 +99,17 @@ function aplicarCasillas() {
   gMelodia.gain.setTargetAtTime(rasgos.tono || rasgos.volumen || rasgos.paneo ? 1 : 0, ctx.currentTime, TAU_PUERTA);
 }
 
-function puerta(abrir) {
+function puerta(abrir, fundido = false) {
   if (!nodos) return;
   abierta = abrir;
-  nodos.puerta.gain.setTargetAtTime(abrir ? 1 : 0, nodos.ctx.currentTime, TAU_PUERTA);
+  const { ctx, puerta: g } = nodos, ahora = ctx.currentTime;
+  if (fundido) {                                                      // el final de la pista: rampa lineal de 50 ms
+    g.gain.cancelScheduledValues(ahora);
+    g.gain.setValueAtTime(g.gain.value, ahora);
+    g.gain.linearRampToValueAtTime(0, ahora + FUNDIDO_FINAL);
+  } else {
+    g.gain.setTargetAtTime(abrir ? 1 : 0, ahora, TAU_PUERTA);
+  }
 }
 
 /* Posición de la pista en este instante. currentTime avanza a saltos en algunos navegadores: entre dos anclas
@@ -175,17 +183,19 @@ function arrancar() {
   puerta(true);
 }
 
-function parar() {
+function parar(final = false) {
   clearInterval(intervalo);
   intervalo = null;
-  if (nodos) { cancelarPendientes(); puerta(false); }
+  if (nodos) { cancelarPendientes(); puerta(false, final); }
 }
 
 function alMedio(nombre) {
   if (!activo || !nodos) return;
   if (nombre === "play") arrancar();
   else if (nombre === "playing") { if (!intervalo) arrancar(); }      // ya está en marcha tras "play": no se reprograma
-  else parar();                                                       // pause, ended
+  else if (nombre === "seeked") { if (!medio.paused && !medio.ended) arrancar(); }
+  else if (nombre === "ratechange") { if (intervalo) resincronizar(); }   // el tempo cambia; las notas no
+  else parar(nombre === "ended" || medio.ended);                      // pause, ended, seeking, waiting, stalled
 }
 
 /* Selecciona o deja el modo «en vivo». Hay que haber llamado a audio.fijarModo("vivo") y a audio.desbloquear() en el gesto */
