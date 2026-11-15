@@ -106,6 +106,18 @@
     if (hay(/\b(ayuda|ayudame|comandos|instrucciones|opciones|que (puedo|se puede) (decir|hacer|pedir)|como funciona)\b/)) return { tipo: "ayuda" };
     if (hay(/\b(calla|callate|silencio|deja de hablar|no hables|shh+)\b/)) return { tipo: "callar" };
 
+    // ---- recorrido guiado, "por qué sube el tono" y "el año más cálido"
+    if (hay(/\b(recorrido|tour|visita guiada|paseo guiado)\b/)) {
+      return { tipo: hay(/\b(deten\w*|para|parar|paralo|termina\w*|cancela\w*|salir|sal|basta|stop|quita\w*|no quiero)\b/) ? "detener_recorrido" : "recorrido" };
+    }
+    const porQue = hay(/^(por que|como es que|a que se debe)\b/);
+    if (porQue && hay(/\b(tono|agud\w+|grave\w*|notas?|melodia|sube|baja|suena|sonido|cambia)\b/)) return { tipo: "explicar_tono" };
+    if (!porQue) {
+      const punto = hay(/\b(ano|anos|momento|punto|mes|fecha|dia|valor|temperatura|indice|parte|nota)\b/);
+      if (hay(/\bmas (calid\w+|calient\w+|caluros\w+)\b|\b(mayor|mas) calor\b/) || (punto && hay(/\b(mas alt\w+|maxim\w+|pico)\b/))) return { tipo: "saltar_extremo", cual: "max" };
+      if (hay(/\bmas (fri\w+|fresc\w+|helad\w+)\b|\bmenos calor\b/) || (punto && hay(/\b(mas baj\w+|minim\w+)\b/))) return { tipo: "saltar_extremo", cual: "min" };
+    }
+
     // ---- saltos: lo más concreto primero (llevan números)
     const atras = hay(/\b(retrocede\w*|atras|regresa\w*|devuelve\w*|rebobina\w*)\b/);
     const adelante = hay(/\b(avanza\w*|adelanta\w*|adelante)\b/) || (hay(/\bsalta\w*\b/) && !hay(/\b(a|al|hasta)\b/));
@@ -154,7 +166,9 @@
     }
 
     // ---- leer
-    if (hay(/\b(leyendas?|llenda|colores|color|que significa\w*|que (estoy|estamos|estas) (escuchando|oyendo)|como se (lee|escucha|entiende)|explica\w*)\b/)) return { tipo: "leyenda" };
+    if (hay(/\b(leyendas?|llenda|colores|color)\b/)) return { tipo: "leyenda" };
+    if (hay(/\b(que (estoy|estamos|estas|se esta) (escuchando|oyendo)|que (oigo|escucho|suena|es (esto|eso|ese sonido))|lo que (oigo|escucho|suena)|explica\w*)\b/)) return { tipo: "explicar" };
+    if (hay(/\b(que significa\w*|como se (lee|escucha|entiende))\b/)) return { tipo: "leyenda" };
     if (hay(/\b(donde (estoy|vamos|voy|va)|que pista (es|suena|esta)|cual (pista|es la pista)|cuanto (falta|queda|lleva)|en que (segundo|minuto|momento|parte))\b/)) return { tipo: "donde" };
     if (hay(/\b(descri\w+|que (pasa|esta pasando|sucede|ocurre|se ve|muestra|hay)|cuentame|dime que|lee\w*|como va|que ano es|en que ano)\b/)) return { tipo: "descripcion" };
     if (hay(/\b(repite|repetir|repitelo|otra vez|de nuevo|como dijiste)\b/) && !hay(/\b(reprodu\w+|pon\w*|toca)\b/)) return { tipo: "repetir" };
@@ -215,16 +229,74 @@
     return (m ? `${m} ${m === 1 ? "minuto" : "minutos"} ` : "") + `${seg} ${seg === 1 ? "segundo" : "segundos"}`;
   };
 
+  const coma = (n) => (Math.round(Math.abs(n) * 100) / 100).toFixed(2).replace(".", ",");
+  const conPunto = (t) => (t && !/[.!?]$/.test(t) ? t + "." : t);
+  /* Un valor dicho en palabras: "más 1,06 grados", "menos 0,61 grados" o, en el mar, "índice 22,44". */
+  const valorDicho = (v, d = {}) => (d.indiceRelativo ? `índice ${coma(v)}` : `${v < 0 ? "menos" : "más"} ${coma(v)} grados`);
+
+  /* Cifras ya calculadas de una serie [{ t, fecha, media }]: máximo, mínimo, mayor cambio entre dos momentos
+     seguidos y tendencia (primer dato frente al último). Las usan los comandos y viajan a la IA para que el
+     modelo no calcule ni invente nada. null si no hay datos. */
+  function resumenSerie(serie) {
+    const s = (serie || []).filter((r) => r && typeof r.media === "number" && isFinite(r.media));
+    if (s.length < 2) return null;
+    const red = (x) => Math.round(x * 100) / 100;
+    const fecha = (r) => (r.fecha != null ? String(r.fecha) : `segundo ${Math.round(r.t)}`);
+    const punto = (r) => ({ fecha: fecha(r), valor: red(r.media), t: r.t });
+    let max = s[0], min = s[0], a = s[0], b = s[1];
+    for (let i = 1; i < s.length; i++) {
+      if (s[i].media > max.media) max = s[i];
+      if (s[i].media < min.media) min = s[i];
+      if (Math.abs(s[i].media - s[i - 1].media) > Math.abs(b.media - a.media)) { a = s[i - 1]; b = s[i]; }
+    }
+    const fin = s[s.length - 1], cambio = fin.media - s[0].media, rango = max.media - min.media;
+    return {
+      maximo: punto(max), minimo: punto(min),
+      mayor_cambio: { de: fecha(a), a: fecha(b), cambio: red(b.media - a.media) },
+      tendencia: { inicio: punto(s[0]), fin: punto(fin), cambio: red(cambio),
+        direccion: rango === 0 || Math.abs(cambio) < rango / 3 ? "sube y baja" : cambio > 0 ? "sube" : "baja" },
+    };
+  }
+
+  /* El recorrido guiado: un guion FIJO (no lo escribe ningún modelo). Cada paso tiene un texto, una pausa para
+     dejar oír la música y, a veces, una acción de ACCIONES_RECORRIDO. Las cifras salen de resumenSerie(). */
+  const ACCIONES_RECORRIDO = ["elegir", "saltar_tiempo"];
+  function guionRecorrido(A) {
+    const pistas = A.pistas();
+    const de = (i) => { const d = (A.detalle && pistas[i] && A.detalle(i)) || {}; return { ...d, resumen: resumenSerie(d.serie) }; };
+    const pasos = [{ accion: null, pausa: 300, texto: "Te doy la bienvenida a Resonant Earth. Aquí los mapas de la NASA se vuelven música: cuanto más caliente está el mapa, más agudo suena." }];
+    if (pistas[0]) {
+      const d = de(0), R = d.resumen;
+      pasos.push({ accion: { tipo: "elegir", numero: 1 }, pausa: 3000,
+        texto: `Primera pista: ${pistas[0].titulo}${R ? `, desde ${R.tendencia.inicio.fecha}` : ""}. Escucha cómo empieza.` });
+      // unos segundos antes del punto más alto: la música sube hasta él mientras la guía lo cuenta
+      if (R) pasos.push({ accion: { tipo: "saltar_tiempo", segundos: Math.max(0, Math.round((R.maximo.t - 7) * 10) / 10) }, pausa: 2500,
+        texto: `Salto hacia ${R.maximo.fecha}: ${valorDicho(R.maximo.valor, d)}. Es el punto más alto de la pista, por eso la melodía suena cada vez más aguda.` });
+    }
+    if (pistas[1]) {
+      const d = de(1), R = d.resumen;
+      pasos.push({ accion: { tipo: "elegir", numero: 2 }, pausa: 3000,
+        texto: `Segunda pista: ${pistas[1].titulo}.` + (R ? ` Aquí la melodía ${R.tendencia.direccion === "sube y baja" ? "sube y baja" : R.tendencia.direccion}: su punto más bajo es ${R.minimo.fecha}.` : "") });
+    }
+    pasos.push({ accion: null, pausa: 0, texto: "Fin del recorrido. Pulsa la esfera Háblame y pregúntame lo que quieras." });
+    return pasos;
+  }
+
   const AYUDA = "Puedes decir: reproduce. Pausa. Siguiente pista. Pista dos. Qué pistas hay. Año 1990. Segundo diez. " +
-    "Avanza diez segundos. Qué pasa ahora. Lee la leyenda. Dónde estoy. Sube el volumen. Repite. Silencio.";
+    "Avanza diez segundos. Qué estoy escuchando. Por qué sube el tono. Llévame al año más cálido. Dame un recorrido. " +
+    "Lee la leyenda. Dónde estoy. Sube el volumen. Repite. Silencio.";
 
   /* Ejecuta una acción con el adaptador. Devuelve { texto, paginaAnuncia, paginaHabla }:
      paginaAnuncia = la página ya lo dirá al lector de pantalla; paginaHabla = la página ya lo dirá con su voz. */
   async function ejecutar(accion, A, memoria = {}) {
-    const pistas = A.pistas(), n = pistas.length, actual = A.indiceActual();
+    const pistas = A.pistas(), n = pistas.length;
+    let actual = A.indiceActual();
+    // "llévame al año más cálido" o "año 1990" sin pista elegida: se carga la primera y se sigue
+    if (actual < 0 && n && ["saltar_extremo", "saltar_anio"].includes(accion.tipo)) { await A.elegir(0, false); actual = A.indiceActual(); }
+    const datos = () => { const d = (A.detalle && A.detalle()) || {}; return { ...d, resumen: resumenSerie(d.serie) }; };
     const anuncia = (que) => !!(A.paginaAnuncia && A.paginaAnuncia(que)), habla = !!(A.paginaHablaSola && A.paginaHablaSola());
     const r = (texto, extra = {}) => ({ texto, ...extra });
-    const cargando = () => r("La pista todavía se está cargando. Espera un momento y repite.");
+    const cargando = () => r(n && actual < 0 ? "Todavía no hay ninguna pista elegida. Di «reproduce» o «dame un recorrido»." : "La pista todavía se está cargando. Espera un momento y repite.");
     const elegir = async (i) => {
       await A.elegir(i, true);
       return r(`Pista ${i + 1} de ${n}: ${pistas[i].titulo}.`, { paginaAnuncia: anuncia("elegir") });
@@ -275,6 +347,32 @@
         if (f.fuera) return r(`Esta pista va de ${f.desde} a ${f.hasta}. No tiene el año ${f.anio}.`);
         return ir(f.t + 0.01, f.exacto ? `${f.fecha}.` : `No hay un dato exacto de esa fecha. Voy al más cercano: ${f.fecha}.`);
       }
+      case "saltar_extremo": {
+        if (!A.listo()) return cargando();
+        const d = datos(), min = accion.cual === "min", e = d.resumen && (min ? d.resumen.minimo : d.resumen.maximo);
+        if (!e) return r("Esta pista no tiene datos para buscar ese momento.");
+        const que = d.indiceRelativo ? (min ? "El índice más bajo" : "El índice más alto") : (min ? "El momento más frío" : "El momento más cálido");
+        const res = ir(e.t + 0.01, `${que} de esta pista es ${e.fecha}: ${valorDicho(e.valor, d)}. Te llevo ahí.`);
+        await A.reproducir();
+        return { ...res, paginaAnuncia: false };                           // la frase de la guía dice más que la lectura de la página
+      }
+      case "explicar": {
+        if (!pistas[actual]) return r("Todavía no suena nada. Di «reproduce» o «dame un recorrido». En esta página, cuanto más caliente está el mapa, más agudo suena.");
+        const d = datos(), ahora = A.descripcion();
+        return r(`${A.sonando() ? "Suena" : "Está elegida"} la pista ${pistas[actual].titulo}. ` + (ahora ? `Ahora, ${conPunto(ahora)} ` : "") +
+          (d.resumen ? `El punto más alto de la pista es ${d.resumen.maximo.fecha} y el más bajo, ${d.resumen.minimo.fecha}. ` : "") + "Cuanto más alto el valor, más agudo suena.");
+      }
+      case "explicar_tono": {
+        const base = "El tono sigue al valor medio del mapa: cuanto más caliente, más agudo; cuanto más frío, más grave.";
+        const d = pistas[actual] ? datos() : {}, R = d.resumen;
+        if (!R) return r(base);
+        const T = R.tendencia;
+        return r(`${base} En esta pista pasa de ${valorDicho(T.inicio.valor, d)} en ${T.inicio.fecha} a ${valorDicho(T.fin.valor, d)} en ${T.fin.fecha}` +
+          (T.direccion === "sube" ? ", por eso la melodía termina más aguda de como empieza." : T.direccion === "baja" ? ", por eso termina más grave de como empieza." : ": sube y baja por el camino.") +
+          ` Su punto más alto es ${R.maximo.fecha}.`);
+      }
+      case "recorrido": return r("", { recorrido: true });
+      case "detener_recorrido": return r("", { detenerRecorrido: true });
       case "descripcion": return r(A.descripcion() || "Todavía no hay descripción: elige una pista.");
       case "leyenda": return r(A.leyenda() || "Esta página no tiene leyenda.");
       case "donde":
@@ -285,61 +383,72 @@
         A.ponerVolumen(v);
         return r(`Volumen al ${v} por ciento.`);
       }
-      default: return r(`No entendí «${accion.texto || ""}». Di «ayuda» para oír lo que puedo hacer.`);
+      default: return r(`No entendí «${accion.texto || ""}». Prueba con «qué estoy escuchando» o di «ayuda».`);
     }
   }
 
   /* ================================================================== D. panel y conexión (B y C van dentro) */
 
   const CLAVE = "rocola-guia-voz";
+  const SUGERENCIAS = ["¿Qué estoy escuchando?", "¿Por qué sube el tono?", "Llévame al año más cálido"];
   const PLANTILLA = `
-    <h2 id="gv-titulo">Guía por voz</h2>
-    <p class="gv-intro">Pide las cosas hablando o escribiendo. Por ejemplo: «reproduce», «pausa», «siguiente pista», «año 1990» o «qué pasa ahora».</p>
-    <div class="gv-pregunta" id="gv-pregunta" role="group" aria-labelledby="gv-pregunta-texto">
-      <p id="gv-pregunta-texto" class="gv-pregunta-texto">Antes de empezar: ¿usas un lector de pantalla?</p>
-      <p class="gv-nota">Si lo usas, la guía no hablará con su propia voz: escribirá sus respuestas y tu lector las leerá. Así no suenan dos voces a la vez.</p>
-      <div class="gv-fila">
-        <button type="button" id="gv-si" class="gv-boton">Sí, uso lector de pantalla</button>
-        <button type="button" id="gv-no" class="gv-boton">No uso lector de pantalla</button>
+    <div class="gv-tarjeta" id="gv-tarjeta" hidden>
+      <div class="gv-cabecera">
+        <h2 id="gv-titulo">Guía por voz</h2>
+        <button type="button" id="gv-cerrar" class="gv-cerrar" aria-label="Cerrar el panel de la guía">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+        </button>
+      </div>
+      <div class="gv-pregunta" id="gv-pregunta" role="group" aria-labelledby="gv-pregunta-texto">
+        <p id="gv-pregunta-texto" class="gv-pregunta-texto">Antes de empezar: ¿usas un lector de pantalla?</p>
+        <p class="gv-nota">Si lo usas, la guía no hablará con su propia voz: escribirá sus respuestas y tu lector las leerá. Así no suenan dos voces a la vez.</p>
+        <div class="gv-fila">
+          <button type="button" id="gv-no" class="gv-boton">No uso lector de pantalla</button>
+          <button type="button" id="gv-si" class="gv-boton">Sí, uso lector de pantalla</button>
+        </div>
+      </div>
+      <div class="gv-cuerpo" id="gv-cuerpo">
+        <dl class="gv-dialogo">
+          <div class="gv-turno-persona"><dt>Entendí</dt><dd id="gv-oido">—</dd></div>
+          <div class="gv-turno-guia"><dt>Respuesta</dt><dd id="gv-respuesta">Pulsa la esfera y háblame, o elige una frase.</dd></div>
+        </dl>
+        <button type="button" id="gv-detener" class="gv-boton gv-detener" hidden>Detener el recorrido</button>
+        <p id="gv-estado" class="gv-estado"></p>
+        <div class="gv-sugerencias" role="group" aria-label="Frases sugeridas">
+          ${SUGERENCIAS.map((f) => `<button type="button" class="gv-chip" data-frase="${f}">${f}</button>`).join("")}
+          <button type="button" class="gv-chip gv-chip-recorrido" data-frase="Dame un recorrido">Dame un recorrido</button>
+        </div>
+        <form id="gv-formulario" class="gv-formulario">
+          <label for="gv-campo">O escribe lo que quieres</label>
+          <div class="gv-fila">
+            <input id="gv-campo" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send">
+            <button type="submit" class="gv-boton">Enviar</button>
+          </div>
+        </form>
+        <div id="gv-vivo" class="gv-solo-lector" aria-live="polite" aria-atomic="true"></div>
+        <details class="gv-opciones">
+          <summary>Opciones y qué puedo decir</summary>
+          <ul id="gv-lista-ayuda" class="gv-lista-ayuda">
+            <li>«Reproduce», «pausa», «siguiente pista», «pista dos», «qué pistas hay».</li>
+            <li>«Año 1990», «noviembre de 2007», «segundo diez», «avanza diez segundos», «al inicio».</li>
+            <li>«Qué estoy escuchando», «por qué sube el tono», «llévame al año más cálido», «dame un recorrido».</li>
+            <li>«Qué pasa ahora», «lee la leyenda», «dónde estoy», «volumen 50», «repite», «silencio».</li>
+          </ul>
+          <label class="gv-casilla"><input type="checkbox" id="gv-lector"> <span>Uso lector de pantalla (la guía responde por escrito, sin su propia voz)</span></label>
+          <label class="gv-casilla"><input type="checkbox" id="gv-tecla" checked> <span>Usar la tecla H para hablar con la guía</span></label>
+          <div class="gv-campo-opcion"><label for="gv-voz">Voz de la guía</label><select id="gv-voz"><option value="auto">Automática (español)</option></select></div>
+          <div class="gv-campo-opcion"><label for="gv-velocidad">Velocidad de la voz</label><input id="gv-velocidad" type="range" min="0.6" max="1.4" step="0.1" value="1" aria-valuetext="normal"></div>
+          <button type="button" id="gv-probar" class="gv-boton">Probar la voz</button>
+          <p class="gv-nota" id="gv-privacidad">El micrófono solo se abre cuando pulsas la esfera o la tecla H. El reconocimiento lo hace tu navegador; en Chrome y Edge el audio se envía al servicio de voz del propio navegador. Esta página no lo guarda ni usa claves.</p>
+        </details>
       </div>
     </div>
-    <div class="gv-cuerpo" id="gv-cuerpo">
-      <div class="gv-fila">
-        <button type="button" id="gv-hablar" class="gv-hablar" aria-pressed="false" aria-describedby="gv-estado">
-          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="24" height="24"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V22h2v-3.1A7 7 0 0 0 19 12h-2z" fill="currentColor"/></svg>
-          <span id="gv-hablar-texto">Hablar con la guía</span>
-        </button>
-        <button type="button" id="gv-ayuda" class="gv-boton" aria-expanded="false" aria-controls="gv-lista-ayuda">¿Qué puedo decir?</button>
-      </div>
-      <p id="gv-estado" class="gv-estado"></p>
-      <form id="gv-formulario" class="gv-formulario">
-        <label for="gv-campo">O escribe lo que quieres hacer</label>
-        <div class="gv-fila">
-          <input id="gv-campo" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send">
-          <button type="submit" class="gv-boton">Enviar</button>
-        </div>
-      </form>
-      <ul id="gv-lista-ayuda" class="gv-lista-ayuda" hidden>
-        <li>«Reproduce», «pausa», «siguiente pista», «pista anterior», «pista dos», «qué pistas hay».</li>
-        <li>«Año 1990», «marzo de 2007», «segundo diez», «avanza diez segundos», «retrocede», «al inicio».</li>
-        <li>«Qué pasa ahora», «lee la leyenda», «dónde estoy», «repite».</li>
-        <li>«Sube el volumen», «baja el volumen», «volumen 50», «silencio», «ayuda».</li>
-      </ul>
-      <dl class="gv-dialogo">
-        <div><dt>Entendí</dt><dd id="gv-oido">—</dd></div>
-        <div><dt>Respuesta</dt><dd id="gv-respuesta">—</dd></div>
-      </dl>
-      <div id="gv-vivo" class="gv-solo-lector" aria-live="polite" aria-atomic="true"></div>
-      <details class="gv-opciones">
-        <summary>Opciones de la guía</summary>
-        <label class="gv-casilla"><input type="checkbox" id="gv-lector"> <span>Uso lector de pantalla (la guía responde por escrito, sin su propia voz)</span></label>
-        <label class="gv-casilla"><input type="checkbox" id="gv-tecla" checked> <span>Usar la tecla H para hablar con la guía</span></label>
-        <div class="gv-campo-opcion"><label for="gv-voz">Voz de la guía</label><select id="gv-voz"><option value="auto">Automática (español)</option></select></div>
-        <div class="gv-campo-opcion"><label for="gv-velocidad">Velocidad de la voz</label><input id="gv-velocidad" type="range" min="0.6" max="1.4" step="0.1" value="1" aria-valuetext="normal"></div>
-        <button type="button" id="gv-probar" class="gv-boton">Probar la voz</button>
-        <p class="gv-nota" id="gv-privacidad">El micrófono solo se abre cuando pulsas el botón o la tecla H. El reconocimiento lo hace tu navegador; en Chrome y Edge el audio se envía al servicio de voz del propio navegador. Esta página no lo guarda ni usa claves.</p>
-      </details>
-    </div>`;
+    <button type="button" id="gv-hablar" class="gv-hablar" aria-pressed="false" aria-describedby="gv-estado">
+      <span class="gv-esfera" aria-hidden="true">
+        <svg focusable="false" viewBox="0 0 24 24" width="30" height="30"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V22h2v-3.1A7 7 0 0 0 19 12h-2z" fill="currentColor"/></svg>
+      </span>
+      <span id="gv-hablar-texto" class="gv-hablar-texto">Háblame</span>
+    </button>`;
 
   function montar(A, doc, urlGuion) {
     if (!A || !doc || doc.getElementById("guia-voz")) return null;       // sin adaptador no hay guía: la web sigue igual
@@ -354,7 +463,8 @@
     const panel = doc.createElement("section");
     panel.id = "guia-voz";
     panel.className = "guia-voz";
-    panel.setAttribute("aria-labelledby", "gv-titulo");
+    panel.setAttribute("aria-label", "Guía por voz");
+    panel.dataset.estado = "reposo";                 // reposo | escuchando | pensando | respondiendo (lo usa guia-voz.css)
     panel.lang = "es";
     panel.innerHTML = PLANTILLA;
     const ancla = A.ancla && A.ancla(), principal = doc.querySelector("main");   // el adaptador dice dónde va el panel
@@ -362,17 +472,28 @@
 
     const ui = { pregunta: $("gv-pregunta"), cuerpo: $("gv-cuerpo"), si: $("gv-si"), no: $("gv-no"), hablar: $("gv-hablar"),
       hablarTexto: $("gv-hablar-texto"), estado: $("gv-estado"), formulario: $("gv-formulario"), campo: $("gv-campo"),
-      ayuda: $("gv-ayuda"), listaAyuda: $("gv-lista-ayuda"), oido: $("gv-oido"), respuesta: $("gv-respuesta"), vivo: $("gv-vivo"),
+      tarjeta: $("gv-tarjeta"), cerrar: $("gv-cerrar"), detener: $("gv-detener"), oido: $("gv-oido"), respuesta: $("gv-respuesta"), vivo: $("gv-vivo"),
       lector: $("gv-lector"), tecla: $("gv-tecla"), voz: $("gv-voz"), velocidad: $("gv-velocidad"), probar: $("gv-probar") };
 
     /* ---------- preferencias (pueden fallar: ventana privada) ---------- */
     const leer = () => { try { return JSON.parse(ventana.localStorage.getItem(CLAVE)) || {}; } catch (e) { return {}; } };
     const guardar = (cambios) => { try { ventana.localStorage.setItem(CLAVE, JSON.stringify({ ...leer(), ...cambios })); } catch (e) { /* sin almacenamiento */ } };
     const pref = leer();
-    const guia = { lector: typeof pref.lector === "boolean" ? pref.lector : null, ultima: "", escuchando: false, hablando: false, turno: 0, frases: [] };
+    const guia = { lector: typeof pref.lector === "boolean" ? pref.lector : null, ultima: "", escuchando: false, hablando: false, turno: 0, frases: [], recorrido: 0, enRecorrido: false };
+    /* ---------- la tarjeta (texto de la conversación) y el estado de la esfera ---------- */
+    const abrirTarjeta = () => { ui.tarjeta.hidden = false; ui.hablar.setAttribute("aria-expanded", "true"); };
+    const cerrarTarjeta = () => { const dentro = ui.tarjeta.contains(doc.activeElement); ui.tarjeta.hidden = true; ui.hablar.setAttribute("aria-expanded", "false"); if (dentro) ui.hablar.focus(); };
+    let relojBrillo = 0;
+    const pintarEsfera = () => { panel.dataset.estado = guia.escuchando ? "escuchando" : guia.pensando ? "pensando" : guia.hablando || guia.brillando ? "respondiendo" : "reposo"; };
+    /* la esfera brilla mientras responde: lo que dura la voz o, si la respuesta va por escrito, un rato según su largo */
+    const brillar = (texto) => {
+      ventana.clearTimeout(relojBrillo);
+      guia.brillando = true; pintarEsfera();
+      relojBrillo = ventana.setTimeout(() => { guia.brillando = false; pintarEsfera(); }, Math.min(9000, 1500 + texto.length * 45));
+    };
     // la música baja mientras el micrófono está abierto (0,2: que no la oiga) o mientras la guía habla (0,35)
     let ia = null;                                  // conversación con IA (guia-voz-ia.js); null = solo comandos
-    const nivelar = () => { try { A.atenuar(guia.escuchando ? 0.2 : guia.hablando ? 0.35 : 1); } catch (e) { /* el reproductor no está listo */ } };
+    const nivelar = () => { pintarEsfera(); try { A.atenuar(guia.escuchando ? 0.2 : guia.hablando ? 0.35 : 1); } catch (e) { /* el reproductor no está listo */ } };
     // lector === null: todavía no respondió. Se trata como "sí" (la guía no habla) hasta que responda.
     const modoLector = () => guia.lector !== false;
 
@@ -399,28 +520,37 @@
     /* true si hay con qué hablar en español. Con la lista vacía (algunos móviles la entregan tarde) se intenta igual. */
     const puedeHablar = () => !!sintesis && (voces.length === 0 || vocesEs().length > 0);
 
+    let alCallar = null;                              // termina la espera de quien aguarda a que la guía acabe de hablar
     function callar() {
       guia.turno++;
       if (sintesis) sintesis.cancel();
       guia.hablando = false;
+      if (alCallar) { alCallar(); alCallar = null; }
       nivelar();
     }
+    /* Dice el texto con la voz del navegador. Devuelve una promesa que termina cuando acaba (o cuando la callan). */
     function decir(texto) {
       const turno = ++guia.turno;
       sintesis.cancel();
+      if (alCallar) { alCallar(); alCallar = null; }
       const voz = elegirVoz();
-      const frases = texto.match(/[^.!?]+[.!?]*/g) || [texto];       // frases cortas: Chrome corta las muy largas
+      const hablado = texto.replace(/[−-](\d)/g, "menos $1").replace(/\+(\d)/g, "más $1").replace(/[«»]/g, "");   // signos que la voz se salta
+      const frases = hablado.match(/[^.!?]+[.!?]*/g) || [hablado];   // frases cortas: Chrome corta las muy largas
       guia.frases = [];                                              // se guardan: algunos navegadores las descartan a medias
-      frases.forEach((f, i) => {
-        const u = new ventana.SpeechSynthesisUtterance(f.trim());
-        if (voz) u.voice = voz;
-        u.lang = voz ? voz.lang : "es-ES";
-        u.rate = Number(ui.velocidad.value) || 1;
-        if (i === 0) u.onstart = () => { if (turno === guia.turno) { guia.hablando = true; nivelar(); } };
-        const fin = () => { if (turno === guia.turno && i === frases.length - 1) { guia.hablando = false; nivelar(); } };
-        u.onend = fin; u.onerror = fin;
-        guia.frases.push(u);
-        sintesis.speak(u);
+      return new Promise((listo) => {
+        const tope = ventana.setTimeout(listo, 4000 + hablado.length * 110);   // por si el navegador nunca avisa del final
+        alCallar = () => { ventana.clearTimeout(tope); listo(); };
+        frases.forEach((f, i) => {
+          const u = new ventana.SpeechSynthesisUtterance(f.trim());
+          if (voz) u.voice = voz;
+          u.lang = voz ? voz.lang : "es-ES";
+          u.rate = Number(ui.velocidad.value) || 1;
+          if (i === 0) u.onstart = () => { if (turno === guia.turno) { guia.hablando = true; nivelar(); } };
+          const fin = () => { if (turno === guia.turno && i === frases.length - 1) { guia.hablando = false; nivelar(); if (alCallar) { alCallar(); alCallar = null; } } };
+          u.onend = fin; u.onerror = fin;
+          guia.frases.push(u);
+          sintesis.speak(u);
+        });
       });
     }
     function escribirParaLector(texto) {            // vaciar y volver a escribir: el lector lo lee aunque se repita
@@ -432,7 +562,9 @@
     function responder(texto, { paginaAnuncia = false, paginaHabla = false } = {}) {
       if (!texto) return;
       guia.ultima = texto;
-      ui.respuesta.textContent = texto;
+      ui.respuesta.textContent = texto;               // toda respuesta se ve también como texto
+      abrirTarjeta();
+      brillar(texto);
       if (modoLector()) { if (!paginaAnuncia) escribirParaLector(texto); return; }
       if (paginaHabla) return;
       if (puedeHablar()) ventana.setTimeout(() => decir(texto), 120);    // tras la acción: que nadie la cancele
@@ -447,7 +579,7 @@
       "not-allowed": "No tengo permiso para usar el micrófono. Actívalo en el candado de la barra de direcciones y vuelve a pulsar el botón. También puedes escribir lo que quieres hacer.",
       "service-not-allowed": "El navegador no permite el reconocimiento de voz en esta página. Puedes escribir lo que quieres hacer.",
       "audio-capture": "No encuentro ningún micrófono. Conecta uno o escribe lo que quieres hacer.",
-      "no-speech": "No escuché nada. Pulsa el botón o la tecla H y habla después del pitido.",
+      "no-speech": "No escuché nada. Pulsa la esfera o la tecla H y habla después del pitido.",
       "network": "El reconocimiento de voz de este navegador necesita internet y no respondió. Puedes escribir lo que quieres hacer.",
       "language-not-supported": "Este navegador no reconoce voz en español. Puedes escribir lo que quieres hacer.",
     };
@@ -466,13 +598,16 @@
     function pintarEscucha(activa) {
       guia.escuchando = activa;
       ui.hablar.setAttribute("aria-pressed", String(activa));
-      ui.hablarTexto.textContent = activa ? "Escuchando… pulsa para terminar" : "Hablar con la guía";
+      ui.hablarTexto.textContent = activa ? "Te escucho…" : "Háblame";
+      if (activa) abrirTarjeta();
       nivelar();
       pintarEstado();
     }
     function escuchar() {
+      if (guia.lector === null) { abrirTarjeta(); ui.no.focus(); return; }   // primero la pregunta del lector de pantalla
+      if (detenerRecorrido({ silencio: true })) guia.cortePorEscucha = true;   // la frase que venga sabrá que había recorrido
       if (guia.escuchando) { try { rec.stop(); } catch (e) { pintarEscucha(false); } return; }
-      if (!Reconocedor) { responder(SIN_RECONOCIMIENTO); return; }
+      if (!Reconocedor) { responder(SIN_RECONOCIMIENTO); ui.campo.focus(); return; }
       callar();                                                          // que el micrófono no oiga a la guía
       rec = new Reconocedor();
       rec.lang = IDIOMAS[idioma];
@@ -495,7 +630,7 @@
         if (e.error === "not-allowed" && ventana.isSecureContext === false) texto = "El micrófono solo funciona en páginas https o en localhost. Puedes escribir lo que quieres hacer.";
         responder(texto);
       };
-      rec.onend = () => { pintarEscucha(false); if (!hubo) responder(ERRORES["no-speech"]); };
+      rec.onend = () => { pintarEscucha(false); if (!hubo) { guia.cortePorEscucha = false; responder(ERRORES["no-speech"]); } };
       try { rec.start(); } catch (e) { pintarEscucha(false); responder("No pude abrir el micrófono. Puedes escribir lo que quieres hacer."); }
     }
 
@@ -506,6 +641,10 @@
       if (guia.lector === null && (accion.tipo === "afirmar" || accion.tipo === "negar")) { fijarLector(accion.tipo === "afirmar"); return; }
       if (accion.tipo === "afirmar" || accion.tipo === "negar") accion.tipo = "desconocido", accion.texto = normalizar(texto);
       const turno = ++guia.turnoFrase;
+      const habiaRecorrido = guia.enRecorrido || !!guia.cortePorEscucha;
+      guia.cortePorEscucha = false;
+      detenerRecorrido({ silencio: true });           // cualquier frase nueva corta el recorrido
+      if (habiaRecorrido && ["detener_recorrido", "pausar", "callar"].includes(accion.tipo)) { detenerRecorrido({ forzar: true }); return; }
       let r = null;
       if (ia) {                                       // la IA devuelve null cuando debe resolverlo el intérprete de comandos
         guia.pensando = true; pintarEstado();
@@ -519,15 +658,61 @@
       }
       if (ia) ia.marcar(!!r.deIA);                    // etiqueta "Respuesta generada por IA"
       if (r.callar) { callar(); ui.respuesta.textContent = "(en silencio)"; return; }
+      if (r.recorrido) { recorrer(); return; }
+      if (r.detenerRecorrido) { responder("No hay ningún recorrido en marcha. Di «dame un recorrido» para empezar uno."); return; }
       responder(r.texto, r);
+    }
+
+    /* ---------- recorrido guiado: guion fijo, paso a paso, y se puede detener en cualquier momento ---------- */
+    const esperar = (ms) => new Promise((listo) => ventana.setTimeout(listo, ms));
+    /* Un paso del recorrido: se ve como texto y sale por UN camino (voz, o región viva con lector). Espera a que termine. */
+    async function narrar(texto) {
+      guia.ultima = texto;
+      ui.respuesta.textContent = texto;
+      abrirTarjeta();
+      if (!modoLector() && puedeHablar()) { await decir(texto); return; }
+      brillar(texto);
+      escribirParaLector(texto);
+      await esperar(1500 + texto.length * 60);        // tiempo para que el lector de pantalla lo lea
+    }
+    async function recorrer() {
+      const mio = ++guia.recorrido, sigue = () => mio === guia.recorrido;
+      guia.enRecorrido = true;
+      ui.detener.hidden = false;
+      ui.oido.textContent = "Dame un recorrido";
+      if (ia) ia.marcar(false);
+      for (const paso of guionRecorrido(A)) {
+        if (paso.accion) { try { await ejecutar(paso.accion, A, guia); } catch (e) { /* el paso se cuenta igual */ } }
+        if (!sigue()) return;
+        await narrar(paso.texto);
+        if (!sigue()) return;
+        await esperar(paso.pausa);
+        if (!sigue()) return;
+      }
+      guia.enRecorrido = false;
+      ui.detener.hidden = true;
+    }
+    /* silencio: lo corta otra frase (no dice nada ni pausa). Sin silencio: lo pidió la persona; calla, pausa y avisa. */
+    function detenerRecorrido({ silencio = false, forzar = false } = {}) {
+      if (!guia.enRecorrido && !forzar) return false;
+      guia.recorrido++;
+      guia.enRecorrido = false;
+      ui.detener.hidden = true;
+      callar();
+      if (silencio) return true;
+      try { A.pausar(); } catch (e) { /* nada que pausar */ }
+      if (ui.tarjeta.contains(doc.activeElement) || doc.activeElement === doc.body) ui.hablar.focus();
+      responder("Recorrido detenido.", { paginaAnuncia: false });
+      return true;
     }
 
     function pintarEstado() {
       const partes = [];
+      pintarEsfera();
       if (guia.pensando) partes.push("Un momento…");
       if (guia.escuchando) partes.push("Te escucho. Di lo que quieres hacer.");
       else if (!Reconocedor) partes.push(SIN_RECONOCIMIENTO);
-      else partes.push(ui.tecla.checked ? "Pulsa el botón o la tecla H y habla después del pitido." : "Pulsa el botón y habla después del pitido.");
+      else partes.push(ui.tecla.checked ? "Pulsa la esfera o la tecla H y habla después del pitido." : "Pulsa la esfera y habla después del pitido.");
       if (!modoLector()) {
         if (!sintesis) partes.push("Este navegador no tiene voz: las respuestas salen por escrito.");
         else if (voces.length && !vocesEs().length) partes.push("No hay una voz en español instalada: las respuestas salen por escrito.");
@@ -549,8 +734,8 @@
       if (primera && panel.contains(doc.activeElement)) ui.hablar.focus();   // los botones de la pregunta desaparecen
       if (!avisar) return;
       responder(usa
-        ? "De acuerdo. No usaré mi propia voz: tu lector de pantalla leerá mis respuestas. Pulsa la tecla H para hablar con la guía."
-        : "Guía por voz activada. Pulsa la tecla H o el botón Hablar con la guía y di, por ejemplo: reproduce, pausa, siguiente pista o año 1990. Di ayuda para oír más.");
+        ? "De acuerdo. No usaré mi propia voz: tu lector de pantalla leerá mis respuestas. Pulsa la tecla H o el botón Háblame y di, por ejemplo: qué estoy escuchando."
+        : "Guía por voz activada. Pulsa la esfera Háblame o la tecla H y pregunta, por ejemplo: ¿qué estoy escuchando? También puedes pedir: dame un recorrido.");
     }
 
     /* ---------- eventos ---------- */
@@ -565,11 +750,9 @@
       ui.campo.value = "";
       atender(texto);
     });
-    ui.ayuda.addEventListener("click", () => {
-      const abrir = ui.listaAyuda.hidden;
-      ui.listaAyuda.hidden = !abrir;
-      ui.ayuda.setAttribute("aria-expanded", String(abrir));
-    });
+    ui.cerrar.addEventListener("click", cerrarTarjeta);
+    ui.detener.addEventListener("click", () => detenerRecorrido());
+    for (const chip of panel.querySelectorAll(".gv-chip")) chip.addEventListener("click", () => atender(chip.dataset.frase));
     ui.tecla.addEventListener("change", () => { guardar({ tecla: ui.tecla.checked }); pintarEstado(); });
     ui.voz.addEventListener("change", () => guardar({ voz: ui.voz.value }));
     const NOMBRE_VELOCIDAD = (v) => (v < 0.9 ? "lenta" : v > 1.1 ? "rápida" : "normal");
@@ -585,6 +768,8 @@
       const escribe = etiqueta === "TEXTAREA" || etiqueta === "SELECT" || d.isContentEditable ||
         (etiqueta === "INPUT" && !["range", "checkbox"].includes(d.type));
       if (e.key === "Escape" && guia.escuchando) { try { rec.abort(); } catch (x) { /* ya cerrado */ } pintarEscucha(false); return; }
+      if (e.key === "Escape" && guia.enRecorrido) { detenerRecorrido(); return; }
+      if (e.key === "Escape" && !ui.tarjeta.hidden && panel.contains(d)) { cerrarTarjeta(); return; }
       if (escribe || !ui.tecla.checked || guia.lector === null) return;
       if (e.key === "h" || e.key === "H") { e.preventDefault(); escuchar(); }
     });
@@ -594,17 +779,28 @@
     if (typeof pref.tecla === "boolean") ui.tecla.checked = pref.tecla;
     if (pref.velocidad >= 0.6 && pref.velocidad <= 1.4) { ui.velocidad.value = String(pref.velocidad); ui.velocidad.setAttribute("aria-valuetext", NOMBRE_VELOCIDAD(pref.velocidad)); }
     ui.hablar.setAttribute("aria-keyshortcuts", "H");
+    ui.hablar.setAttribute("aria-expanded", "false");
+    ui.hablar.setAttribute("aria-controls", "gv-tarjeta");
+    // enlace para saltar a la guía, después del "Saltar a…" de la página (si lo tiene)
+    const salto = doc.querySelector("a.saltar");
+    if (salto) {
+      const enlace = doc.createElement("a");
+      enlace.className = salto.className; enlace.href = "#gv-hablar"; enlace.textContent = "Saltar a la guía por voz";
+      enlace.addEventListener("click", (e) => { e.preventDefault(); ui.hablar.focus(); });
+      salto.after(enlace);
+    }
     if (sintesis) { cargarVoces(); if (sintesis.addEventListener) sintesis.addEventListener("voiceschanged", cargarVoces); }
     guia.turnoFrase = 0;
     try {
       if (ventana.GuiaVozIA) ia = ventana.GuiaVozIA.conectar({ A, doc, ventana, panel, preferencias: { leer, guardar },
-        herramientas: { interpretarComando, ejecutar, normalizar, buscarFecha } });
+        herramientas: { interpretarComando, ejecutar, normalizar, buscarFecha, resumenSerie } });
     } catch (e) { ia = null; }                        // si la IA no arranca, la guía sigue con sus comandos
     if (guia.lector === null) { ui.cuerpo.hidden = true; pintarEstado(); }
     else fijarLector(guia.lector, { avisar: false });
 
-    return { atender, escuchar, callar, estado: guia };
+    return { atender, escuchar, callar, recorrer, detenerRecorrido, estado: guia };
   }
 
-  return { interpretarComando, normalizar, palabrasANumeros, buscarFecha, buscarPista, leerFecha, ejecutar, montar, AYUDA };
+  return { interpretarComando, normalizar, palabrasANumeros, buscarFecha, buscarPista, leerFecha, resumenSerie, guionRecorrido, valorDicho,
+    ACCIONES_RECORRIDO, SUGERENCIAS, ejecutar, montar, AYUDA };
 });

@@ -1,159 +1,230 @@
-/* Resonant Earth — estilos del panel de la guía por voz (lo carga guia-voz.js).
-   Usa las variables de estilos.css (colores, radios, tamaños); los valores tras la coma son de respaldo. */
+/* Resonant Earth — estilos de la guía por voz (los carga guia-voz.js).
+   Una esfera luminosa fija abajo a la derecha ("Háblame") y, encima, una tarjeta con la conversación.
+   Usa los tokens de estilos.css (colores, tipografías, radios); los valores tras la coma son de respaldo.
+
+   Estados de la esfera (atributo data-estado de #guia-voz):
+     reposo        gira despacio un reflejo
+     escuchando    palpita y suelta ondas
+     pensando      el reflejo gira rápido
+     respondiendo  brilla
+   Con prefers-reduced-motion no se mueve nada: cada estado se distingue por el anillo, el brillo y el texto.
+   Los fondos con texto son opacos para que el contraste no dependa de lo que haya detrás. */
 
 .guia-voz {
-  /* nombres que usa esta hoja -> tokens de la web (estilos.css) */
-  --texto: var(--tinta); --texto-2: var(--tinta-2); --texto-3: var(--tinta-3);
-  --panel: var(--vidrio); --panel-solido: #0b0d10; --panel-interior: rgba(255, 255, 255, 0.06);
-  --linea-fuerte: var(--linea-control); --violeta: var(--acento);
-  --boton-fondo: var(--tinta); --boton-texto: var(--negro);
-  --radio: var(--r-tarjeta); --radio-chico: var(--r-control); --pildora: var(--r-pildora); --mono: var(--f-dato);
-  position: relative;
-  z-index: 1;
-  width: min(1280px, 100% - 32px);
-  margin: var(--separacion, 1.6rem) auto 0;
-  padding: var(--relleno, 1.6rem);
-  background: var(--panel, rgba(10, 11, 18, 0.86));
-  border: 1px solid var(--linea, rgba(255, 255, 255, 0.08));
-  border-radius: var(--radio, 16px);
-  box-shadow: inset 0 1px 0 var(--linea-luz, rgba(255, 255, 255, 0.07));
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-  color: var(--texto, #f5f4fb);
+  --gv-acento: var(--acento, #86cdfa);
+  --gv-tinta: var(--tinta, #f3f6f8);
+  --gv-tinta-2: var(--tinta-2, #c3cad2);
+  --gv-borde: var(--linea-control, #7d8792);
+  --gv-fondo: #080b10;
+  --gv-fondo-2: #121820;
+  --gv-esfera: 92px;
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  pointer-events: none;                 /* solo la esfera y la tarjeta reciben clics, no el hueco entre ellas */
+  color: var(--gv-tinta);
+  font: 400 var(--t-chico, 0.875rem)/1.5 var(--f-texto, system-ui, sans-serif);
 }
-@media (min-width: 760px) {
-  .guia-voz { width: min(1280px, 100% - 64px); }
-}
+.guia-voz > * { pointer-events: auto; }
 .guia-voz [hidden] { display: none !important; }
 
-.gv-intro, .gv-nota, .gv-estado { color: var(--texto-2, #d6d5e1); font-size: var(--t-chico, 0.85rem); max-width: 60em; }
-.gv-intro { margin-bottom: 1rem; }
-.gv-pregunta-texto { font-weight: 600; margin-bottom: 0.3rem; }
-.gv-pregunta .gv-nota { margin-bottom: 0.9rem; }
-
-.gv-fila { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; }
-
-/* el botón grande: mismo estilo que "Reproducir" */
+/* ------------------------------------------------------------------ la esfera: un botón de verdad */
 .gv-hablar {
-  min-height: 3.4rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.7rem;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 4px 4px;
+  background: none;
+  border: 0;
+  border-radius: 28px;
+  color: var(--gv-tinta);
   font: inherit;
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--boton-texto, #000000);
-  background: var(--boton-fondo, linear-gradient(100deg, #ece8ff, #e3f6f2));
-  border: 2px solid transparent;
-  border-radius: var(--pildora, 100px);
-  padding: 0.6rem 1.8rem;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.gv-hablar svg { flex: none; }
-/* escuchando: cambia el texto del botón y además el borde y el fondo (no solo el color) */
-.gv-hablar[aria-pressed="true"] {
-  color: var(--texto, #f5f4fb);
-  background: transparent;
-  border: 2px dashed var(--texto, #f5f4fb);
+.gv-hablar:focus-visible { outline: 3px solid var(--gv-tinta); outline-offset: 2px; }
+.gv-esfera {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--gv-esfera);
+  height: var(--gv-esfera);
+  border-radius: 50%;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 24%),
+    radial-gradient(circle at 72% 78%, rgba(134, 205, 250, 0.85) 0%, rgba(134, 205, 250, 0) 55%),
+    radial-gradient(circle at 50% 50%, #2f7ab8 0%, #0d2c4d 58%, #03070d 100%);
+  box-shadow: 0 0 0 1px rgba(134, 205, 250, 0.6), 0 0 26px 4px rgba(134, 205, 250, 0.38), inset 0 0 18px rgba(255, 255, 255, 0.22);
+  transition: box-shadow 0.3s, filter 0.3s, transform 0.2s;
 }
+.gv-esfera svg { position: relative; z-index: 1; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7)); }
+/* el reflejo que da la vuelta ("universo en movimiento") */
+.gv-esfera::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(255, 255, 255, 0) 0 58%, rgba(255, 255, 255, 0.42) 76%, rgba(255, 255, 255, 0) 92%);
+  mix-blend-mode: screen;
+  animation: gv-girar 9s linear infinite;
+}
+/* el anillo: las ondas al escuchar */
+.gv-esfera::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+.gv-hablar:hover .gv-esfera { transform: scale(1.04); box-shadow: 0 0 0 1px rgba(134, 205, 250, 0.9), 0 0 34px 8px rgba(134, 205, 250, 0.5), inset 0 0 18px rgba(255, 255, 255, 0.3); }
+.gv-hablar-texto {
+  padding: 7px 14px;
+  background: #000000;
+  border: 1px solid var(--gv-borde);
+  border-radius: var(--r-pildora, 999px);
+  font: 500 0.78rem/1 var(--f-titular, system-ui, sans-serif);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* escuchando: palpita, suelta ondas y el rótulo cambia de color y de texto */
+.guia-voz[data-estado="escuchando"] .gv-esfera { animation: gv-latir 1.1s ease-in-out infinite; box-shadow: 0 0 0 2px var(--gv-acento), 0 0 40px 10px rgba(134, 205, 250, 0.6), inset 0 0 22px rgba(255, 255, 255, 0.35); }
+.guia-voz[data-estado="escuchando"] .gv-esfera::after { border-color: var(--gv-acento); animation: gv-onda 1.4s ease-out infinite; }
+.guia-voz[data-estado="escuchando"] .gv-hablar-texto { background: var(--gv-acento); border-color: var(--gv-acento); color: #000000; }
+/* pensando: el reflejo gira rápido */
+.guia-voz[data-estado="pensando"] .gv-esfera::before { animation-duration: 1.2s; }
+/* respondiendo: brilla */
+.guia-voz[data-estado="respondiendo"] .gv-esfera { filter: brightness(1.25) saturate(1.1); box-shadow: 0 0 0 2px #ffffff, 0 0 52px 16px rgba(134, 205, 250, 0.8), inset 0 0 26px rgba(255, 255, 255, 0.5); animation: gv-brillar 1.8s ease-in-out infinite; }
+.guia-voz[data-estado="respondiendo"] .gv-esfera::after { border-color: rgba(255, 255, 255, 0.55); }
+
+@keyframes gv-girar { to { transform: rotate(360deg); } }
+@keyframes gv-latir { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.09); } }
+@keyframes gv-onda { 0% { transform: scale(0.94); opacity: 1; } 100% { transform: scale(1.45); opacity: 0; } }
+@keyframes gv-brillar { 0%, 100% { filter: brightness(1.15) saturate(1.1); } 50% { filter: brightness(1.4) saturate(1.15); } }
+
+/* ------------------------------------------------------------------ la tarjeta de la conversación */
+.gv-tarjeta {
+  width: min(400px, calc(100vw - 24px));
+  max-height: calc(100vh - var(--gv-esfera) - 110px);
+  max-height: calc(100dvh - var(--gv-esfera) - 110px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 20px 20px;
+  background: var(--gv-fondo);
+  border: 1px solid var(--gv-borde);
+  border-radius: var(--r-tarjeta, 18px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(134, 205, 250, 0.12);
+}
+.gv-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.guia-voz h2 { margin: 0; font: 500 0.95rem/1.2 var(--f-titular, system-ui, sans-serif); letter-spacing: -0.01em; }
+.gv-cerrar { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; background: transparent; border: 1px solid var(--gv-borde); border-radius: 50%; color: var(--gv-tinta); cursor: pointer; }
+.gv-cerrar:hover { border-color: var(--gv-tinta); }
+
+.gv-nota, .gv-estado { margin: 0; color: var(--gv-tinta-2); font-size: 0.8rem; }
+.gv-pregunta-texto { margin: 0 0 6px; font-weight: 600; font-size: 1rem; }
+.gv-pregunta .gv-nota { margin-bottom: 14px; }
+.gv-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 .gv-boton {
-  min-height: 2.6rem;
-  font: inherit;
-  font-size: var(--t-chico, 0.85rem);
-  font-weight: 600;
-  color: var(--texto, #f5f4fb);
+  min-height: 44px;
+  padding: 8px 18px;
   background: transparent;
-  border: 1px solid var(--linea-fuerte, #8d8c9c);
-  border-radius: var(--pildora, 100px);
-  padding: 0.4rem 1.2rem;
+  border: 1px solid var(--gv-borde);
+  border-radius: var(--r-pildora, 999px);
+  color: var(--gv-tinta);
+  font: 600 0.8rem/1.2 var(--f-texto, system-ui, sans-serif);
   cursor: pointer;
 }
-.gv-boton:hover { background: var(--panel-interior, rgba(255, 255, 255, 0.03)); }
-.gv-boton:disabled, .guia-voz select:disabled, .guia-voz input:disabled { opacity: 0.55; cursor: not-allowed; }
+.gv-boton:hover { border-color: var(--gv-tinta); }
+.gv-boton:disabled { opacity: 0.45; cursor: not-allowed; }
+.gv-pregunta .gv-boton:first-child, .gv-detener { background: var(--gv-tinta); border-color: var(--gv-tinta); color: #000000; }
 
-.gv-estado { margin-top: 0.8rem; }
-
-/* conversación con IA: aviso de que las frases se envían y etiqueta de las respuestas de la IA */
-.gv-ia-aviso {
-  margin-top: 0.8rem;
-  padding: 0.5rem 0.8rem;
-  border: 1px solid var(--linea-fuerte, #8d8c9c);
-  border-radius: var(--radio-chico, 8px);
-  color: var(--texto, #f5f4fb);
-  font-size: var(--t-chico, 0.85rem);
-  width: fit-content;
-  max-width: 100%;
-}
-.gv-ia-etiqueta {
-  display: inline-block;
-  margin-top: 0.5rem;
-  padding: 0.05rem 0.6rem;
-  border: 1px solid var(--linea-fuerte, #8d8c9c);
-  border-radius: var(--pildora, 100px);
-  font-family: var(--mono, monospace);
-  font-size: var(--t-rotulo, 0.64rem);
-  font-weight: 400;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--texto, #f5f4fb);
-  white-space: nowrap;
-}
-
-.gv-formulario { margin-top: 1rem; }
-.gv-formulario label, .gv-campo-opcion label { display: block; font-size: var(--t-chico, 0.85rem); color: var(--texto-2, #d6d5e1); margin-bottom: 0.3rem; }
-.gv-formulario input[type="text"], .guia-voz select {
-  min-height: 2.6rem;
-  font: inherit;
-  font-size: var(--t-chico, 0.85rem);
-  color: var(--texto, #f5f4fb);
-  background: var(--panel-solido, #0a0b12);
-  border: 1px solid var(--linea-fuerte, #8d8c9c);
-  border-radius: var(--radio-chico, 8px);
-  padding: 0.3rem 0.8rem;
-}
-.gv-formulario input[type="text"] { flex: 1 1 14rem; min-width: 0; max-width: 32rem; }
-.guia-voz select { max-width: 100%; }
-
-.gv-lista-ayuda { margin: 1rem 0 0; padding-left: 1.2rem; color: var(--texto-2, #d6d5e1); font-size: var(--t-chico, 0.85rem); }
-.gv-lista-ayuda li + li { margin-top: 0.25rem; }
-
-.gv-dialogo { margin: 1.1rem 0 0; display: grid; gap: 0.45rem; }
-.gv-dialogo div { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 0.8rem; align-items: baseline; }
-.gv-dialogo dt {
-  font-family: var(--mono, monospace);
-  font-size: var(--t-rotulo, 0.64rem);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--texto-3, #b7b6c6);
-}
+/* lo que entendió y lo que responde: siempre como texto */
+.gv-dialogo { display: grid; gap: 10px; margin: 0 0 12px; }
+.gv-dialogo > div { margin: 0; }
+.gv-dialogo dt { margin: 0 0 2px; color: var(--gv-tinta-2); font: 400 0.68rem/1.2 var(--f-dato, ui-monospace, monospace); text-transform: uppercase; letter-spacing: 0.06em; }
 .gv-dialogo dd { margin: 0; overflow-wrap: anywhere; }
-#gv-respuesta { font-weight: 600; }
+.gv-turno-persona dd { color: var(--gv-tinta-2); }
+.gv-turno-guia { padding: 12px 14px; background: var(--gv-fondo-2); border: 1px solid rgba(134, 205, 250, 0.35); border-radius: 14px; }
+.gv-turno-guia dd { font-size: 0.95rem; line-height: 1.5; }
+.gv-ia-etiqueta { display: inline-block; margin: -4px 0 12px; padding: 3px 10px; border: 1px solid var(--gv-acento); border-radius: var(--r-pildora, 999px); color: var(--gv-acento); font: 400 0.68rem/1.4 var(--f-dato, ui-monospace, monospace); }
+.gv-ia-aviso { margin: 8px 0 0; color: var(--gv-tinta-2); font-size: 0.75rem; }
+.gv-detener { width: 100%; margin-bottom: 12px; }
+.gv-estado { margin-bottom: 12px; }
 
-.gv-opciones { margin-top: 1.1rem; font-size: var(--t-chico, 0.85rem); }
-.gv-opciones summary { cursor: pointer; color: var(--texto, #f5f4fb); font-weight: 600; min-height: 2rem; display: list-item; width: fit-content; }
-.gv-opciones > * + * { margin-top: 0.8rem; }
-.gv-casilla { display: flex; gap: 0.6rem; align-items: flex-start; color: var(--texto-2, #d6d5e1); cursor: pointer; }
-.gv-casilla input { width: 1.2rem; height: 1.2rem; margin: 0.15rem 0 0; flex: none; accent-color: var(--violeta, #cdbfff); }
-.gv-campo-opcion input[type="range"] { width: min(100%, 18rem); min-height: 1.5rem; accent-color: var(--violeta, #cdbfff); }
+/* frases sugeridas */
+.gv-sugerencias { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.gv-chip {
+  min-height: 40px;
+  padding: 8px 14px;
+  background: #0f2233;
+  border: 1px solid rgba(134, 205, 250, 0.55);
+  border-radius: var(--r-pildora, 999px);
+  color: var(--gv-tinta);
+  font: 600 0.8rem/1.25 var(--f-texto, system-ui, sans-serif);
+  text-align: left;
+  cursor: pointer;
+}
+.gv-chip:hover { border-color: var(--gv-acento); background: #143049; }
+.gv-chip-recorrido { background: var(--gv-acento); border-color: var(--gv-acento); color: #000000; }
+.gv-chip-recorrido:hover { background: #a9dcfc; border-color: #a9dcfc; }
 
-.gv-solo-lector {
-  position: absolute;
-  width: 1px; height: 1px;
-  margin: -1px; padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
+.gv-formulario label, .gv-campo-opcion label { display: block; margin-bottom: 6px; color: var(--gv-tinta-2); font-size: 0.8rem; }
+.gv-formulario .gv-fila { flex-wrap: nowrap; }
+.gv-formulario input[type="text"], .gv-campo-opcion select {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 14px;
+  background: #000000;
+  border: 1px solid var(--gv-borde);
+  border-radius: var(--r-control, 10px);
+  color: var(--gv-tinta);
+  font: 400 1rem/1.2 var(--f-texto, system-ui, sans-serif);        /* 16 px o más: iOS no hace zoom al enfocar */
+}
+.gv-formulario .gv-boton { flex: none; }
+
+.gv-solo-lector { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+.gv-opciones { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--linea, rgba(255, 255, 255, 0.12)); }
+.gv-opciones summary { min-height: 32px; cursor: pointer; color: var(--gv-tinta-2); font-weight: 600; font-size: 0.8rem; }
+.gv-opciones > * + * { margin-top: 12px; }
+.gv-lista-ayuda { margin: 12px 0 0; padding: 0 0 0 18px; list-style: disc; color: var(--gv-tinta-2); font-size: 0.8rem; }
+.gv-lista-ayuda li + li { margin-top: 4px; }
+.gv-casilla { display: flex; gap: 10px; align-items: flex-start; font-size: 0.8rem; cursor: pointer; }
+.gv-casilla input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--gv-acento); }
+.gv-campo-opcion input[type="range"] { width: 100%; accent-color: var(--gv-acento); }
+
+.guia-voz :is(button, input, select, summary):focus-visible { outline: 2px solid var(--gv-tinta); outline-offset: 2px; }
+
+/* ------------------------------------------------------------------ móvil */
+@media (max-width: 600px) {
+  .guia-voz { --gv-esfera: 72px; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); }
+  .gv-esfera svg { width: 26px; height: 26px; }
+  .gv-tarjeta { padding: 16px; }
 }
 
-@media (max-width: 480px) {
-  .gv-hablar { width: 100%; padding-left: 1rem; padding-right: 1rem; }
-  .gv-dialogo div { grid-template-columns: minmax(0, 1fr); gap: 0.1rem; }
+/* ------------------------------------------------------------------ menos movimiento: nada se mueve */
+@media (prefers-reduced-motion: reduce) {
+  .gv-esfera, .gv-esfera::before, .gv-esfera::after { animation: none !important; transition: none; }
+  .gv-hablar:hover .gv-esfera { transform: none; }
+  .guia-voz[data-estado="escuchando"] .gv-esfera::after { inset: -8px; border-width: 3px; }
+  .guia-voz[data-estado="pensando"] .gv-esfera::after { border-color: var(--gv-acento); border-style: dashed; }
+  .guia-voz[data-estado="respondiendo"] .gv-esfera::after { border-color: #ffffff; border-width: 3px; }
 }
 
+/* ------------------------------------------------------------------ alto contraste forzado (Windows) */
 @media (forced-colors: active) {
-  .gv-hablar, .gv-boton { border: 1px solid ButtonText; }
-  .gv-hablar[aria-pressed="true"] { border: 2px dashed Highlight; }
+  .gv-esfera { border: 2px solid ButtonText; forced-color-adjust: none; background: ButtonFace; color: ButtonText; box-shadow: none; }
+  .gv-esfera::before { display: none; }
+  .guia-voz[data-estado="escuchando"] .gv-esfera, .guia-voz[data-estado="respondiendo"] .gv-esfera { border-color: Highlight; border-width: 4px; }
 }

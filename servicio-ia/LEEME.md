@@ -139,9 +139,23 @@ window.GUIA_VOZ_CONFIG = {
 
 Ese archivo es público y **solo lleva la dirección**, nunca la clave.
 
-Prueba en tu computadora: en la carpeta `web`, `python -m http.server 8000`, abre <http://localhost:8000> y pregunta algo a la guía, por ejemplo «¿por qué suena más agudo al final?». Debe aparecer la etiqueta «Respuesta generada por IA».
+Prueba en tu computadora: en la carpeta `web`, `python -m http.server 8001`, abre <http://localhost:8001>, pulsa la esfera «Háblame» y elige la frase «¿Qué estoy escuchando?» (o pregunta algo libre, como «¿qué pasó con la temperatura después de 1980?»). Debe aparecer la etiqueta «Respuesta generada por IA».
 
 Con `servicioIA: ""` (vacío) la IA queda apagada y la guía funciona solo con comandos, como antes.
+
+## Qué recibe el modelo (y qué no decide)
+
+La web manda la frase y el estado de la página. Desde la ronda 34 el estado incluye `calculado`: el momento actual, el **máximo**, el **mínimo**, el **mayor cambio** entre dos momentos seguidos y la **tendencia** de la pista, ya calculados por la página. Las instrucciones del modelo (`PROMPT_SISTEMA` en `src/nucleo.js`) le piden usar esas cifras tal cual y no hacer cuentas ni estimar otras; con «explícame lo que oigo» debe explicar el momento actual solo con esos datos.
+
+Lo que **no** pasa por el modelo, aunque la IA esté encendida:
+
+- «Llévame al año más cálido» (o más frío): lo resuelve la página con sus datos.
+- «Dame un recorrido»: es un guion fijo que ejecuta la página.
+- Los comandos cortos («pausa», «año 1990», «pista dos»).
+
+Si el modelo pide una acción que no está en la lista de trece, el servicio la rechaza y, por si acaso, la web la vuelve a comprobar: se descarta y responde el intérprete de comandos.
+
+**Si ya habías publicado el servicio antes de la ronda 34**, publícalo otra vez (`npx wrangler deploy`) para que use las instrucciones nuevas. No hace falta tocar la clave. Un servicio antiguo sigue funcionando con la web nueva; solo ignora las cifras calculadas.
 
 ## Qué protege al servicio
 

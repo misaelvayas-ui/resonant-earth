@@ -31,7 +31,9 @@
   /* Comandos cortos y claros: se hacen al instante, sin IA (no esperan ni gastan cupo). "pausa" debe pausar ya. */
   const DIRECTOS = new Set(["nada", "reproducir", "pausar", "siguiente", "anterior", "saltar_tiempo", "saltar_relativo",
     "saltar_anio", "inicio", "final", "volumen", "callar", "repetir", "afirmar", "negar"]);
+  const SIEMPRE_DIRECTOS = new Set(["saltar_extremo", "recorrido", "detener_recorrido"]);   // los resuelve la página con sus datos, sin modelo
   function esComandoDirecto(texto, accion, normalizar) {
+    if (SIEMPRE_DIRECTOS.has(accion.tipo)) return true;
     const palabras = normalizar(texto).split(" ").filter(Boolean).length;
     if (palabras > 4) return false;                                       // una frase larga puede ser una pregunta
     return DIRECTOS.has(accion.tipo) || (accion.tipo === "elegir" && accion.numero != null);
@@ -41,7 +43,7 @@
   const redondo = (x, d = 2) => (typeof x === "number" && isFinite(x) ? Math.round(x * 10 ** d) / 10 ** d : null);
 
   /* Estado de la página que se manda al servicio. Solo sale de lo que expone el adaptador. */
-  function armarContexto(A, conversacion = []) {
+  function armarContexto(A, conversacion = [], resumir = null) {
     const pistas = A.pistas(), i = A.indiceActual(), t = A.tiempo(), d = A.detalle ? A.detalle() : {};
     const fechas = A.fechas();
     const actual = fechas.filter((f) => f.t <= t + 0.001).pop();
@@ -59,8 +61,21 @@
       referencia: redondo(d.referencia),
       serie_columnas: d.serie && d.serie.length ? ["fecha o segundo", "media", "parte del mapa con zona caliente (0 a 1)"] : null,
       serie,
+      calculado: null,
       conversacion: conversacion.slice(-3).map((c) => ({ persona: corto(c.persona, 160), guia: corto(c.guia, 200) })),
     };
+    // cifras ya calculadas por la página (máximo, mínimo, mayor cambio y tendencia): el modelo las usa tal cual
+    const R = resumir ? resumir(d.serie) : null;
+    if (R) {
+      const punto = (p) => ({ fecha: p.fecha, valor: p.valor });
+      const ahora = (d.serie || []).filter((r) => r.t <= t + 0.001).pop();
+      ctx.calculado = {
+        nota: "Cifras ya calculadas por la página. Úsalas tal cual; no calcules ni estimes otras.",
+        momento_actual: ahora && typeof ahora.media === "number" ? { fecha: ahora.fecha == null ? null : String(ahora.fecha), valor: redondo(ahora.media) } : null,
+        maximo: punto(R.maximo), minimo: punto(R.minimo), mayor_cambio: R.mayor_cambio,
+        tendencia: { inicio: punto(R.tendencia.inicio), fin: punto(R.tendencia.fin), cambio: R.tendencia.cambio, direccion: R.tendencia.direccion },
+      };
+    }
     // si no cabe: primero la serie a la mitad (varias veces), luego fuera la conversación y la leyenda
     while (JSON.stringify(ctx).length > MAX_CONTEXTO && ctx.serie.length > 12) ctx.serie = ctx.serie.filter((_, k) => k % 2 === 0);
     if (JSON.stringify(ctx).length > MAX_CONTEXTO) ctx.conversacion = [];
@@ -141,7 +156,7 @@
   function conectar({ A, doc, ventana, panel, herramientas, preferencias }) {
     const url = direccionValida(ventana.GUIA_VOZ_CONFIG && ventana.GUIA_VOZ_CONFIG.servicioIA);
     if (!url || typeof ventana.fetch !== "function" || typeof ventana.AbortController !== "function") return null;
-    const { interpretarComando, ejecutar, normalizar, buscarFecha } = herramientas;
+    const { interpretarComando, ejecutar, normalizar, buscarFecha, resumenSerie } = herramientas;
     const estado = { fallos: 0, pausaHasta: 0, conversacion: [], avisado: false };
 
     /* ---------- lo que se ve: aviso, etiqueta y la casilla para apagarlo ---------- */
@@ -152,6 +167,7 @@
     const etiqueta = doc.createElement("p");
     etiqueta.id = "gv-ia-etiqueta"; etiqueta.className = "gv-ia-etiqueta"; etiqueta.textContent = "Respuesta generada por IA"; etiqueta.hidden = true;
     panel.querySelector(".gv-dialogo").after(etiqueta);                    // justo debajo de la respuesta
+    aviso.remove(); panel.querySelector("#gv-formulario").after(aviso);     // el aviso, junto al campo donde se escribe
 
     const casilla = doc.createElement("label");
     casilla.className = "gv-casilla";
@@ -177,7 +193,7 @@
       if (Date.now() < estado.pausaHasta) return null;
 
       let ctx, bruto;
-      try { ctx = armarContexto(A, estado.conversacion); } catch (e) { return null; }
+      try { ctx = armarContexto(A, estado.conversacion, resumenSerie); } catch (e) { return null; }
       try { bruto = await preguntar(url, texto, ctx, { fetchImpl: ventana.fetch.bind(ventana), Abortar: ventana.AbortController }); }
       catch (e) { return fallo(!!e.limite); }
       const v = validarRespuesta(bruto, ctx);

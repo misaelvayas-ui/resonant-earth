@@ -22,7 +22,7 @@
      atenuar(factor)    baja la música (0..1) sin mover el control de volumen
      paginaAnuncia(que) true si la página ya avisa al lector de pantalla al "elegir", "pausar" o "saltar"
      paginaHablaSola()  true si la página dice cosas con su propia voz (esta web no lo hace)
-     detalle()          de qué trata la pista, unidad, referencia y la serie [{ t, fecha, media, area }]
+     detalle(i)         de qué trata la pista i (sin i, la elegida), unidad, referencia y la serie [{ t, fecha, media, area }]
      ancla()            el elemento de la página antes del cual se coloca el panel de la guía */
 "use strict";
 
@@ -90,8 +90,8 @@ window.GuiaVozAdaptador = (() => {
     paginaAnuncia: (que) => (que === "elegir" || que === "pausar" ? true : $("anunciar").checked),
     paginaHablaSola: () => false,
 
-    detalle: () => {
-      const p = pista(), s = serie();
+    detalle: (i = indice()) => {
+      const p = lista[i] || null, s = (p && series[p.id]) || { referencia: null, rasgos: [] };
       if (!p) return { descripcionPista: "", unidad: "", referencia: null, serie: [] };
       const indiceRelativo = /índice/i.test(p.lectura && p.lectura.plantilla || "");
       return {

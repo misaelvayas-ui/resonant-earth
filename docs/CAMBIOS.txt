@@ -969,3 +969,40 @@ Verificado (Windows 11, Node 24, Chrome sin ventana, axe-core 4.10.2; micrófono
     vez (casilla de la lectura marcada y sin marcar); sin IA configurada no sale ninguna petición; con IA, 9 respuestas
     manipuladas o caídas descartadas sin avisos, HTML como texto y corte a los 6 s.
 NO probado: micrófono real, lectores de pantalla reales, Firefox, Safari, teléfonos, ni una llamada real a Gemini.
+
+RONDA 34 - guía por voz: esfera "Háblame", frases sugeridas, explicación con datos calculados y recorrido guiado   (2026-11-15)
+Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit 849c93b (ronda 33, misma rama juan/guia-voz-ia-v2).
+Tocados: web/guia-voz.js, guia-voz.css (reescrito), guia-voz-ia.js, guia-voz-adaptador.js (detalle(i)), las dos pruebas de
+web/pruebas/, servicio-ia/src/nucleo.js (solo las instrucciones del modelo), servicio-ia/LEEME.md, web/README.md y este archivo.
+NO se tocó ningún módulo de web/js/, ni index.html, ni estilos.css. Sigue sin haber ninguna clave en el repositorio.
+1. Un solo botón: una esfera luminosa fija abajo a la derecha, "Háblame". Es un <button> (Tab, Enter, Espacio; nombre
+   "Háblame"; enlace "Saltar a la guía por voz"). Gira despacio en reposo, palpita cuando escucha y brilla cuando responde.
+   Colores y tipografías de la web. Con prefers-reduced-motion no se mueve: el estado se ve en el anillo y el texto. En móvil
+   mide 72 px. Encima se abre una tarjeta donde toda respuesta se ve como texto; Esc la cierra.
+2. Tres frases sugeridas en la tarjeta: "¿Qué estoy escuchando?", "¿Por qué sube el tono?" y "Llévame al año más cálido",
+   más el botón "Dame un recorrido". Las cuatro funcionan sin IA.
+3. Datos ya calculados: resumenSerie() saca de cada serie el máximo, el mínimo, el mayor cambio entre dos momentos seguidos
+   y la tendencia. GISTEMP: máximo 2023 (+1,06), mínimo 1911 (-0,61), de -0,24 en 1881 a +1,06 en 2023 (sube). Mar: máximo
+   mar 2007 (22,44), mínimo nov 2007 (21,48), sube y baja. Coinciden con el resumen de pistas.json. Los comandos usan esas
+   cifras y viajan a la IA en contexto.calculado con la orden de no calcular otras.
+4. "Explícame lo que oigo" / "¿Qué estoy escuchando?": con IA lo redacta el modelo solo con el contexto; sin IA (o si
+   falla) responde el intérprete con la lectura de la página y las cifras calculadas. "Llévame al año más cálido" nunca va
+   al modelo: salta al máximo de la pista (carga la primera si no hay ninguna). En el mar se dice "índice", no grados.
+5. "Dame un recorrido": guion FIJO (guionRecorrido), ejecutado por la página con acciones de la lista permitida (elegir y
+   saltar_tiempo): presenta la web, pone GISTEMP, salta unos segundos antes de 2023 y lo explica, cambia al mar y cierra.
+   Se detiene con el botón "Detener el recorrido", Esc, "pausa", "silencio" o "detén el recorrido"; otra frase lo corta.
+6. Si el modelo pide algo fuera de la lista, la web lo descarta y responde el intérprete (ya era así; ahora hay prueba con
+   las frases nuevas). Sin IA configurada no sale ninguna petición.
+7. Detalles: la voz dice "menos" y "más" en lugar de los signos; "dónde estoy" sin pista elegida ya no dice "cargando".
+Verificado (Windows 11, Node 24, Chrome sin ventana, axe-core 4.10.2; micrófono, voz y servicio de IA de mentira):
+  - node --test web/pruebas/guia-voz.test.js web/pruebas/guia-voz-ia.test.js: 18 pruebas pasan (98 frases del intérprete,
+    resumenSerie contra los _rasgos.json reales, toda cifra dicha está en los datos, recorrido de 30 a 50 s estimados).
+  - servicio-ia: 12 pruebas pasan.
+  - navegador: 89 comprobaciones, todas pasan (las 53 de la ronda 33 más 36 nuevas): axe 0 violaciones en escritorio y
+    móvil, esfera con teclado y sus estados, movimiento reducido, frases sugeridas, recorrido completo y cinco maneras de
+    detenerlo, lector de pantalla sin voces dobles (también en el recorrido), IA de mentira con contexto calculado, acción
+    fuera de la lista y 429.
+  - web/pruebas/verificar.cjs con la guía puesta: V1 a V14 PASA (con el Chrome instalado, no con el Chromium de Playwright).
+NO probado: micrófono real, la voz real del navegador (los 40 s del recorrido son una estimación), lectores de pantalla
+reales, Firefox, Safari, teléfonos, ni una llamada real a Gemini.
+Detalle conocido: a 1440 px y con la página arriba del todo, la esfera tapa una esquina del botón "Cómo funciona" del inicio.
