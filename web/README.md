@@ -17,6 +17,8 @@ Abre <http://localhost:8001>. Con doble clic (`file://`) no carga: necesita un s
 
 - **Hero:** globo 3D (Three.js, texturas Blue Marble y Black Marble de NASA) con un anillo de sonido que se deforma con el audio real, órbitas y una atmósfera que brilla con la amplitud.
 - **La rocola:** dos tarjetas de pista y un reproductor con visualizador (Web Audio, `AnalyserNode`), gráfico con cursor, lectura en vivo («1976: +0,02 °C respecto al promedio…») y la descripción accesible de cada pista.
+- **Explorar el mapa:** con la pista en pausa, el cursor o las flechas mueven una mira sobre el fotograma; el color de ese punto se convierte en valor con la barra de la pista (`assets/<id>_paleta.json`), suena al instante y se describe en texto (latitud, longitud, fecha y valor). La nota se apaga sola a los 2,5 s de quietud; Esc sale.
+- **Antes y después:** suenan los primeros 5 s de la pista y, enseguida, los últimos 5 s.
 - **Cómo funciona, El porqué, Accesibilidad, Equipo y pie.**
 - Animaciones con GSAP + ScrollTrigger; con `prefers-reduced-motion` el globo no gira y solo hay fundidos.
 
@@ -32,6 +34,7 @@ Abre <http://localhost:8001>. Con doble clic (`file://`) no carga: necesita un s
 | `js/mapeo.js` | cálculo puro del sonido en vivo (notas, dron, volumen, paneo, golpes) a partir de `_mapeo.json`; sin DOM ni Web Audio |
 | `js/vivo.js` | motor Web Audio del sonido en vivo: nodos, planificador y sincronía con el video; `renderizar()` sin conexión |
 | `js/package.json` | `{"type": "module"}`: deja que Node importe `js/*.js` para la prueba; el navegador lo ignora |
+| `js/explorar.js` | «Explorar el mapa»: color del fotograma → valor → nota y texto, en tiempo real |
 | `js/rocola.js`, `js/lectura.js`, `js/grafico.js`, `js/visualizador.js` | reproductor y sus partes |
 | `js/globo.js`, `js/animaciones.js`, `js/tarjetas.js` | globo 3D, GSAP y brillo del cursor |
 | `vendor/` | three, GSAP y ScrollTrigger (ver `vendor/LICENCIAS.md`) |

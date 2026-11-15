@@ -7,6 +7,7 @@ No se cambió ningún archivo del proyecto. Todo lo generado quedó fuera del re
 > **Estado al cierre del 15-nov-2026 (rama `mejoras/ronda-38`, sin push):** hechas M1 (parcial: falta el quinto nombre y los aportes), M2, M3, M4, M5, M6, M7, M8,
 > D1 (fusionado; falta la prueba manual en Safari, iPhone y Firefox), D3, D8, P5 (CI escrito, sin ejecutar en GitHub) y los hallazgos H10, H13, H14, H15.
 > Pendientes: D2, D4, D5, D6, D7, P1–P4, P6–P10, H12 (decisión), H16 (CSP), H17 y **publicar la web**. Detalle en la RONDA 38 de `docs/CAMBIOS.txt`.
+> Ronda 39: se leyó el enunciado oficial y se añadió «Explorar el mapa» (sonido en tiempo real desde el fotograma, con teclado, texto y vibración); se descartaron D2 y D6 por no pedirlos el reto.
 > El resto de este documento es la revisión original, hecha sobre `master` antes de esos cambios.
 
 ---

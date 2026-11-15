@@ -223,8 +223,6 @@ function seguirComparacion(e) {
     comparacion.fase = 2;
     saltarA(comparacion.inicio2);
     decir(`Después: los últimos ${TRAMO} segundos.`);
-  } else if (comparacion.fase === 1 && e.tiempo > TRAMO + 1) {
-    comparacion = null;                                      // el usuario movió la pista a mano
   }
 }
 

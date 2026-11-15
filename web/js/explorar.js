@@ -10,6 +10,7 @@ const PASO = 0.025, PASO_LARGO = 0.1;   // fracción del mapa que mueve cada fle
 const DIST_MAX = 70;                    // distancia RGB máxima a la barra para aceptar un color (modo lab)
 const TONO_MAX = 12;                    // diferencia de matiz máxima, en grados (modo matiz)
 const NIVEL = 0.22;                     // amplitud de la voz de exploración
+const SOSTENER = 2.5;                   // segundos que suena un punto antes de empezar a apagarse
 const MENOS = "−";
 
 let el = null;                          // { boton, zona, mira, texto, video }
@@ -128,14 +129,16 @@ function sonar(nota) {
     voz.start();
   }
   const t = ctx.currentTime;
+  nivelVoz.gain.cancelScheduledValues(t);
   if (nota == null) { nivelVoz.gain.setTargetAtTime(0, t, 0.04); return; }
   voz.frequency.setTargetAtTime(440 * Math.pow(2, (nota - 69) / 12), t, 0.015);
   nivelVoz.gain.setTargetAtTime(NIVEL, t, 0.03);
+  nivelVoz.gain.setTargetAtTime(0, t + SOSTENER, 0.5);     // si la mira se queda quieta, la nota se va apagando
 }
 
 function callar() {
   const ctx = audio.contexto();
-  if (ctx && nivelVoz) nivelVoz.gain.setTargetAtTime(0, ctx.currentTime, 0.04);
+  if (ctx && nivelVoz) { nivelVoz.gain.cancelScheduledValues(ctx.currentTime); nivelVoz.gain.setTargetAtTime(0, ctx.currentTime, 0.04); }
 }
 
 function actualizar(inmediato) {
@@ -194,6 +197,9 @@ export function iniciarExplorar(elementos, opciones = {}) {
   el.zona.addEventListener("pointermove", alPuntero);
   el.zona.addEventListener("pointerdown", alPuntero);
   el.zona.addEventListener("keydown", alTeclado);
+  el.zona.addEventListener("pointerleave", callar);
+  el.zona.addEventListener("blur", callar);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) callar(); });
   audio.alCambiar((e) => { if (activo && e.sonando) salir(); });       // si la pista vuelve a sonar, se deja de explorar
 }
 
@@ -218,7 +224,6 @@ function entrar() {
   audio.desbloquear();                   // primero y sin await: es un gesto del usuario
   audio.pausar();
   activo = true;
-  el.boton.setAttribute("aria-pressed", "true");
   el.boton.textContent = "Dejar de explorar";
   el.zona.hidden = false;
   el.zona.focus({ preventScroll: true });
@@ -231,7 +236,6 @@ export function salir() {
   if (!activo) return;
   activo = false;
   callar();
-  el.boton.setAttribute("aria-pressed", "false");
   el.boton.textContent = "Explorar el mapa";
   el.zona.hidden = true;
   el.texto.textContent = "";

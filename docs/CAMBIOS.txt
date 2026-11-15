@@ -1063,3 +1063,19 @@ Con ese criterio se eligió UNA función nueva y se descartaron las demás ideas
 4. README: tabla «Cómo respondemos al reto» (cada frase del enunciado y dónde se cumple) y la guía del jurado con el paso nuevo.
 Límites: el valor de un punto se lee de un video comprimido y reducido, así que es aproximado (la web dice «según el color» en el mar); los valores saturan en ±2 °C, el rango de la barra.
 NO comprobado: pantallas táctiles reales (el arrastre con el dedo y la vibración), lector de pantalla real, Safari.
+
+RONDA 40 - auditoría de las rondas 38 y 39 y pulido (rama mejoras/ronda-38)   (2026-11-15)
+Se revisó cada cambio propio (diff contra master, sin contar la rama del modo en vivo). Lo comprobado y lo corregido:
+1. 08 con el respaldo de imágenes: se regeneró el demo sintético con el código actual y se miraron los rótulos en 0,3 s, 7,3 s y 19,6 s: «media = 0,112», «0,299» y «0,633», los esperados para ese fotograma
+   (el último, en el límite entre dos rótulos). Video a 20 fotogramas/s, primer pts 0,100 s. En GISTEMP el año sobre el mapa coincide con el rasgo de ese instante (1978 en 20,0 s; 1981 empieza en 20,07 s).
+2. Explorar el mapa: (a) la nota ya no suena para siempre: se apaga sola 2,5 s después de dejar quieta la mira; (b) silencio al sacar el cursor del mapa, al perder el foco y al ocultar la pestaña;
+   (c) el botón cambia de texto («Explorar el mapa» / «Dejar de explorar») y ya no lleva además aria-pressed, que un lector de pantalla leía como «Dejar de explorar, pulsado».
+   Probado con toque en una pantalla de 390 px (emulada): la mira sigue al dedo, texto y nota correctos, sin desborde; controles de 44 px de alto y casillas de 27 px.
+3. Antes y después: se quitó una rama de código que nunca se ejecutaba.
+4. Imagen para compartir: la primera captura (1200x630 directa) no mostraba el título «Escucha la Tierra». Se rehízo desde 1600x840 reducida a 1200x630: ahora se ven título, globo, cifras y gráfico (101 KB).
+5. web/README: «Qué tiene» y la tabla de archivos nombran Explorar el mapa, Antes y después y js/explorar.js.
+Revisado sin cambios: video_io.py (en Linux y Windows se sigue usando «opencv mp4v»; el sondeo solo cambia de método donde ese falla), evaluar.py (SystemExit y OMITIDA por B1), validar_gistemp.py,
+exportar_paleta.py, V29-V31, el flujo de CI (sounddevice se importa solo al reproducir, no hace falta PortAudio) y los textos de la web.
+Riesgos que quedan anotados: el CI no se ha ejecutado en GitHub; tras publicar, un visitante que ya tenía la web abierta puede mezclar archivos viejos y nuevos hasta 10 min (caché de GitHub Pages);
+el valor de un punto del mapa es aproximado (video comprimido); nada de lo táctil se probó en un teléfono real.
+Comprobado: verificar.cjs V1-V31 todo PASA; evaluar.py 46 PASA, 0 FALLA, 1 OMITIDA (sin cambios de Python en esta ronda).
