@@ -25,13 +25,22 @@
   const ESPERA_MS = 6000;             // más que esto y se usan los comandos de siempre
   const PAUSA_MS = 60000;             // tras un "límite" o dos fallos seguidos, no se insiste durante un minuto
   const MAX_FRASE = 300;              // el servicio no acepta frases más largas
-  const MAX_CONTEXTO = 5500;          // caracteres del contexto ya serializado (el servicio corta en 6000)
+  const MAX_CONTEXTO = 8500;          // caracteres del contexto ya serializado (el servicio corta en 9000)
   const AVISO = "Tus frases se envían a un servicio de IA para responderte.";
+  /* Lo que se ve de la IA, en los dos idiomas de la guía. */
+  const TEXTOS = {
+    es: { aviso: AVISO, etiqueta: "Respuesta generada por IA", firma: "Respuesta generada por IA. ",
+      casilla: "Conversar con IA (si la apagas, la guía solo entiende comandos y no envía nada)",
+      nota: "Con la IA encendida, lo que dices o escribes aquí y el estado de la página (pista, momento, datos y textos de la web) se envían a un servicio del proyecto, que consulta un modelo de IA de Google (Gemini). No digas datos personales. Las respuestas de la IA pueden tener errores." },
+    en: { aviso: "Your phrases are sent to an AI service to answer you.", etiqueta: "AI-generated answer", firma: "AI-generated answer. ",
+      casilla: "Talk with AI (if you turn it off, the guide only understands commands and sends nothing)",
+      nota: "With AI on, what you say or type here and the state of the page (track, moment, data and site texts) are sent to a project service, which queries a Google AI model (Gemini). Do not share personal data. AI answers may contain mistakes." },
+  };
 
   /* Comandos cortos y claros: se hacen al instante, sin IA (no esperan ni gastan cupo). "pausa" debe pausar ya. */
   const DIRECTOS = new Set(["nada", "reproducir", "pausar", "siguiente", "anterior", "saltar_tiempo", "saltar_relativo",
-    "saltar_anio", "inicio", "final", "volumen", "callar", "repetir", "afirmar", "negar"]);
-  const SIEMPRE_DIRECTOS = new Set(["saltar_extremo", "recorrido", "detener_recorrido"]);   // los resuelve la página con sus datos, sin modelo
+    "saltar_anio", "inicio", "final", "volumen", "callar", "afirmar", "negar"]);
+  const SIEMPRE_DIRECTOS = new Set(["saltar_extremo", "recorrido", "detener_recorrido", "idioma", "lector"]);   // los resuelve la página con sus datos, sin modelo
   function esComandoDirecto(texto, accion, normalizar) {
     if (SIEMPRE_DIRECTOS.has(accion.tipo)) return true;
     const palabras = normalizar(texto).split(" ").filter(Boolean).length;
@@ -43,12 +52,15 @@
   const redondo = (x, d = 2) => (typeof x === "number" && isFinite(x) ? Math.round(x * 10 ** d) / 10 ** d : null);
 
   /* Estado de la página que se manda al servicio. Solo sale de lo que expone el adaptador. */
-  function armarContexto(A, conversacion = [], resumir = null) {
+  function armarContexto(A, conversacion = [], resumir = null, idioma = "es") {
     const pistas = A.pistas(), i = A.indiceActual(), t = A.tiempo(), d = A.detalle ? A.detalle() : {};
     const fechas = A.fechas();
     const actual = fechas.filter((f) => f.t <= t + 0.001).pop();
     let serie = (d.serie || []).map((r) => [r.fecha == null ? redondo(r.t, 1) : r.fecha, redondo(r.media), redondo(r.area)]);
+    let web = null;
+    try { web = A.textosWeb ? A.textosWeb() : null; } catch (e) { web = null; }
     const ctx = {
+      idioma: idioma === "en" ? "en" : "es",         // el idioma en que debe responder el modelo
       pistas: pistas.map((p, k) => ({ numero: k + 1, titulo: corto(p.titulo, 80) })),
       pista: pistas[i] ? { numero: i + 1, titulo: corto(pistas[i].titulo, 80), de_que_trata: corto(d.descripcionPista, 700) } : null,
       sonando: A.sonando(),
@@ -62,6 +74,7 @@
       serie_columnas: d.serie && d.serie.length ? ["fecha o segundo", "media", "parte del mapa con zona caliente (0 a 1)"] : null,
       serie,
       calculado: null,
+      web,                                           // textos fijos de la página: para dudas sobre la web
       conversacion: conversacion.slice(-3).map((c) => ({ persona: corto(c.persona, 160), guia: corto(c.guia, 200) })),
     };
     // cifras ya calculadas por la página (máximo, mínimo, mayor cambio y tendencia): el modelo las usa tal cual
@@ -80,7 +93,9 @@
     while (JSON.stringify(ctx).length > MAX_CONTEXTO && ctx.serie.length > 12) ctx.serie = ctx.serie.filter((_, k) => k % 2 === 0);
     if (JSON.stringify(ctx).length > MAX_CONTEXTO) ctx.conversacion = [];
     if (JSON.stringify(ctx).length > MAX_CONTEXTO) ctx.leyenda = corto(ctx.leyenda, 300);
+    if (JSON.stringify(ctx).length > MAX_CONTEXTO && ctx.web) for (const k of Object.keys(ctx.web)) ctx.web[k] = Array.isArray(ctx.web[k]) ? ctx.web[k].map((x) => corto(x, 120)) : corto(ctx.web[k], 280);
     if (JSON.stringify(ctx).length > MAX_CONTEXTO) { ctx.serie = []; ctx.serie_columnas = null; }
+    if (JSON.stringify(ctx).length > MAX_CONTEXTO) ctx.web = null;
     return ctx;
   }
 
@@ -153,33 +168,34 @@
   }
 
   /* Conecta la IA con la guía. Devuelve null si no hay servicio configurado (todo queda como antes). */
-  function conectar({ A, doc, ventana, panel, herramientas, preferencias }) {
+  function conectar({ A, doc, ventana, panel, herramientas, preferencias, idioma = () => "es" }) {
+    const T = () => TEXTOS[idioma() === "en" ? "en" : "es"];
     const url = direccionValida(ventana.GUIA_VOZ_CONFIG && ventana.GUIA_VOZ_CONFIG.servicioIA);
     if (!url || typeof ventana.fetch !== "function" || typeof ventana.AbortController !== "function") return null;
     const { interpretarComando, ejecutar, normalizar, buscarFecha, resumenSerie } = herramientas;
     const estado = { fallos: 0, pausaHasta: 0, conversacion: [], avisado: false };
 
     /* ---------- lo que se ve: aviso, etiqueta y la casilla para apagarlo ---------- */
-    const aviso = doc.createElement("p");
-    aviso.id = "gv-ia-aviso"; aviso.className = "gv-ia-aviso"; aviso.textContent = AVISO;
-    panel.querySelector("#gv-estado").before(aviso);
-
     const etiqueta = doc.createElement("p");
-    etiqueta.id = "gv-ia-etiqueta"; etiqueta.className = "gv-ia-etiqueta"; etiqueta.textContent = "Respuesta generada por IA"; etiqueta.hidden = true;
-    panel.querySelector(".gv-dialogo").after(etiqueta);                    // justo debajo de la respuesta
-    aviso.remove(); panel.querySelector("#gv-formulario").after(aviso);     // el aviso, junto al campo donde se escribe
+    etiqueta.id = "gv-ia-etiqueta"; etiqueta.className = "gv-ia-etiqueta"; etiqueta.hidden = true;
+    panel.querySelector("#gv-respuesta").after(etiqueta);                   // justo debajo del subtítulo
+
+    const aviso = doc.createElement("p");
+    aviso.id = "gv-ia-aviso"; aviso.className = "gv-ia-aviso";
+    panel.querySelector("#gv-escribir").before(aviso);                      // siempre a la vista mientras la IA está encendida
 
     const casilla = doc.createElement("label");
     casilla.className = "gv-casilla";
-    casilla.innerHTML = '<input type="checkbox" id="gv-ia" aria-describedby="gv-ia-nota"> <span>Conversar con IA (si la apagas, la guía solo entiende comandos y no envía nada)</span>';
+    casilla.innerHTML = '<input type="checkbox" id="gv-ia" aria-describedby="gv-ia-nota"> <span></span>';
     const nota = doc.createElement("p");
     nota.id = "gv-ia-nota"; nota.className = "gv-nota";
-    nota.textContent = "Con la IA encendida, lo que dices o escribes aquí y el estado de la página (pista, momento y datos) se envían a un servicio del proyecto, que consulta un modelo de IA de Google (Gemini). No digas datos personales. Las respuestas de la IA pueden tener errores.";
     panel.querySelector("#gv-lector").closest("label").before(casilla, nota);
     const interruptor = casilla.querySelector("input");
     interruptor.checked = preferencias.leer().ia !== false;                 // encendida, salvo que la persona la haya apagado
     const pintar = () => { aviso.hidden = !interruptor.checked; if (!interruptor.checked) etiqueta.hidden = true; };
+    const traducir = () => { const t = T(); aviso.textContent = t.aviso; etiqueta.textContent = t.etiqueta; casilla.querySelector("span").textContent = t.casilla; nota.textContent = t.nota; };
     interruptor.addEventListener("change", () => { preferencias.guardar({ ia: interruptor.checked }); pintar(); });
+    traducir();
     pintar();
 
     const anotar = (persona, guia) => { estado.conversacion.push({ persona, guia }); estado.conversacion = estado.conversacion.slice(-3); };
@@ -193,7 +209,11 @@
       if (Date.now() < estado.pausaHasta) return null;
 
       let ctx, bruto;
-      try { ctx = armarContexto(A, estado.conversacion, resumenSerie); } catch (e) { return null; }
+      // "no entendí", "repite", "más simple": el modelo reformula lo último que dijo la guía, con palabras más simples
+      const reformular = accionLocal.tipo === "repetir";
+      if (reformular && !memoria.ultima) return null;
+      try { ctx = armarContexto(A, estado.conversacion, resumenSerie, idioma()); } catch (e) { return null; }
+      if (reformular) ctx.reformular = corto(memoria.ultima, 600);
       try { bruto = await preguntar(url, texto, ctx, { fetchImpl: ventana.fetch.bind(ventana), Abortar: ventana.AbortController }); }
       catch (e) { return fallo(!!e.limite); }
       const v = validarRespuesta(bruto, ctx);
@@ -201,19 +221,20 @@
       estado.fallos = 0;
 
       const local = aAccionLocal(v);
-      const firmar = (t) => { if (estado.avisado) return t; estado.avisado = true; return "Respuesta generada por IA. " + t; };   // se dice una vez por visita
+      const firmar = (t) => { if (estado.avisado) return t; estado.avisado = true; return T().firma + t; };   // se dice una vez por visita
+      if (reformular) { if (!v.respuesta) return null; anotar(texto, v.respuesta); return { texto: firmar(v.respuesta), deIA: true }; }   // solo palabras: no ejecuta nada
       if (!local) { anotar(texto, v.respuesta); return { texto: firmar(v.respuesta), deIA: true }; }
 
       // una fecha que la pista no tiene (o no exacta): manda lo que diga el reproductor, no la IA
       const f = local.tipo === "saltar_anio" ? buscarFecha(A.fechas(), local.anio, local.mes) : null;
-      const r = await ejecutar(local, A, memoria);
+      const r = await ejecutar(local, A, memoria, idioma());
       const literal = ["descripcion", "leyenda", "repetir", "ayuda"].includes(local.tipo) || (f && !f.exacto) || !v.respuesta;
       anotar(texto, literal ? r.texto : v.respuesta);
       return literal ? { ...r, deIA: false } : { ...r, texto: firmar(v.respuesta), deIA: true };
     }
 
-    return { atender, marcar: (esIA) => { etiqueta.hidden = !esIA || !interruptor.checked; }, encendida: () => interruptor.checked, estado };
+    return { atender, traducir, marcar: (esIA) => { etiqueta.hidden = !esIA || !interruptor.checked; }, encendida: () => interruptor.checked, estado };
   }
 
-  return { ACCIONES, AVISO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar, conectar };
+  return { ACCIONES, AVISO, TEXTOS, MAX_CONTEXTO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar, conectar };
 });

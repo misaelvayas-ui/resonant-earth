@@ -7,7 +7,9 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { interpretarComando, normalizar, buscarFecha, buscarPista, ejecutar, resumenSerie, guionRecorrido, valorDicho, ACCIONES_RECORRIDO, SUGERENCIAS } = require("../guia-voz.js");
+const { interpretarComando, normalizar, buscarFecha, buscarPista, ejecutar, resumenSerie, guionRecorrido, valorDicho, ACCIONES_RECORRIDO, SUGERENCIAS,
+  elegirVozDe, fechaDicha, normalizarEN, TEXTOS, INTERFAZ, TONO_VOZ, VELOCIDAD_VOZ, AYUDA, AYUDA_EN } = require("../guia-voz.js");
+const SUGERENCIAS_ES = SUGERENCIAS.es;
 
 /* frase -> acción esperada. Incluye errores típicos del reconocimiento: sin tildes ni ñ, mayúsculas,
    signos, números en cifras o en palabras, palabras de relleno y palabras parecidas. */
@@ -115,9 +117,24 @@ const FRASES = [
   ["silencio", { tipo: "callar" }],
   ["cállate", { tipo: "callar" }],
   ["sí", { tipo: "afirmar" }],
-  ["Sí, uso lector de pantalla", { tipo: "afirmar" }],
+  ["Sí, uso lector de pantalla", { tipo: "lector", usa: true }],
+  ["uso un lector de pantalla", { tipo: "lector", usa: true }],
   ["no", { tipo: "negar" }],
-  ["no uso lector", { tipo: "negar" }],
+  ["no uso lector", { tipo: "lector", usa: false }],
+  // idioma, "no entendí" y preguntas sobre la web
+  ["habla en inglés", { tipo: "idioma", idioma: "en" }],
+  ["en español, por favor", { tipo: "idioma", idioma: "es" }],
+  ["no entendí", { tipo: "repetir" }],
+  ["más simple", { tipo: "repetir" }],
+  ["otra vez", { tipo: "repetir" }],
+  ["más despacio", { tipo: "repetir" }],
+  ["empieza de nuevo", { tipo: "inicio" }],
+  ["¿qué puedes hacer?", { tipo: "ayuda" }],
+  ["¿cómo funciona?", { tipo: "sobre_web", tema: "como_funciona" }],
+  ["¿qué es este proyecto?", { tipo: "sobre_web", tema: "proyecto" }],
+  ["¿por qué escuchar el clima?", { tipo: "sobre_web", tema: "por_que" }],
+  ["¿es accesible para personas ciegas?", { tipo: "sobre_web", tema: "accesibilidad" }],
+  ["¿quiénes son?", { tipo: "sobre_web", tema: "equipo" }],
 ];
 
 test(`intérprete: ${FRASES.length} frases en español`, () => {
@@ -238,12 +255,13 @@ function reproductorReal({ actual = -1 } = {}) {
   const r = { actual, t: 0, sonando: false, llamadas: [] };
   const titulos = ["Temperatura del planeta", "Corrientes y temperatura del mar"];
   r.A = {
-    listo: () => r.actual >= 0, pistas: () => titulos.map((titulo, i) => ({ id: String(i), titulo })), indiceActual: () => r.actual,
+    listo: () => r.actual >= 0, pistas: (idioma) => (idioma === "en" ? ["Planet temperature", "Ocean currents and sea temperature"] : titulos).map((titulo, i) => ({ id: String(i), titulo })), indiceActual: () => r.actual,
     elegir: async (i, sonar) => { r.actual = i; r.sonando = sonar; r.t = 0; r.llamadas.push("elegir " + i); },
     reproducir: async () => { r.sonando = true; }, pausar: () => { r.sonando = false; }, sonando: () => r.sonando,
     tiempo: () => r.t, duracion: () => 30, irA: (s) => { r.t = s; r.llamadas.push("irA " + s.toFixed(1)); },
     fechas: () => (SERIES[r.actual] || []).map((x) => ({ t: x.t, fecha: x.fecha })),
-    descripcion: () => (r.actual === 0 ? "1976: −0,02 °C respecto al promedio de 1951–1980." : ""), leyenda: () => "Tono: más agudo cuando el mapa está más caliente.",
+    descripcion: (idioma) => (r.actual !== 0 ? "" : idioma === "en" ? "1976: −0.02 °C compared with the 1951–1980 average." : "1976: −0,02 °C respecto al promedio de 1951–1980."),
+    leyenda: (idioma) => (idioma === "en" ? "Pitch: higher when the map is warmer." : "Tono: más agudo cuando el mapa está más caliente."),
     volumen: () => 80, ponerVolumen: () => {}, atenuar: () => {}, paginaAnuncia: () => true, paginaHablaSola: () => false,
     detalle: (i = r.actual) => ({ descripcionPista: "", unidad: "", indiceRelativo: i === 1, referencia: null, serie: SERIES[i] || [] }),
   };
@@ -265,22 +283,22 @@ test("resumenSerie: máximo, mínimo, mayor cambio y tendencia salen de los dato
 });
 
 test("las tres frases sugeridas tienen respuesta sin IA, con cifras que están en los datos", async () => {
-  assert.deepEqual(SUGERENCIAS, ["¿Qué estoy escuchando?", "¿Por qué sube el tono?", "Llévame al año más cálido"]);
+  assert.deepEqual(SUGERENCIAS_ES, ["¿Qué estoy escuchando?", "¿Por qué sube el tono?", "Llévame al año más cálido"]);
   const r = reproductorReal();
   const decir = async (frase) => ejecutar(interpretarComando(frase), r.A, {});
-  assert.match((await decir(SUGERENCIAS[0])).texto, /Todavía no suena nada/);                 // sin pista elegida
-  const calido = await decir(SUGERENCIAS[2]);                                                  // sin pista: carga la primera y salta
+  assert.match((await decir(SUGERENCIAS_ES[0])).texto, /Todavía no suena nada/);                 // sin pista elegida
+  const calido = await decir(SUGERENCIAS_ES[2]);                                                  // sin pista: carga la primera y salta
   assert.equal(r.actual, 0); assert.equal(r.sonando, true); assert.ok(Math.abs(r.t - 29.01) < 1e-9);
   assert.equal(calido.texto, "El momento más cálido de esta pista es 2023: más 1,06 grados. Te llevo ahí.");
-  assert.match((await decir(SUGERENCIAS[0])).texto, /^Suena la pista Temperatura del planeta\. Ahora, 1976: −0,02 °C.*más alto de la pista es 2023 y el más bajo, 1911/);
-  assert.match((await decir(SUGERENCIAS[1])).texto, /cuanto más caliente, más agudo.*de menos 0,24 grados en 1881 a más 1,06 grados en 2023, por eso la melodía termina más aguda/);
+  assert.match((await decir(SUGERENCIAS_ES[0])).texto, /^Suena la pista Temperatura del planeta\. Ahora, 1976: −0,02 °C.*más alto de la pista es 2023 y el más bajo, 1911/);
+  assert.match((await decir(SUGERENCIAS_ES[1])).texto, /cuanto más caliente, más agudo.*de menos 0,24 grados en 1881 a más 1,06 grados en 2023, por eso la melodía termina más aguda/);
   assert.match((await decir("llévame al año más frío")).texto, /más frío de esta pista es 1911: menos 0,61 grados/);
   await decir("pista dos");
-  assert.match((await decir(SUGERENCIAS[2])).texto, /^El índice más alto de esta pista es mar 2007: índice 22,44/);   // en el mar no se dicen grados
-  assert.match((await decir(SUGERENCIAS[1])).texto, /índice 22,39 en mar 2007 a índice 22,12 en feb 2008: sube y baja/);
+  assert.match((await decir(SUGERENCIAS_ES[2])).texto, /^El índice más alto de esta pista es mar 2007: índice 22,44/);   // en el mar no se dicen grados
+  assert.match((await decir(SUGERENCIAS_ES[1])).texto, /índice 22,39 en mar 2007 a índice 22,12 en feb 2008: sube y baja/);
   // toda cifra dicha está en los datos (redondeada a dos decimales)
   const permitidas = new Set(SERIES.flat().map((x) => Math.abs(x.media).toFixed(2).replace(".", ",")));
-  for (const f of [SUGERENCIAS[1], SUGERENCIAS[2], "llévame al año más frío"]) for (const i of [0, 1]) {
+  for (const f of [SUGERENCIAS_ES[1], SUGERENCIAS_ES[2], "llévame al año más frío"]) for (const i of [0, 1]) {
     r.actual = i;
     for (const cifra of (await decir(f)).texto.match(/\d+,\d\d/g) || []) assert.ok(permitidas.has(cifra), `${f}: ${cifra} no está en los datos`);
   }
@@ -309,4 +327,112 @@ test("recorrido: guion fijo, solo acciones permitidas, cifras de los datos y uno
   // sin datos, el recorrido sigue saliendo (sin cifras)
   const sinDatos = guionRecorrido({ ...r.A, detalle: () => ({ serie: [] }) });
   assert.ok(sinDatos.length >= 4 && !/\d,\d\d/.test(sinDatos.map((p) => p.texto).join(" ")));
+});
+
+/* ------------------------------------------------------------------ Ronda 35: inglés, voz, repetir y preguntas sobre la web */
+
+const FRASES_EN = [
+  ["play", { tipo: "reproducir" }], ["Play, please.", { tipo: "reproducir" }], ["resume", { tipo: "reproducir" }], ["don't stop", { tipo: "reproducir" }],
+  ["pause", { tipo: "pausar" }], ["stop", { tipo: "pausar" }], ["hold on", { tipo: "pausar" }],
+  ["next track", { tipo: "siguiente" }], ["previous track", { tipo: "anterior" }], ["track two", { tipo: "elegir", numero: 2 }], ["the first track", { tipo: "elegir", numero: 1 }],
+  ["play the ocean", { tipo: "elegir", nombre: "ocean" }], ["what tracks are there?", { tipo: "pistas" }],
+  ["year 1990", { tipo: "saltar_anio", anio: 1990 }], ["year nineteen ninety", { tipo: "saltar_anio", anio: 1990 }], ["go to two thousand seven", { tipo: "saltar_anio", anio: 2007 }],
+  ["November 2007", { tipo: "saltar_anio", anio: 2007, mes: 11 }], ["second ten", { tipo: "saltar_tiempo", segundos: 10 }], ["minute 1", { tipo: "saltar_tiempo", segundos: 60 }],
+  ["forward ten seconds", { tipo: "saltar_relativo", segundos: 10 }], ["go back", { tipo: "saltar_relativo", segundos: -10 }], ["start over", { tipo: "inicio" }],
+  ["What am I hearing?", { tipo: "explicar" }], ["explain what I hear", { tipo: "explicar" }], ["Why does the pitch rise?", { tipo: "explicar_tono" }],
+  ["Take me to the warmest year", { tipo: "saltar_extremo", cual: "max" }], ["the coldest year", { tipo: "saltar_extremo", cual: "min" }],
+  ["Give me a tour", { tipo: "recorrido" }], ["stop the tour", { tipo: "detener_recorrido" }],
+  ["read the legend", { tipo: "leyenda" }], ["what do the colours mean", { tipo: "leyenda" }], ["where am I?", { tipo: "donde" }], ["what's happening now?", { tipo: "descripcion" }],
+  ["volume 50", { tipo: "volumen", valor: 50 }], ["louder", { tipo: "volumen", delta: 20 }], ["turn it down", { tipo: "volumen", delta: -20 }],
+  ["repeat", { tipo: "repetir" }], ["I didn't understand", { tipo: "repetir" }], ["simpler, please", { tipo: "repetir" }], ["again", { tipo: "repetir" }], ["say that again", { tipo: "repetir" }],
+  ["help", { tipo: "ayuda" }], ["What can you do?", { tipo: "ayuda" }], ["quiet", { tipo: "callar" }],
+  ["what is this project?", { tipo: "sobre_web", tema: "proyecto" }], ["how does it work?", { tipo: "sobre_web", tema: "como_funciona" }], ["who made this?", { tipo: "sobre_web", tema: "equipo" }],
+  ["is it accessible for blind people?", { tipo: "sobre_web", tema: "accesibilidad" }], ["why listen to the climate?", { tipo: "sobre_web", tema: "por_que" }],
+  ["español", { tipo: "idioma", idioma: "es" }], ["speak Spanish", { tipo: "idioma", idioma: "es" }], ["I use a screen reader", { tipo: "lector", usa: true }], ["I don't use a screen reader", { tipo: "lector", usa: false }],
+  ["why is the sky blue?", { tipo: "desconocido", texto: "why is the sky blue" }], ["blah blah", { tipo: "desconocido", texto: "blah blah" }],
+];
+
+test(`intérprete en inglés: ${FRASES_EN.length} frases dan los mismos tipos de acción que en español`, () => {
+  for (const [frase, esperado] of FRASES_EN) assert.deepEqual(interpretarComando(frase, "en"), esperado, `«${frase}»`);
+  assert.equal(normalizarEN("twenty twenty three, one hundred and five, thirty five"), "2023 105 35");
+  assert.deepEqual(interpretarComando("reproduce", "es"), interpretarComando("reproduce"));      // sin idioma: español, como siempre
+  const tipos = (lista, idioma) => new Set(lista.map(([f]) => interpretarComando(f, idioma).tipo));
+  for (const t of tipos(FRASES_EN, "en")) assert.ok(tipos(FRASES, "es").has(t), "tipo solo en inglés: " + t);
+});
+
+test("en inglés: las frases sugeridas, las respuestas fijas y el recorrido salen en inglés, con las mismas cifras", async () => {
+  assert.deepEqual(SUGERENCIAS.en, ["What am I hearing?", "Why does the pitch rise?", "Take me to the warmest year"]);
+  const r = reproductorReal();
+  const decir = async (frase) => ejecutar(interpretarComando(frase, "en"), r.A, {}, "en");
+  assert.match((await decir(SUGERENCIAS.en[0])).texto, /^Nothing is playing yet/);
+  assert.equal((await decir(SUGERENCIAS.en[2])).texto, "The warmest moment of this track is 2023: plus 1.06 degrees. Taking you there.");
+  assert.equal(r.actual, 0); assert.ok(Math.abs(r.t - 29.01) < 1e-9);
+  assert.match((await decir(SUGERENCIAS.en[0])).texto, /^Now playing: the track Planet temperature\. Right now, 1976: −0\.02 °C.*highest point of the track is 2023 and the lowest is 1911/);
+  assert.match((await decir(SUGERENCIAS.en[1])).texto, /the warmer it is, the higher the note.*from minus 0\.24 degrees in 1881 to plus 1\.06 degrees in 2023, so the melody ends higher/);
+  assert.match((await decir("track two")).texto, /^Track 2 of 2: Ocean currents and sea temperature\./);
+  assert.match((await decir(SUGERENCIAS.en[2])).texto, /^The highest index of this track is March 2007: index 22\.44/);     // en el mar tampoco se dicen grados
+  assert.match((await decir("November 2007")).texto, /^November 2007\.$/);
+  assert.match((await decir("year 1990")).texto, /runs from 2007 to 2008/);
+  assert.match((await decir("where am I")).texto, /^Track 2 of 2.*It is (playing|paused)\.$/);
+  assert.equal((await decir("pause")).texto, "Paused."); assert.equal((await decir("pause")).texto, "It is already paused.");
+  assert.match((await decir("volume 50")).texto, /^Volume at 50 percent/);
+  assert.equal((await decir("help")).texto, AYUDA_EN); assert.equal((await decir("help")).ayuda, true);
+  assert.match((await decir("xyzzy")).texto, /^I did not understand “xyzzy”/);
+  assert.equal(fechaDicha("nov 2007", "en"), "November 2007"); assert.equal(fechaDicha("nov 2007", "es"), "nov 2007"); assert.equal(fechaDicha(1990, "en"), "1990");
+  assert.equal(valorDicho(-0.61, {}, "en"), "minus 0.61 degrees"); assert.equal(valorDicho(22.44, { indiceRelativo: true }, "en"), "index 22.44");
+  // toda cifra dicha en inglés está en los datos
+  const permitidas = new Set(SERIES.flat().map((x) => Math.abs(x.media).toFixed(2)));
+  for (const f of [SUGERENCIAS.en[1], SUGERENCIAS.en[2], "the coldest year"]) for (const i of [0, 1]) {
+    r.actual = i;
+    for (const cifra of (await decir(f)).texto.match(/\d+\.\d\d/g) || []) assert.ok(permitidas.has(cifra), `${f}: ${cifra} no está en los datos`);
+  }
+  // el recorrido: mismo guion y mismas acciones, textos en inglés
+  const es = guionRecorrido(reproductorReal().A, "es"), en = guionRecorrido(reproductorReal().A, "en");
+  assert.deepEqual(en.map((p) => p.accion), es.map((p) => p.accion));
+  const texto = en.map((p) => p.texto).join(" ");
+  assert.match(texto, /^Welcome to Resonant Earth/); assert.match(texto, /First track: Planet temperature, starting in 1881/); assert.match(texto, /Jumping towards 2023: plus 1\.06 degrees/);
+  assert.match(texto, /rises and falls: its lowest point is November 2007/); assert.match(texto, /End of the tour/);
+  assert.ok(!/[áéíóúñ¿¡«»]/i.test(texto), "el recorrido en inglés no lleva español");
+  // los dos idiomas tienen exactamente los mismos textos
+  const claves = (o) => Object.keys(o).sort().join();
+  assert.equal(claves(TEXTOS.es), claves(TEXTOS.en)); assert.equal(claves(TEXTOS.es.web), claves(TEXTOS.en.web));
+  assert.equal(claves(INTERFAZ.es), claves(INTERFAZ.en)); assert.equal(claves(INTERFAZ.es.errores), claves(INTERFAZ.en.errores));
+});
+
+test("«repite» y «no entendí» sin IA repiten más despacio; las preguntas sobre la web tienen un texto corto fijo", async () => {
+  const r = reproductorReal({ actual: 0 });
+  const rep = await ejecutar(interpretarComando("no entendí"), r.A, { ultima: "El tono sigue al valor medio." });
+  assert.equal(rep.texto, "El tono sigue al valor medio."); assert.equal(rep.lento, true);
+  const nada = await ejecutar(interpretarComando("repite"), r.A, {});
+  assert.equal(nada.texto, "Todavía no he dicho nada."); assert.equal(nada.lento, false);
+  assert.equal((await ejecutar(interpretarComando("again", "en"), r.A, { ultima: "Paused." }, "en")).lento, true);
+  for (const [frase, tema] of [["qué es este proyecto", "proyecto"], ["cómo funciona", "como_funciona"], ["por qué escuchar el clima", "por_que"], ["es accesible", "accesibilidad"], ["quiénes son", "equipo"]]) {
+    const es = (await ejecutar(interpretarComando(frase), r.A, {})).texto;
+    assert.equal(es, TEXTOS.es.web[tema]); assert.ok(es.length > 60 && es.length < 320, tema);
+    assert.ok(TEXTOS.en.web[tema].length > 60 && TEXTOS.en.web[tema].length < 320, tema + " en inglés");
+  }
+  assert.equal((await ejecutar(interpretarComando("who made this?", "en"), r.A, {}, "en")).texto, TEXTOS.en.web.equipo);
+  assert.equal((await ejecutar(interpretarComando("ayuda"), r.A, {})).texto, AYUDA);
+  assert.ok(!/ayuda/i.test(INTERFAZ.es.saludo + INTERFAZ.es.inicial) && INTERFAZ.es.saludo.split(/[.?!]/).filter((x) => x.trim()).length <= 2, "el saludo es corto y no recita la ayuda");
+});
+
+test("voz: elige sola una voz masculina según el idioma (británica en inglés), serena", () => {
+  const v = (name, lang, extra = {}) => ({ name, lang, ...extra });
+  const windows = [v("Microsoft Zira - English (United States)", "en-US", { default: true }), v("Microsoft David - English (United States)", "en-US"), v("Microsoft Hazel - English (United Kingdom)", "en-GB"),
+    v("Microsoft George - English (United Kingdom)", "en-GB"), v("Microsoft Helena - Spanish (Spain)", "es-ES"), v("Microsoft Pablo - Spanish (Spain)", "es-ES"), v("Microsoft Sabina - Spanish (Mexico)", "es-MX"), v("Microsoft Raul - Spanish (Mexico)", "es-MX")];
+  assert.equal(elegirVozDe(windows, "en").name, "Microsoft George - English (United Kingdom)");
+  assert.equal(elegirVozDe(windows, "es").name, "Microsoft Pablo - Spanish (Spain)");
+  const chrome = [v("Google US English", "en-US"), v("Google UK English Female", "en-GB"), v("Google UK English Male", "en-GB"), v("Google español", "es-ES"), v("Google español de Estados Unidos", "es-US")];
+  assert.equal(elegirVozDe(chrome, "en").name, "Google UK English Male");
+  assert.equal(elegirVozDe(chrome, "es").name, "Google español de Estados Unidos");          // sin voz masculina con nombre: una en español, no de España primero
+  const edge = [v("Microsoft Sonia Online (Natural) - English (United Kingdom)", "en-GB"), v("Microsoft Ryan Online (Natural) - English (United Kingdom)", "en-GB"), v("Microsoft Guy Online (Natural) - English (United States)", "en-US"),
+    v("Microsoft Dalia Online (Natural) - Spanish (Mexico)", "es-MX"), v("Microsoft Jorge Online (Natural) - Spanish (Mexico)", "es-MX"), v("Microsoft Luis Online (Natural) - Spanish (Ecuador)", "es-EC")];
+  assert.match(elegirVozDe(edge, "en").name, /Ryan/); assert.match(elegirVozDe(edge, "es").name, /Jorge/);
+  const mac = [v("Samantha", "en-US"), v("Daniel", "en-GB"), v("Karen", "en-AU"), v("Mónica", "es-ES"), v("Paulina", "es-MX"), v("Juan", "es-MX")];
+  assert.equal(elegirVozDe(mac, "en").name, "Daniel"); assert.equal(elegirVozDe(mac, "es").name, "Juan");
+  assert.equal(elegirVozDe([v("Microsoft David - English (United States)", "en-US"), v("Microsoft Zira", "en-US")], "en").name, "Microsoft David - English (United States)");   // sin británica: masculina de otro país
+  assert.equal(elegirVozDe([v("Samantha", "en-US"), v("Kate", "en-GB")], "en").name, "Kate");                                    // sin masculina: británica
+  assert.equal(elegirVozDe(windows, "en", "Microsoft Zira - English (United States)|en-US").name, "Microsoft Zira - English (United States)");   // la elegida a mano gana
+  assert.equal(elegirVozDe(windows.filter((x) => x.lang.startsWith("es")), "en"), null); assert.equal(elegirVozDe([], "es"), null);
+  assert.equal(VELOCIDAD_VOZ, 0.95); assert.ok(TONO_VOZ < 1 && TONO_VOZ >= 0.7);
 });

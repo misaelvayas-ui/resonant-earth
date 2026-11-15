@@ -9,8 +9,8 @@ compatibility_date = "2026-06-01"
 # Variables del servicio (no son secretas). Cámbialas aquí y vuelve a publicar con:  npx wrangler deploy
 [vars]
 # Páginas que pueden usar el servicio, separadas por comas, sin barra al final.
-# Cambia TU-USUARIO por el usuario de GitHub donde se publique la web. localhost es para probar en tu computadora.
-ORIGENES_PERMITIDOS = "http://localhost:8000,http://localhost:8001,https://TU-USUARIO.github.io"
+# misaelvayas-ui es el usuario de GitHub donde se publica la web. localhost es para probar en tu computadora.
+ORIGENES_PERMITIDOS = "http://localhost:8000,http://localhost:8001,https://misaelvayas-ui.github.io"
 # Modelo de Gemini. Nombre vigente comprobado el 14-nov-2026 en https://aistudio.google.com/docs/models
 GEMINI_MODEL = "gemini-3.8-flash"
 # Límites propios. Deben quedar POR DEBAJO de los de tu cuenta gratuita de Gemini,
@@ -20,7 +20,7 @@ MAX_POR_MINUTO_GLOBAL = "8"
 MAX_POR_DIA = "200"
 # Tamaños máximos, en caracteres.
 MAX_TEXTO = "300"
-MAX_CONTEXTO = "6000"
+MAX_CONTEXTO = "9000"
 
 # El contador de los límites (un Durable Object con SQLite; funciona en el plan gratuito).
 [[durable_objects.bindings]]

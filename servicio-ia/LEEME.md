@@ -49,7 +49,7 @@ cd servicio-ia
 
 Abre `servicio-ia/wrangler.toml`. Ahí **no va la clave**; solo estos valores, que son públicos:
 
-1. **`ORIGENES_PERMITIDOS`**: las páginas que pueden usar el servicio, separadas por comas y sin barra al final. Cambia `TU-USUARIO` por el usuario de GitHub donde se publica la web. Deja los `localhost` para poder probar en tu computadora.
+1. **`ORIGENES_PERMITIDOS`**: las páginas que pueden usar el servicio, separadas por comas y sin barra al final. Ya está puesto `misaelvayas-ui`, el usuario de GitHub donde se publica la web; cámbialo si se publica en otra parte. Deja los `localhost` para poder probar en tu computadora.
 
    ```toml
    ORIGENES_PERMITIDOS = "http://localhost:8000,http://localhost:8001,https://misaelvayas-ui.github.io"
@@ -155,7 +155,15 @@ Lo que **no** pasa por el modelo, aunque la IA esté encendida:
 
 Si el modelo pide una acción que no está en la lista de trece, el servicio la rechaza y, por si acaso, la web la vuelve a comprobar: se descarta y responde el intérprete de comandos.
 
-**Si ya habías publicado el servicio antes de la ronda 34**, publícalo otra vez (`npx wrangler deploy`) para que use las instrucciones nuevas. No hace falta tocar la clave. Un servicio antiguo sigue funcionando con la web nueva; solo ignora las cifras calculadas.
+Desde la ronda 35 el estado lleva además:
+
+- `idioma` (`"es"` o `"en"`): el idioma elegido en la guía. El modelo responde en ese idioma; el contexto va en español y, si responde en inglés, lo traduce él sin cambiar cifras.
+- `web`: los textos fijos de la página (qué es, cómo funciona, por qué, accesibilidad, equipo, pistas y créditos), recortados. El modelo contesta dudas sobre la web **solo** con eso y, si no está, dice que no lo sabe.
+- `reformular` (solo cuando la persona dice «no entendí», «repite», «más simple» u «otra vez»): la última respuesta de la guía. El modelo la vuelve a decir con palabras más simples, sin datos nuevos y sin ejecutar nada.
+
+Por los textos de la web, el tamaño máximo del estado subió de 6000 a **9000** caracteres (`MAX_CONTEXTO`).
+
+**Si ya habías publicado el servicio antes de la ronda 35, hay que publicarlo otra vez** (`npx wrangler deploy`, dentro de `servicio-ia/`). No hace falta tocar la clave. Con un servicio antiguo, la web nueva manda un estado más grande que su límite de 6000: el servicio lo rechaza y la guía responde con sus comandos, sin avisar.
 
 ## Qué protege al servicio
 
@@ -166,7 +174,7 @@ Si el modelo pide una acción que no está en la lista de trece, el servicio la 
 | Peticiones por minuto entre todos | 8 | `MAX_POR_MINUTO_GLOBAL` |
 | Tope por día entre todos | 200 | `MAX_POR_DIA` |
 | Largo máximo de la frase | 300 caracteres | `MAX_TEXTO` |
-| Largo máximo del estado de la página | 6000 caracteres | `MAX_CONTEXTO` |
+| Largo máximo del estado de la página | 9000 caracteres | `MAX_CONTEXTO` |
 | Si Gemini dice «límite» (429) | el servicio deja de insistir 60 segundos | fijo |
 
 Después de cambiar algo en `wrangler.toml`, publica otra vez con `npx wrangler deploy`.

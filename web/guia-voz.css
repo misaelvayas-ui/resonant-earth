@@ -1,5 +1,6 @@
 /* Resonant Earth — estilos de la guía por voz (los carga guia-voz.js).
-   Una esfera luminosa fija abajo a la derecha ("Háblame") y, encima, una tarjeta con la conversación.
+   Una esfera luminosa fija abajo a la derecha ("Háblame") y, encima, una tarjeta mínima: un subtítulo con lo
+   último que dijo la guía, el botón "Escribir" y "Ayuda y opciones".
    Usa los tokens de estilos.css (colores, tipografías, radios); los valores tras la coma son de respaldo.
 
    Estados de la esfera (atributo data-estado de #guia-voz):
@@ -112,25 +113,34 @@
 
 /* ------------------------------------------------------------------ la tarjeta de la conversación */
 .gv-tarjeta {
-  width: min(400px, calc(100vw - 24px));
+  width: min(360px, calc(100vw - 24px));
   max-height: calc(100vh - var(--gv-esfera) - 110px);
   max-height: calc(100dvh - var(--gv-esfera) - 110px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 18px 20px 20px;
+  padding: 16px 18px;
   background: var(--gv-fondo);
   border: 1px solid var(--gv-borde);
   border-radius: var(--r-tarjeta, 18px);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(134, 205, 250, 0.12);
 }
-.gv-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.guia-voz h2 { margin: 0; font: 500 0.95rem/1.2 var(--f-titular, system-ui, sans-serif); letter-spacing: -0.01em; }
-.gv-cerrar { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; background: transparent; border: 1px solid var(--gv-borde); border-radius: 50%; color: var(--gv-tinta); cursor: pointer; }
+/* cerrar: pequeño, en la esquina */
+.gv-cerrar { float: right; display: grid; place-items: center; width: 32px; height: 32px; margin: -6px -8px 4px 10px; padding: 0; background: transparent; border: 1px solid var(--gv-borde); border-radius: 50%; color: var(--gv-tinta); cursor: pointer; }
 .gv-cerrar:hover { border-color: var(--gv-tinta); }
 
+/* el subtítulo: lo último que dijo la guía, siempre a la vista */
+.gv-subtitulo { margin: 0 0 10px; font-size: 1rem; line-height: 1.45; overflow-wrap: anywhere; }
+.gv-ia-etiqueta { display: inline-block; margin: -2px 0 10px; padding: 3px 10px; border: 1px solid var(--gv-acento); border-radius: var(--r-pildora, 999px); color: var(--gv-acento); font: 400 0.68rem/1.4 var(--f-dato, ui-monospace, monospace); }
+.gv-ia-aviso { margin: 0 0 10px; color: var(--gv-tinta-2); font-size: 0.75rem; }
+
+/* indicador de "sigo escuchando": una barra que se vacía en 6 segundos, con su texto */
+.gv-escucha { display: grid; gap: 6px; margin: 0 0 10px; color: var(--gv-acento); font-size: 0.8rem; font-weight: 600; }
+.gv-escucha-barra { display: block; height: 4px; border-radius: 2px; background: var(--gv-acento); transform-origin: left center; animation: gv-cuenta 6s linear forwards; }
+@keyframes gv-cuenta { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
 .gv-nota, .gv-estado { margin: 0; color: var(--gv-tinta-2); font-size: 0.8rem; }
-.gv-pregunta-texto { margin: 0 0 6px; font-weight: 600; font-size: 1rem; }
-.gv-pregunta .gv-nota { margin-bottom: 14px; }
+.gv-estado { margin-bottom: 10px; }
+.gv-rotulo { margin: 12px 0 0; color: var(--gv-tinta); font-weight: 600; font-size: 0.8rem; }
 .gv-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 .gv-boton {
@@ -145,23 +155,14 @@
 }
 .gv-boton:hover { border-color: var(--gv-tinta); }
 .gv-boton:disabled { opacity: 0.45; cursor: not-allowed; }
-.gv-pregunta .gv-boton:first-child, .gv-detener { background: var(--gv-tinta); border-color: var(--gv-tinta); color: #000000; }
-
-/* lo que entendió y lo que responde: siempre como texto */
-.gv-dialogo { display: grid; gap: 10px; margin: 0 0 12px; }
-.gv-dialogo > div { margin: 0; }
-.gv-dialogo dt { margin: 0 0 2px; color: var(--gv-tinta-2); font: 400 0.68rem/1.2 var(--f-dato, ui-monospace, monospace); text-transform: uppercase; letter-spacing: 0.06em; }
-.gv-dialogo dd { margin: 0; overflow-wrap: anywhere; }
-.gv-turno-persona dd { color: var(--gv-tinta-2); }
-.gv-turno-guia { padding: 12px 14px; background: var(--gv-fondo-2); border: 1px solid rgba(134, 205, 250, 0.35); border-radius: 14px; }
-.gv-turno-guia dd { font-size: 0.95rem; line-height: 1.5; }
-.gv-ia-etiqueta { display: inline-block; margin: -4px 0 12px; padding: 3px 10px; border: 1px solid var(--gv-acento); border-radius: var(--r-pildora, 999px); color: var(--gv-acento); font: 400 0.68rem/1.4 var(--f-dato, ui-monospace, monospace); }
-.gv-ia-aviso { margin: 8px 0 0; color: var(--gv-tinta-2); font-size: 0.75rem; }
-.gv-detener { width: 100%; margin-bottom: 12px; }
-.gv-estado { margin-bottom: 12px; }
+.gv-detener { width: 100%; margin-bottom: 10px; background: var(--gv-tinta); border-color: var(--gv-tinta); color: #000000; }
+.gv-escribir { min-height: 40px; }
+.gv-escribir[aria-expanded="true"] { border-color: var(--gv-acento); }
+.gv-zona-escribir { margin-top: 12px; }
+.gv-formulario { margin-bottom: 12px; }
 
 /* frases sugeridas */
-.gv-sugerencias { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.gv-sugerencias { display: flex; flex-wrap: wrap; gap: 8px; }
 .gv-chip {
   min-height: 40px;
   padding: 8px 14px;
@@ -215,7 +216,7 @@
 
 /* ------------------------------------------------------------------ menos movimiento: nada se mueve */
 @media (prefers-reduced-motion: reduce) {
-  .gv-esfera, .gv-esfera::before, .gv-esfera::after { animation: none !important; transition: none; }
+  .gv-esfera, .gv-esfera::before, .gv-esfera::after, .gv-escucha-barra { animation: none !important; transition: none; }
   .gv-hablar:hover .gv-esfera { transform: none; }
   .guia-voz[data-estado="escuchando"] .gv-esfera::after { inset: -8px; border-width: 3px; }
   .guia-voz[data-estado="pensando"] .gv-esfera::after { border-color: var(--gv-acento); border-style: dashed; }

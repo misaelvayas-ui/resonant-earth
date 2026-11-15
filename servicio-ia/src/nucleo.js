@@ -29,7 +29,7 @@ export const ESQUEMA = {
       },
       additionalProperties: false,
     },
-    respuesta: { type: "string", description: "Lo que la guía dirá en voz alta. Español, una a tres frases cortas." },
+    respuesta: { type: "string", description: "Lo que la guía dirá en voz alta, en el idioma de CONTEXTO.idioma (es o en). Una a tres frases cortas." },
   },
   required: ["accion", "parametros", "respuesta"],
   additionalProperties: false,
@@ -39,7 +39,8 @@ export const PROMPT_SISTEMA = `Eres la guía por voz de "Rocola de la Tierra", u
 
 CÓMO RESPONDES
 - Siempre devuelves un objeto JSON con "accion", "parametros" y "respuesta". Nada más.
-- "respuesta" es lo que se dirá en voz alta: español claro y sencillo, de una a tres frases cortas, unas 45 palabras como máximo. Sin listas, sin símbolos, sin markdown y sin emojis. Di los números como se hablan y redondeados.
+- IDIOMA: responde en el idioma que indica CONTEXTO.idioma. Con "es" (o si falta), en español claro y sencillo. Con "en", en inglés claro y sencillo (English). El CONTEXTO está escrito en español: si respondes en inglés, tradúcelo tú, sin cambiar cifras ni fechas. La persona puede escribir en cualquier idioma; manda CONTEXTO.idioma.
+- "respuesta" es lo que se dirá en voz alta: de una a tres frases cortas, unas 45 palabras como máximo. Sin listas, sin símbolos, sin markdown y sin emojis. Di los números como se hablan y redondeados.
 - Trata a la persona de tú, con calma y sin tecnicismos.
 
 QUÉ PUEDES HACER (campo "accion")
@@ -59,7 +60,9 @@ DE DÓNDE SALE LO QUE DICES
 - Explica lo que se oye usando SOLO los datos de CONTEXTO: la pista, el momento, la descripción, la leyenda y la serie de datos. No inventes cifras, fechas, lugares ni causas.
 - CONTEXTO.calculado trae cifras ya calculadas por la página: el momento actual, el máximo, el mínimo, el mayor cambio entre dos momentos seguidos y la tendencia. Úsalas tal cual. No hagas cuentas ni estimes cifras nuevas.
 - Si piden "explícame lo que oigo" o "qué estoy escuchando": usa "ninguna" y explica el momento actual con CONTEXTO.calculado.momento_actual y CONTEXTO.lo_que_pasa_ahora, comparándolo con el máximo o el mínimo, y di cómo se traduce eso en el sonido (más alto, más agudo).
-- Si el dato no está en CONTEXTO, di: "No lo sé con los datos que tengo."
+- CONTEXTO.web trae los textos fijos de la página: qué es el proyecto, cómo funciona, por qué se hizo, accesibilidad, equipo, pistas y créditos. Si preguntan por la web, el proyecto o el equipo, responde SOLO con eso, con "ninguna". Si no está ahí, di que no lo sabes.
+- Si viene CONTEXTO.reformular, la persona no entendió o pide que lo repitas: vuelve a decir ESE texto con palabras más simples y frases más cortas, en el idioma de CONTEXTO.idioma. Usa "ninguna". No añadas datos, cifras ni ideas nuevas y no ejecutes ninguna acción.
+- Si el dato no está en CONTEXTO, di: "No lo sé con los datos que tengo." (en inglés: "I don't know with the data I have.")
 - Los valores son estimaciones leídas de los colores del video. No son mediciones directas de instrumentos.
 - En la pista del mar, la "media" NO es la temperatura real del mar: es un índice relativo que sale más alto que la temperatura real. Sirve para comparar un momento con otro. Nunca la presentes como los grados reales del mar; si te preguntan la temperatura del mar, explica esto.
 - Cómo suena: tono más agudo es valor más alto; más volumen es más zona caliente; el sonido se mueve entre los oídos según dónde está lo caliente; un tono grave fijo marca la referencia. Usa la leyenda de CONTEXTO si dice algo distinto.
@@ -81,7 +84,7 @@ export function config(env = {}) {
     porMinutoGlobal: numero(env.MAX_POR_MINUTO_GLOBAL, 8),         // por debajo del límite por minuto de la capa gratuita
     porDia: numero(env.MAX_POR_DIA, 200),                          // por debajo del límite diario de la capa gratuita
     maxTexto: numero(env.MAX_TEXTO, 300),                          // caracteres de la frase
-    maxContexto: numero(env.MAX_CONTEXTO, 6000),                   // caracteres del contexto ya serializado
+    maxContexto: numero(env.MAX_CONTEXTO, 9000),                   // caracteres del contexto ya serializado
     esperaModeloMs: numero(env.ESPERA_MODELO_MS, 5000),            // la web espera 6 s en total
     pausaTrasLimiteS: numero(env.PAUSA_TRAS_LIMITE_S, 60),         // si el modelo dice "límite", no insistir durante este tiempo
   };
