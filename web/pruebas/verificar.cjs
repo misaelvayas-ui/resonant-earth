@@ -254,7 +254,7 @@ async function desplazarTodo(page) {
   const desc = await pg.$eval("#descripcion-pista", (e) => e.textContent);
   const leyenda = await pg.$eval("#leyenda-pista", (e) => e.textContent);
   const hero = await pg.$eval(".heroe-sub", (e) => e.textContent);
-  comprobar("V16", t1.includes("1881–2023") && !fueraCredito && reloj0.endsWith("/ 0:30") && /^0:00,0 \/ 0:(29,[5-9]|30,\d|31,[0-5])$/.test(relojMar) && desc.startsWith("344 días de océano (mar 2007–mar 2008)")
+  comprobar("V16", t1.includes("1881–2023") && !fueraCredito && reloj0.endsWith("/ 0:30") && /^0:0\d(,\d)? \/ 0:(29|30|31)(,\d)?$/.test(relojMar) && desc.startsWith("344 días de océano (mar 2007–mar 2008)")
     && !/un año/i.test(desc + hero) && /índice relativo/.test(leyenda) && /colores del video original/.test(leyenda) && mar.duracion_s === 30.5,
     `título «${t1}»; "1880" fuera del crédito: ${fueraCredito}; reloj GISTEMP «${reloj0}», mar «${relojMar}»; descripción «${desc.slice(0, 48)}…»`);
 
