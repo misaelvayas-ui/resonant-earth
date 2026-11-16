@@ -1,76 +1,49 @@
-# Resonant Earth: the Earth jukebox
+# Resonant Earth: The Earth Information Jukebox
 
 **Versión en español: [README.md](README.md)**
 
-Turns a scientific video visualization into sound: it reads the colors of every frame, converts them to values with the video's own color bar, and plays them as a stereo melody.
+Turns NASA scientific visualizations into sound: it reads the colors of each video frame, maps them to physical values using the video's own color bar, and generates a stereo melody in real time.
 
-A prototype by team Resonant Earth for the NASA Space Apps Challenge 2026 (challenge 9, "The Earth Information Jukebox"). It is designed for people who are blind or have low vision: what the map shows with colors, you can hear. The web page is called "Listen to the Earth".
+Built by team Resonant Earth for the **NASA Space Apps Challenge 2026** (Challenge 9, *The Earth Information Jukebox*). It works with two NASA datasets: **SVS 5207** (Global Temperature Anomalies 1880–2023, GISTEMP) and **SVS 3912** (Ocean Surface Currents and Temperature 2007–2008, ECCO2). The web interface is titled **Listen to Earth**.
 
-It has two parts:
+## 5-Minute Guide for the Judges
 
-- **The program (Python)**: turns a video into music and checks that the sound says the same thing as the data.
-- **The web page** ([web/](web/README.md)): an accessible jukebox to pick a visualization and listen to it. It is **bilingual (Spanish and English)**: use the ES / EN buttons in the header, or open it with `?lang=en`.
+1. **Open the web app:** visit <https://misaelvayas-ui.github.io/resonant-earth/?lang=en> (or toggle between **ES / EN** in the top header). To run it locally offline, execute `cd web && python -m http.server 8001` and open <http://localhost:8001/?lang=en>.
+2. **Listen to global temperature:** select **Planet temperature** and listen for about 30 seconds, ideally with headphones. The melody stays in low registers for nearly a century before climbing over the last four decades, while a steady low drone anchors the 1951–1980 baseline average.
+3. **Compare extremes:** press **Before and after** to hear 5 seconds from the start of the record (1881–1903) followed immediately by the final stretch (2011–2023).
+4. **Explore the map:** activate **Explore the map** and move your cursor or arrow keys across the map. Each point computes its value directly from the current video frame's pixel color, plays its corresponding note, and announces latitude, longitude, and temperature.
+5. **Isolate each audio layer:** switch to **Live sound** and toggle the checkboxes for melody, volume, panning, and drone to hear how each physical variable shapes the soundscape.
+6. **Verify scientific accuracy:** the values extracted directly from the video frames correlate at **0.99** with NASA's official GISTEMP series across 58 sampled years. You can reproduce this check with `python -m herramientas.validar_gistemp`.
+7. **Run the automated test suites:** the repository includes 47 pipeline tests in Python (`python evaluar.py`) and 34 UI and accessibility checks using Playwright and axe (`web/pruebas/verificar.cjs`).
 
-NASA data used: **SVS 5207 — Global temperature anomalies 1880–2023 (GISTEMP)** and **SVS 3912 — Ocean currents and sea surface temperature (ECCO2), 2007–2008**.
+## How We Address "The Earth Information Jukebox"
 
-> Note: the code, its comments and the detailed change log (`docs/CAMBIOS.txt`) are written in Spanish. This file explains everything needed to run and judge the project in English.
-
-## 5-minute guide for the judges
-
-1. Open <https://misaelvayas-ui.github.io/resonant-earth/?lang=en>. Offline: `cd web && python -m http.server 8001` and <http://localhost:8001/?lang=en>.
-2. Pick **Planet temperature** and listen for half a minute, ideally with headphones. The melody stays low for a century and climbs over the last forty years; the low note that never moves is the 1951–1980 average.
-3. **Before and after** plays 1881–1903 and then, without a pause, 2011–2023. Five seconds of each end.
-4. In **Explore the map**, move the cursor or use the arrow keys. Each point plays a note and is described (latitude, longitude, temperature) from the color of the frame at that moment.
-5. Switch to **Live sound** and uncheck melody, volume, panning or drone to hear each layer on its own.
-6. How close is it to the real data? The average we read from the video and NASA's official GISTEMP series correlate at **0.99** over 58 years. `python -m herramientas.validar_gistemp` recomputes it.
-7. Where it falls short: it reads 0.09 °C below the official series, the sea track is a relative index rather than degrees, and in GISTEMP the panning depends on a small area of the map.
-8. Tests: `python evaluar.py` (47) and `web/pruebas/verificar.cjs` (34 Playwright and axe checks, both languages).
-
-## How we answer the challenge
-
-| What the challenge asks | Where it is |
+| Challenge Requirement | Implementation |
 |---|---|
-| A "jukebox" of EIC visualizations and their soundscapes | The web page (`web/`), with two tracks |
-| Sonification **in real time** from the frames | "Live sound" builds the audio in the browser while the video plays. "Explore the map" plays the pixel under the cursor |
-| Computer vision: color → sound | `05_video_a_rasgos.py` calibrates against the video's own color bar; `web/js/explorar.js` uses that same bar in the browser |
-| Balance between data and music | Pentatonic scale, reference drone, arpeggios. `evaluar.py` and 07 fail if a note does not match the data |
-| Exploratory, interactive translation | Per-layer checkboxes, a navigable chart, "Before and after", "Explore the map" |
-| Accessibility for blind or low-vision people | Full keyboard use and a live reading for screen readers. Every track has a description, and the map can be walked with the arrow keys. Spanish and English |
-| Explaining the decisions | The "Why it matters" section of the page; measurements for each change in `docs/CAMBIOS.txt` and the live-mode rules in `docs/ESPEC_MODO_EN_VIVO.md` (both in Spanish) |
+| A "jukebox" to select EIC visualizations and hear their soundscape | The web app (`web/`) provides two complete tracks with synchronized video, audio, and live text readings; SVS 3912 is listed among the official challenge resources |
+| **Real-time** sonifications generated from video frames | **Live sound** synthesizes audio in the browser via Web Audio as the video plays; **Explore the map** reads the pixel under the cursor and plays its note on the spot |
+| Computer vision frame analysis (color → sound) | `05_video_a_rasgos.py` calibrates map pixels against the video's own color bar; `web/js/explorar.js` replicates that mapping in the browser using `<id>_paleta.json` |
+| Balance between data fidelity and musicality | 3-octave pentatonic scale, reference drone, and intensity-driven arpeggios; both `evaluar.py` (I1) and `07_validar.py` verify that every note matches the underlying data |
+| Exploratory, interactive translation | Independent layer toggles (melody, volume, panning, drone), keyboard-navigable timeline chart, "Before and after" comparison, and point-by-point map exploration |
+| Accessibility for blind and low-vision users | Full keyboard navigation, live screen-reader announcements, text descriptions per track, arrow-key map exploration with coordinate/value readouts, and haptic feedback on supported mobile devices |
+| Transparent design rationale | "Why it matters" section in the web app, technical changelog with measurements in `docs/CAMBIOS.txt`, and live-engine rules in `docs/ESPEC_MODO_EN_VIVO.md` |
 
-## What you hear
+## Web Application
 
-| Data from the map | Sound |
+The web app (`web/`) is bilingual (Spanish and English via the ES / EN header buttons or `?lang=en`) and ships with both real tracks (GISTEMP and SST/ECCO2). Its media assets and parameter mappings are regenerated from the Python pipeline via `python -m herramientas.exportar_web` and `python -m herramientas.exportar_mapeo`. See [web/README.md](web/README.md) for details.
+
+## What You Hear
+
+| Map Feature | Audio Mapping |
 |---|---|
-| average value (`media`) | **pitch** of the main voice (pentatonic scale, 3 octaves) |
-| hot area (`area`) | **loudness** of the voice (−6 to 0 dB, between the smallest and the largest area of the track) |
-| position of the heat (`centroide_x` or `centroide_y`, depending on `paneo`) | **panning** left ↔ right (with `"paneo": "y"`: south ↔ north; GISTEMP and SST use it); with `area` < 0.01 the sound goes to the centre |
-| note change | a **pluck** |
-| reference value (e.g. 0 °C) | a continuous **drone** (sustained pad, GM 90) for the whole track, one octave below the note the melody plays for that value: you can hear whether the present is above or below it |
-| high anomaly | **more notes per frame** (1, 2 or 4, as a rising arpeggio; at the top of the scale, falling from the base note) |
+| Mean value (`media`) | **Pitch** of the lead voice across a 3-octave pentatonic scale |
+| Warm area (`area`) | **Volume** of the lead voice (−6 to 0 dB, scaled between the track's minimum and maximum area) |
+| Heat centroid (`centroide_x` or `centroide_y`, per `paneo`) | **Stereo panning** left ↔ right (with `"paneo": "y"`, south ↔ north, used in GISTEMP and SST); centered when `area < 0.01` |
+| Note transition | **Pluck attack** to articulate pitch changes |
+| Reference baseline (e.g., 0 °C) | **Continuous drone** (sustained pad, GM 90) one octave below the reference pitch, making it clear whether the present sits above or below baseline |
+| High anomaly | **Note density**: 1, 2, or 4 notes per frame played as an ascending arpeggio (or descending at the top of the scale) |
 
-With the real video, the extracted average follows the official GISTEMP curve with a correlation of **0.99** (58 sampled years; bias −0.09 °C). It is checked by `python -m herramientas.validar_gistemp` and by test M1 of `evaluar.py`; the official table is in `docs/datos_oficiales/`.
-
-**Why it sounds like this.** The notes come from a pentatonic scale, so any sequence sounds musical and can be listened to for a long time. Rising pitch is widely understood as "more". The drone is the measuring stick: it marks the reference, so you hear how far the data is from it.
-
-## The web page
-
-```bash
-cd web
-python -m http.server 8001
-```
-
-Open <http://localhost:8001/?lang=en>. It needs a server (it does not load from `file://`).
-
-- Two real tracks: global temperature 1881–2023 (NASA SVS 5207) and ocean currents and temperature 2007–2008 (NASA SVS 3912).
-- **Spanish and English**: ES / EN buttons in the header; the choice is remembered (`localStorage`) and `?lang=en` / `?lang=es` forces one. All the text is translated: page, track descriptions, live reading, chart, live-sound controls and shortcuts.
-- Two sound modes: the original track (made by the Python program) or **Live sound** (the browser generates it from the data with Web Audio), with checkboxes to hear one feature at a time.
-- A live text reading of every moment, announced to screen readers (it can be turned off), and a navigable chart (arrows and Enter).
-- **Explore the map** and **Before and after**.
-- Full keyboard control (`Space`, arrows, `Tab`), visible focus, AA contrast, reduced motion respected.
-- Checked with axe-core (WCAG 2.2 AA): 0 violations in Spanish and English, at 1440 and 390 px.
-
-No build step: plain HTML, CSS and JavaScript modules. Details (in Spanish) in [web/README.md](web/README.md).
+On the real GISTEMP video, the extracted mean tracks NASA's official series with a **0.99 correlation** (58 sampled years, with a −0.09 °C offset). You can verify this with `python -m herramientas.validar_gistemp` and test M1 in `evaluar.py`; the official reference table lives in `docs/datos_oficiales/`.
 
 ## Installation
 
@@ -78,129 +51,149 @@ No build step: plain HTML, CSS and JavaScript modules. Details (in Spanish) in [
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-sudo apt install ffmpeg                          # 08 (video + audio)
-sudo apt install fluidsynth fluid-soundfont-gm   # 06: real instruments (without it, 06 uses a numpy fallback)
+sudo apt install ffmpeg                          # 08 (muxing video and audio)
+sudo apt install fluidsynth fluid-soundfont-gm   # 06: real instruments (optional; falls back to NumPy synthesis)
 ```
 
 **macOS**
 ```bash
 python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
-brew install ffmpeg fluid-synth                  # fluid-synth is optional (without it, 06 uses the numpy fallback)
-export ROCOLA_SF2=/path/to/FluidR3_GM.sf2        # a General MIDI SoundFont (.sf2)
+brew install ffmpeg fluid-synth                  # fluid-synth is optional
+export ROCOLA_SF2=/path/to/FluidR3_GM.sf2        # path to a General MIDI SoundFont (.sf2)
 ```
-On macOS the pip build of OpenCV cannot write `mp4v`: `video_io.py` detects it and writes the test videos with ffmpeg (same MPEG-4 codec). Homebrew's ffmpeg has no `drawtext` filter: 08 detects it and draws the year with Pillow.
+*macOS note:* pip's `opencv-python-headless` lacks `mp4v` encoding support and Homebrew's `ffmpeg` omits the `drawtext` filter; both `video_io.py` and `08_video_con_audio.py` detect these limitations and fall back automatically to `ffmpeg` and Pillow.
 
-**Windows (PowerShell)** — not tested in this project; package names may differ
+**Windows (PowerShell)** *(not tested for this release; package names may vary)*
 ```powershell
 py -m venv .venv; .venv\Scripts\Activate.ps1; pip install -r requirements.txt
-winget install Gyan.FFmpeg
+winget install Gyan.FFmpeg                       # 08 (restart terminal to refresh PATH)
 winget install FluidSynth.FluidSynth             # optional
-$env:ROCOLA_SF2 = "C:\path\FluidR3_GM.sf2"
+$env:ROCOLA_SF2 = "C:\path\FluidR3_GM.sf2"       # GM SoundFont (.sf2) for FluidSynth
 ```
 
-Without fluidsynth or a SoundFont, **06 still works** with a numpy fallback (same notes, different timbre) and says so. Without ffmpeg only 08 fails (video with audio). `ROCOLA_SIN_AUDIO=1` stops 06 from playing the result through the speakers.
+Without FluidSynth or a configured SoundFont, `06_rasgos_a_audio.py` still runs using additive NumPy synthesis (identical notes and timing, different timbre). Without `ffmpeg`, only step `08` is unavailable. Run all commands **from the repository root**.
 
-All commands are run **from the project root**; otherwise the script tells you.
-
-## Quick start
+## Quick Start
 
 ```bash
-python evaluar.py                                  # 47 PASS/FAIL tests in 1-2 minutes (does not touch salidas/)
-python -m herramientas.validar_gistemp             # the track against the official GISTEMP series: r = 0.99
+python evaluar.py                                  # 47 automated tests (1–2 min, leaves salidas/ untouched)
+python -m herramientas.validar_gistemp             # validation against official GISTEMP series (r = 0.99)
 python 04_video_sintetico.py && python 05_video_a_rasgos.py && python 06_rasgos_a_audio.py && python 07_validar.py
-python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
+python 08_video_con_audio.py                       # outputs salidas/demo_rocola.mp4
 ```
 
 ## Pipeline
 
-| Script | Input → output |
+| Script | Input → Output |
 |---|---|
-| `04_video_sintetico.py [seconds]` | makes a test video with a known truth → `salidas/04_video_sintetico.mp4`, `config/config_video.json` |
-| `05_video_a_rasgos.py [config]` | video → `salidas/rasgos.json` (one record per sampled frame) |
-| `06_rasgos_a_audio.py [rasgos] [--sintetico]` | features → `salidas/rocola.mid` → `salidas/rocola.wav` (stereo, marimba + pad drone with FluidSynth) + `salidas/control.json`. `--sintetico` (or no fluidsynth) uses the numpy fallback with the same notes |
-| `07_validar.py` | checks the pitch and the notes of the WAV (with the synthetic video, also the pitch and panning trends) → `salidas/validacion.png` + PASS/FAIL |
-| `08_video_con_audio.py [video] [wav] [mp4]` | joins video and audio in sync → `salidas/demo_rocola.mp4` |
+| `04_video_sintetico.py [sec]` | Generates a synthetic test video with ground-truth values → `salidas/04_video_sintetico.mp4`, `config/config_video.json` |
+| `05_video_a_rasgos.py [config]` | Extracts per-frame physical features from video → `salidas/rasgos.json` |
+| `06_rasgos_a_audio.py [rasgos] [--sintetico]` | Converts features into MIDI and stereo audio (marimba + pad drone via FluidSynth, or NumPy fallback with `--sintetico`) → `salidas/rocola.mid`, `salidas/rocola.wav`, `salidas/control.json` |
+| `07_validar.py` | Verifies pitch, note accuracy, trend, and panning in the generated WAV → `salidas/validacion.png` |
+| `08_video_con_audio.py [video] [wav] [mp4]` | Muxes and synchronizes the original video with the generated audio → `salidas/demo_rocola.mp4` |
 
-`sintesis.py` is the audio engine (oscillators, ADSR, scales, panning). `evaluar.py` runs the whole pipeline on generated videos and reports PASS/FAIL.
+`sintesis.py` houses the core audio engine (oscillators, ADSR envelopes, scales, and panning). Early synthesis exercises (`01`–`03`) are preserved under the `practica-completa` git tag.
 
-## Real video (NASA SVS 5207)
+## Processing Real NASA Data (SVS 5207)
 
-1. Download into `datos/` (not versioned), from <https://svs.gsfc.nasa.gov/5207/>: `2023GISTEMP_Map_SOS.mp4`, `giss_navy_anomaly_Vertical-both.png` and `time.txt`.
-2. Calibrate: it finds the map and the color bar gradient and saves `salidas/calibracion.png` so you can check them.
+1. Download from <https://svs.gsfc.nasa.gov/5207/> into `datos/` (git-ignored): `2023GISTEMP_Map_SOS.mp4`, `giss_navy_anomaly_Vertical-both.png`, and `time.txt`.
+2. Calibrate the map and color-bar crops (writes `salidas/calibracion.png` for visual verification):
    ```bash
+   python -m herramientas.calibrar
    python -m herramientas.calibrar --vmin -2 --vmax 2 --fechas datos/time.txt --salida config/config_eic.json
    ```
-3. Process (about 25 s for 60 frames):
+3. Extract features and synthesize audio (≈25 s for 60 frames):
    ```bash
    python 05_video_a_rasgos.py config/config_eic.json
    python 06_rasgos_a_audio.py
    ```
+4. Mux the original video with the synthesized audio:
+   ```bash
+   python 08_video_con_audio.py datos/2023GISTEMP_Map_SOS.mp4 salidas/rocola.wav salidas/demo_gistemp.mp4
+   ```
 
-This replaces `salidas/rasgos.json` and `salidas/rocola.wav`. To go back to the synthetic example, run 04 → 07 again. The configuration keys of 05 and 06 are listed in [docs/CONFIG.md](docs/CONFIG.md) (Spanish).
+This overwrites `salidas/rasgos.json` and `salidas/rocola.wav`. To restore the synthetic test case, rerun steps `04` → `07`.
 
-## Data contract (`rasgos.json`)
+## Configuration (`05`)
+
+Each visualization has its own JSON configuration under `config/`. Core keys include:
+
+| Key | Description |
+|---|---|
+| `mapa`, `barra` | Bounding boxes `[x0, y0, x1, y1]` for the map and color bar in original video pixels |
+| `vmin`, `vmax` | Physical values at both ends of the color bar (verified via `salidas/calibracion.png`) |
+| `fps_muestreo` | Sampled frames per second (each sampled frame spans 0.5 s of audio) |
+| `dist_max` | Maximum color distance allowed to accept a pixel (default `8`; `17` for GISTEMP) |
+| `referencia` | Baseline value where the drone sits (0 °C anomaly for GISTEMP) |
+| `paneo` | Spatial axis (`"x"` or `"y"`) mapped to left–right stereo panning |
+
+The full reference of configuration keys and defaults is documented in [docs/CONFIG.md](docs/CONFIG.md) (in Spanish).
+
+## Data Contract (`rasgos.json`)
 
 ```json
 {"t": 20.0, "fecha": 1981, "media": 0.26, "area": 0.12, "centroide_x": 0.49, "centroide_y": 0.55, "cambio": 0.26, "validos": 0.84}
 ```
 
-`media` = average value, `area` = fraction of the map above the threshold, `centroide_x`/`centroide_y` = where the heat is (0–1), `cambio` = change from the previous frame, `validos` = fraction of pixels recognized in the palette.
+`validos` reports the fraction of pixels matched against the calibrated palette (if it drops below `0.8`, check the crop coordinates). The audio engine ignores extra keys, allowing downstream modules to enrich records (e.g., adding `"evento"`) without breaking compatibility.
 
-## Project layout
+## Repository Structure
 
+```text
+sintesis.py  rutas.py  fechas.py  video_io.py  04…08_*.py  evaluar.py    core pipeline (root)
+config/        per-visualization configurations (GISTEMP, ECCO2, synthetic)
+datos/         downloaded NASA videos and color bars (git-ignored)
+salidas/       generated artifacts (WAV, MP4, PNG, JSON); salidas_sst/ stores ECCO2 (ROCOLA_SALIDAS=salidas_sst)
+herramientas/  calibrar.py         → crop and color-bar detection (--mapa, --modo-color)
+               exportar_mapeo.py   → exports feature-to-sound parameters for the browser live engine
+               validar_gistemp.py  → compares extracted series against official GISTEMP v4
+               exportar_paleta.py  → exports color lookup tables for "Explore the map"
+               exportar_web.py     → packages video and features into web/assets/ and verifies audio
+web/           bilingual web app with 3D globe and accessible jukebox (see web/README.md)
+docs/          CAMBIOS.txt (technical log), CONFIG.md (parameters), ESPEC_MODO_EN_VIVO.md, and datos_oficiales/
 ```
-sintesis.py  rutas.py  fechas.py  video_io.py  04…08_*.py  evaluar.py    code (root)
-config/        configurations for 05
-datos/         downloaded videos and color bars (ignored by git)
-salidas/       everything generated (WAV, MP4, PNG, JSON)
-herramientas/  calibrar.py, exportar_mapeo.py, exportar_web.py, validar_gistemp.py
-web/           the accessible web jukebox, in Spanish and English
-docs/          CAMBIOS.txt (change log), CONFIG.md, ESPEC_MODO_EN_VIVO.md (in Spanish)
-```
 
-## Known limitations
+Environment variables: `ROCOLA_SALIDAS` and `ROCOLA_CONFIG` redirect output/config directories; `ROCOLA_SIN_AUDIO=1` disables speaker playback when running `06`.
 
-- Second video, SVS 3912 (ECCO2): only about 26 % of the map is valid (the bright current lines) and the average comes out a few °C higher than the real one. It is good for the seasonal shape, not for absolute values; the web page says so.
-- The °C range of the color bar is read by eye from `calibracion.png` (there is no OCR).
-- Each sampled frame lasts 0.5 s of audio (`SEG_POR_FOTOGRAMA` in 06); with a different `fps_muestreo` the video is stretched or compressed to match.
-- Not tried by the team: Safari (macOS and iOS), Firefox, a hidden tab for 10 seconds and real headphones.
+## Known Limitations
+
+- **GISTEMP offset (SVS 5207):** the extracted mean tracks the official series with a `0.99` correlation, but exhibits a systematic −0.09 °C bias relative to GISTEMP v4 due to video color smoothing.
+- **Ocean track (SVS 3912 / ECCO2):** processed with `config/config_sst.json` and `ROCOLA_SALIDAS=salidas_sst`. Only 26 % of the map consists of valid current streamlines (the bright pixels), which shifts the extracted mean a few degrees above actual sea-surface temperature. It captures seasonal cycles well, but should not be read as absolute degrees (noted in the web UI).
+- **Manual range reading:** `vmin` and `vmax` are read visually from `salidas/calibracion.png` (no OCR is performed on video labels).
+- **Color tolerance in SVS 5207:** the map rendering is slightly more desaturated than its reference color bar, so `config_eic.json` raises `dist_max` to `17`.
+- **Frame duration and sync:** each sampled frame lasts 0.5 s of audio (`SEG_POR_FOTOGRAMA` in `06`). When `fps_muestreo` differs from 2, `08` stretches or compresses video playback to match audio duration. In `demo_rocola.mp4`, video starts 0.1 s after audio to prevent stuttering in VLC.
+- **Browser coverage:** tested thoroughly in Chromium (desktop and mobile) and with Spanish screen readers; full validation in Safari, Firefox, and English screen readers remains pending.
+
+Detailed logs and measurements for every iteration are recorded in [docs/CAMBIOS.txt](docs/CAMBIOS.txt).
 
 ## Use of AI
 
-The NASA Space Apps Challenge rules allow AI as long as it is disclosed.
+In accordance with NASA Space Apps Challenge disclosure rules, we declare how artificial intelligence was used in this project:
 
-The team designed the system: how an SVS video is read, which features are extracted, the rules that turn each feature into sound (scale, reference drone, panning, note density), the GISTEMP and ECCO2 calibration, and the validation against the official GISTEMP v4 series. We also decided what went into the web page and how it had to work for a blind user.
-
-We used Claude (Anthropic), through Claude Code, to write code and text. With its help we wrote a large part of the Python program (`04`–`08`, `sintesis.py`, `evaluar.py`, `herramientas/`), the whole web page (`web/`, including the Web Audio live mode), the tests, and drafts of the documentation and the page texts, including the English translation. All of it went through the team: we ran it, compared it with NASA's data, checked it with the keyboard and axe, and fixed what did not add up.
-
-What does not come from an AI:
-
-- The sound. The music comes from fixed rules applied to the numbers read from the video (see "What you hear"). The same data always gives the same result.
-- The "Now" sentences, which are filled in from templates with those numbers.
-- The images. The icon is drawn by code (`web/hacer_icono.py`), the globe textures are NASA's and `web/assets/compartir.jpg` is a screenshot of the page itself.
-- The data. The videos come from the NASA Scientific Visualization Studio.
+- **What the team designed and validated:** the computer-vision pipeline architecture, the mathematical rules mapping climate variables to musical parameters, the calibration against NASA datasets (GISTEMP v4 and ECCO2), the accessibility design, and the entire scientific and UI test suite.
+- **Where AI was used:** we used **Claude (Anthropic)** via Claude Code as a coding assistant to accelerate Python and JavaScript implementation, draft documentation, and generate the English translation. All generated code was audited, executed, and refined by the team.
+- **What does not involve AI:** sound generation (deterministic from fixed rules and video pixels), dynamic narration text (data-driven templates), visual assets (NASA textures, our own screenshots, and a code-drawn icon in `web/hacer_icono.py`), and scientific data.
 
 ## References
 
-**Data and visualizations (NASA)**
+**Data and Visualizations (NASA)**
 
-- NASA Scientific Visualization Studio, **SVS 5207**: "Global Temperature Anomalies from 1880 to 2023" (GISTEMP visualization). <https://svs.gsfc.nasa.gov/5207/>
-- NASA Scientific Visualization Studio, **SVS 3912**: ocean currents and sea surface temperature (ECCO2 model), 2007–2008. <https://svs.gsfc.nasa.gov/3912/>
-- **GISTEMP v4**, NASA Goddard Institute for Space Studies: the official temperature-anomaly series we validate against (`docs/datos_oficiales/`). <https://data.giss.nasa.gov/gistemp/>
-- **ECCO2** (Estimating the Circulation and Climate of the Ocean, Phase II), NASA/JPL: the ocean model behind SVS 3912. <https://ecco.jpl.nasa.gov/>
-- Globe textures: Blue Marble Next Generation and Black Marble, NASA Earth Observatory (public domain).
+- NASA Scientific Visualization Studio, **SVS 5207**: *Global Temperature Anomalies from 1880 to 2023* (GISTEMP visualization). <https://svs.gsfc.nasa.gov/5207/>
+- NASA Scientific Visualization Studio, **SVS 3912**: Ocean surface currents and temperature (ECCO2 model), 2007–2008. <https://svs.gsfc.nasa.gov/3912/>
+- **GISTEMP v4**, NASA Goddard Institute for Space Studies: official global temperature anomaly series used for validation (`docs/datos_oficiales/`). <https://data.giss.nasa.gov/gistemp/>
+- **ECCO2** (*Estimating the Circulation and Climate of the Ocean, Phase II*), NASA/JPL: ocean model behind SVS 3912. <https://ecco.jpl.nasa.gov/>
+- 3D Globe textures: *Blue Marble Next Generation* and *Black Marble*, NASA Earth Observatory (public domain).
 
-**Sound**
+**Audio and Typography**
 
-- **FluidR3_GM SoundFont** (Frank Wen), MIT license: the real instruments FluidSynth uses in `06`. Optional: without it `06` uses a numpy fallback.
-- **FluidSynth** (LGPL-2.1+) and **ffmpeg**: optional.
+- **FluidR3_GM SoundFont** (Frank Wen, MIT license): instrument bank used by FluidSynth in `06` (optional; falls back to NumPy synthesis).
+- **FluidSynth** (LGPL-2.1+) and **ffmpeg**: optional external tools for MIDI rendering and media muxing.
+- Web fonts (`web/assets/fonts/`, SIL OFL 1.1 license): *Unbounded*, *Plus Jakarta Sans*, and *Space Mono*.
 
-**Web fonts** (SIL OFL 1.1, texts in `web/assets/fonts/`): Unbounded, Plus Jakarta Sans and Space Mono.
+**Libraries and Testing**
 
-**Libraries**
+- Python (`requirements.txt`): `numpy`, `scipy`, `opencv-python-headless`, `matplotlib`, `sounddevice`, `mido`.
+- Web (`web/vendor/`, see `LICENCIAS.md`): `three.js` (MIT), `GSAP` and `ScrollTrigger` (standard free GreenSock license).
+- Testing: `Playwright` and `axe-core`.
 
-- Python (`requirements.txt`): numpy, scipy, opencv-python-headless, matplotlib, sounddevice, mido.
-- Web (`web/vendor/`, see `LICENCIAS.md`): three.js (MIT), GSAP and ScrollTrigger (GreenSock standard no-charge license).
-- Tests: Playwright and axe-core.
-
-This project is not endorsed by NASA. License: MIT (see [LICENSE](LICENSE)).
+This project is not officially endorsed by NASA.
