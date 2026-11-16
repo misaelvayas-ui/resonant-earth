@@ -242,6 +242,14 @@
 .gv-campo-opcion input[type="range"] { width: 100%; accent-color: var(--gv-acento); }
 .gv-boton-chico { justify-self: start; }
 
+/* ------------------------------------------------------------------ «Oye Eco»: aviso visible de micrófono abierto, encima de la esfera */
+.gv-oye-indicador { display: flex; align-items: center; gap: 8px; margin: 0; padding: 4px 4px 4px 12px; background: #000000; border: 1px solid var(--gv-acento); border-radius: var(--r-pildora, 999px); color: var(--gv-tinta); font-size: 0.78rem; line-height: 1.3; }
+.gv-oye-punto { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #ff6b6b; box-shadow: 0 0 8px #ff6b6b; animation: gv-latido 1.6s ease-in-out infinite; }
+.guia-voz[data-oye="si"] .gv-oye-punto { background: var(--gv-borde); box-shadow: none; animation: none; }   /* en pausa mientras la guía habla o escucha */
+.gv-oye-apagar { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; background: transparent; border: 1px solid var(--gv-borde); border-radius: 50%; color: var(--gv-tinta); cursor: pointer; }
+.gv-oye-apagar:hover { border-color: var(--gv-tinta); }
+@keyframes gv-latido { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
 /* ------------------------------------------------------------------ señalar: un anillo de luz sobre el lugar de la página del que habla la guía,
    y un puntero que pulsa los controles durante el recorrido. No reciben clics ni los lee el lector de pantalla. */
 .guia-voz > .gv-anillo, .guia-voz > .gv-puntero { position: fixed; top: 0; left: 0; pointer-events: none; }
@@ -268,7 +276,7 @@
 
 /* ------------------------------------------------------------------ menos movimiento: nada se mueve */
 @media (prefers-reduced-motion: reduce) {
-  .gv-esfera, .gv-esfera::before, .gv-esfera::after, .gv-escucha-barra, .gv-anillo, .gv-bienvenida { animation: none !important; transition: none; }
+  .gv-esfera, .gv-esfera::before, .gv-esfera::after, .gv-escucha-barra, .gv-anillo, .gv-bienvenida, .gv-oye-punto { animation: none !important; transition: none; }
   .gv-puntero, .gv-puntero svg { transition: none; }
   .gv-hablar:hover .gv-esfera { transform: none; }
   .guia-voz[data-estado="escuchando"] .gv-esfera::after { inset: -8px; border-width: 3px; }

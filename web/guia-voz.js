@@ -805,9 +805,12 @@
       idioma: "Idioma (Language)",
       lector: "Uso un lector de pantalla (NVDA, JAWS, VoiceOver, TalkBack). La guía responderá solo por escrito, para que no se mezclen dos voces.",
       tecla: "Usar la tecla H para hablar",
+      oye: "Activar con «Oye Eco»", oyeNota: "Mientras está activo, el micrófono queda abierto en esta página; en Chrome y Edge el audio va al servicio de voz del navegador. Se apaga solo tras 10 minutos sin usarse.",
+      oyeAbierto: "Micrófono abierto: di «Oye Eco».", oyeApagar: "Apagar «Oye Eco»", oyeApagado: "«Oye Eco» se apagó: 10 minutos sin usarse.",
+      oyeSinPermiso: "No pude dejar el micrófono abierto para «Oye Eco». Revisa el permiso del micrófono.",
       seguir: "Escuchar de nuevo después de cada respuesta", voz: "Voz", vozAuto: "La más natural", velocidad: "Velocidad", probar: "Probar la voz", prueba: "Esta es la voz de la guía.",
       velocidades: ["lenta", "normal", "rápida"],
-      privacidad: "El micrófono solo se abre al pulsar la esfera o después de una respuesta. Tu navegador convierte la voz en texto; esta página no la guarda.",
+      privacidad: "El micrófono solo se abre al pulsar la esfera, después de una respuesta o si activas «Oye Eco». Tu navegador convierte la voz en texto; esta página no la guarda.",
       saltar: "Saltar a la guía por voz",
       lectorSi: "De acuerdo. Responderé solo por escrito y tu lector de pantalla lo leerá. Para hablarme, pulsa la tecla H o el botón Háblame.",
       lectorNo: "De acuerdo. Te responderé con mi voz.", idiomaListo: "Listo, sigo en español.",
@@ -840,9 +843,12 @@
       idioma: "Language (Idioma)",
       lector: "I use a screen reader (NVDA, JAWS, VoiceOver, TalkBack). The guide will answer in writing only, so two voices do not overlap.",
       tecla: "Use the H key to talk",
+      oye: "Wake with “Hey Eco”", oyeNota: "While it is on, the microphone stays open on this page; in Chrome and Edge the audio goes to the browser's speech service. It turns itself off after 10 minutes without use.",
+      oyeAbierto: "Microphone on: say “Hey Eco”.", oyeApagar: "Turn off “Hey Eco”", oyeApagado: "“Hey Eco” turned off after 10 minutes without use.",
+      oyeSinPermiso: "I could not keep the microphone open for “Hey Eco”. Check the microphone permission.",
       seguir: "Listen again after each answer", voz: "Voice", vozAuto: "Most natural", velocidad: "Speed", probar: "Test the voice", prueba: "This is the guide's voice.",
       velocidades: ["slow", "normal", "fast"],
-      privacidad: "The microphone only opens when you press the sphere or after an answer. Your browser turns your voice into text; this page does not store it.",
+      privacidad: "The microphone only opens when you press the sphere, after an answer, or if you turn on “Hey Eco”. Your browser turns your voice into text; this page does not store it.",
       saltar: "Skip to the voice guide",
       lectorSi: "All right. I will answer in writing only and your screen reader will read it. To talk to me, press the H key or the Talk to me button.",
       lectorNo: "All right. I will answer with my voice.", idiomaListo: "Sure, I will speak English from now on.",
@@ -863,6 +869,19 @@
     },
   };
   const IDIOMAS_VOZ = { es: ["es-EC", "es-ES"], en: ["en-US"] };
+  const OYE_MAX_MS = 10 * 60000;                      // «Oye Eco» se apaga solo tras 10 minutos sin usarse
+
+  /* «Oye Eco» / «Hey Eco»: la palabra de activación, con las variantes que suele escribir el reconocimiento.
+     Devuelve null si no está, o { orden } con lo que se dijo después ("" si no dijo nada más). */
+  const PALABRA_ECO = /(?:^|\s)(?:oye|oie|olle|hoye|hey|hei|ei|ey|ay|ok|okay|okey|oquei|o k)\s+(?:eco|ecco|eko|echo|ecko|heco|hecho)\b\s*(.*)$/;
+  function palabraActivacion(texto) {
+    // limpieza propia (normalizar() quita «oye» como cortesía): minúsculas, sin tildes ni signos
+    const s = String(texto || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ñ\s]/g, " ").replace(/\s+/g, " ").trim();
+    const m = PALABRA_ECO.exec(s);
+    if (!m) return null;
+    const orden = m[1].replace(/^(?:por favor|please)\s+/, "").trim();
+    return { orden: orden.length >= 2 ? orden : "" };
+  }
   const ESPERA_AVISO_MS = 1500;                       // si la IA tarda más, la guía dice «un momento»
   const ESPERA_SEGUIR_MS = 10000;                     // tras una respuesta, cuánto espera a que la persona empiece a hablar
   const SILENCIO_MS = 2500;                           // silencio tras la última palabra para dar la frase por terminada
@@ -934,10 +953,14 @@
         <div class="gv-grupo" id="gv-grupo-escucha">
           <label class="gv-casilla"><input type="checkbox" id="gv-seguir" checked> <span data-t="seguir"></span></label>
           <label class="gv-casilla"><input type="checkbox" id="gv-tecla" checked> <span data-t="tecla"></span></label>
+          <label class="gv-casilla"><input type="checkbox" id="gv-oye" aria-describedby="gv-oye-nota"> <span data-t="oye"></span></label>
+          <p class="gv-nota" id="gv-oye-nota" data-t="oyeNota"></p>
         </div>
         <p class="gv-nota" id="gv-privacidad" data-t="privacidad"></p>
       </details>
     </div>
+    <p id="gv-oye-indicador" class="gv-oye-indicador" hidden><span class="gv-oye-punto" aria-hidden="true"></span><span id="gv-oye-texto"></span>
+      <button type="button" id="gv-oye-apagar" class="gv-oye-apagar" data-t-aria="oyeApagar"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="14" height="14"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg></button></p>
     <button type="button" id="gv-hablar" class="gv-hablar" aria-pressed="false" aria-describedby="gv-pista-lector">
       <span class="gv-esfera" aria-hidden="true">
         <svg focusable="false" viewBox="0 0 24 24" width="30" height="30"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V22h2v-3.1A7 7 0 0 0 19 12h-2z" fill="currentColor"/></svg>
@@ -968,6 +991,7 @@
       tarjeta: $("gv-tarjeta"), cerrar: $("gv-cerrar"), detener: $("gv-detener"), respuesta: $("gv-respuesta"), vivo: $("gv-vivo"), escucha: $("gv-escucha"),
       escribir: $("gv-escribir"), zonaEscribir: $("gv-zona-escribir"), opciones: $("gv-opciones"), listaAyuda: $("gv-lista-ayuda"), idioma: $("gv-idioma"),
       lector: $("gv-lector"), tecla: $("gv-tecla"), seguir: $("gv-seguir"), voz: $("gv-voz"), velocidad: $("gv-velocidad"), probar: $("gv-probar"),
+      oye: $("gv-oye"), oyeIndicador: $("gv-oye-indicador"), oyeTexto: $("gv-oye-texto"), oyeApagar: $("gv-oye-apagar"),
       bienvenida: $("gv-bienvenida"), empezar: $("gv-empezar"), explorar: $("gv-explorar"), cerrarBienvenida: $("gv-bienvenida-cerrar") };
 
     /* ---------- preferencias (pueden fallar: ventana privada) ---------- */
@@ -1085,6 +1109,7 @@
     /* Reproduce el audio de la voz humana. Da true si terminó, false si la callaron y null si no pudo sonar
        (entonces quien llama usa la voz del navegador). */
     function sonar(blob) {
+      pararVigia();                                   // que «Oye Eco» no oiga a la propia guía
       const turno = ++guia.turno;
       if (sintesis) sintesis.cancel();
       if (alCallar) { const fin = alCallar; alCallar = null; fin(false); }
@@ -1116,6 +1141,7 @@
     }
     /* Dice el texto con la voz del navegador. La promesa da true si terminó de hablar y false si la callaron. */
     function decir(texto, { lento = false } = {}) {
+      pararVigia();                                   // que «Oye Eco» no oiga a la propia guía
       const turno = ++guia.turno;
       sintesis.cancel();
       if (alCallar) { const fin = alCallar; alCallar = null; fin(false); }
@@ -1220,6 +1246,7 @@
        (o a los HABLA_MAX_MS). auto = escucha de seguimiento tras una respuesta: espera ESPERA_SEGUIR_MS a que empiece a hablar,
        con un temporizador a la vista que se detiene y se oculta en cuanto habla; si nadie habla, se cierra sin decir nada. */
     function escuchar({ auto = false } = {}) {
+      if (vigia.rec) { pararVigia(); ventana.setTimeout(() => escuchar({ auto }), 350); return; }   // un solo micrófono a la vez
       if (detenerRecorrido({ silencio: true })) guia.cortePorEscucha = true;   // la frase que venga sabrá que había recorrido
       if (guia.escuchando) { try { rec.stop(); } catch (e) { pintarEscucha(false); } return; }
       if (!Reconocedor) { if (!auto) { responder(u().sinReconocimiento, { seguir: false }); abrirEscribir(); ui.campo.focus(); } return; }
@@ -1279,10 +1306,93 @@
     }
     /* Cierra el micrófono sin atender lo que se haya oído (Esc, al escribir, al pulsar un atajo o al empezar el recorrido). */
     function cerrarMicro() {
+      pararVigia();
       if (!guia.escuchando && !rec) return;
       try { if (rec) rec.abort(); } catch (e) { /* ya cerrado */ }
       if (guia.escuchando) pintarEscucha(false);
     }
+    /* ---------- «Oye Eco»: opcional, apagado por defecto y nunca con lector de pantalla. Solo se enciende con un clic en
+       su casilla (una acción de la persona). Mientras está encendido, un reconocimiento continuo escucha la palabra de
+       activación SOLO cuando la guía está libre (no habla, no escucha, no piensa, sin recorrido) y la página se ve. Se
+       reinicia si el navegador lo corta y se apaga solo tras 10 minutos sin usarse. Fuera de este modo, el micrófono
+       sigue abriéndose solo por una acción de la persona. */
+    const vigia = { encendido: false, rec: null, reloj: 0, ultimoUso: 0, reinicios: [], esperaHasta: 0 };
+    const oyeMaxMs = () => { const m = Number(ventana.GUIA_VOZ_CONFIG && ventana.GUIA_VOZ_CONFIG.oyeMinutos); return m > 0 ? m * 60000 : OYE_MAX_MS; };
+    function pintarOye(aviso = "") {
+      ui.oye.checked = vigia.encendido;
+      ui.oye.disabled = modoLector() || !Reconocedor;
+      ui.oyeIndicador.hidden = !vigia.encendido && !aviso;
+      ui.oyeTexto.textContent = aviso || u().oyeAbierto;
+      ui.oyeApagar.hidden = !vigia.encendido;
+      panel.dataset.oye = vigia.encendido ? (vigia.rec ? "oyendo" : "si") : "no";
+    }
+    function pararVigia() {
+      const r = vigia.rec;
+      if (!r) return;
+      vigia.rec = null;
+      r.onresult = r.onerror = null;
+      try { r.abort(); } catch (e) { /* ya cerrado */ }
+      if (vigia.encendido) pintarOye();
+    }
+    const guiaLibre = () => !guia.escuchando && !guia.hablando && !guia.pensando && !guia.enRecorrido && !doc.hidden && !modoLector();
+    function vigilar() {
+      if (!vigia.encendido || vigia.rec || !Reconocedor || !guiaLibre() || Date.now() < vigia.esperaHasta) return;
+      const r = vigia.rec = new Reconocedor();
+      r.lang = IDIOMAS_VOZ[guia.idioma][0];
+      r.continuous = true; r.interimResults = false; r.maxAlternatives = 3;
+      r.onresult = (e) => {
+        for (let i = e.resultIndex || 0; i < e.results.length; i++) {
+          const res = e.results[i];
+          if (res.isFinal === false) continue;
+          for (const alt of Array.from(res)) {
+            const hallado = palabraActivacion(alt && alt.transcript);
+            if (hallado) { despertar(hallado.orden); return; }
+          }
+        }
+      };
+      r.onerror = (e) => {
+        if (e.error === "not-allowed" || e.error === "service-not-allowed" || e.error === "audio-capture") apagarOye({ aviso: u().oyeSinPermiso });
+      };
+      r.onend = () => {                               // el navegador lo corta cada cierto tiempo: se reinicia
+        if (vigia.rec !== r) return;
+        vigia.rec = null;
+        const ahora = Date.now();
+        vigia.reinicios = vigia.reinicios.filter((t) => t > ahora - 10000).concat(ahora);
+        if (vigia.reinicios.length > 5) vigia.esperaHasta = ahora + 5000;   // muchos cortes seguidos: un respiro
+        if (vigia.encendido) { pintarOye(); ventana.setTimeout(vigilar, 300); }
+      };
+      try { r.start(); } catch (e) { vigia.rec = null; vigia.esperaHasta = Date.now() + 2000; }
+      pintarOye();
+    }
+    /* Se oyó «Oye Eco»: abre la guía; si la frase ya traía la orden, la atiende; si no, escucha la orden. */
+    function despertar(orden) {
+      vigia.ultimoUso = Date.now();
+      pararVigia();
+      cerrarBienvenida({ foco: false });
+      guia.saludo = true;
+      abrirTarjeta();
+      if (orden) atender(orden); else ventana.setTimeout(() => escuchar(), 350);
+    }
+    function encenderOye() {
+      if (modoLector() || !Reconocedor) { pintarOye(); return; }
+      vigia.encendido = true; vigia.ultimoUso = Date.now(); vigia.esperaHasta = 0; vigia.reinicios = [];
+      ventana.clearInterval(vigia.reloj);
+      vigia.reloj = ventana.setInterval(() => {
+        if (Date.now() - vigia.ultimoUso > oyeMaxMs()) { apagarOye({ aviso: u().oyeApagado }); return; }
+        if (doc.hidden || !guiaLibre()) { if (vigia.rec && doc.hidden) pararVigia(); return; }
+        vigilar();
+      }, 1000);
+      pintarOye();
+      vigilar();
+    }
+    function apagarOye({ aviso = "" } = {}) {
+      vigia.encendido = false;
+      ventana.clearInterval(vigia.reloj);
+      pararVigia();
+      pintarOye(aviso);
+      if (aviso) ventana.setTimeout(() => { if (!vigia.encendido) pintarOye(); }, 8000);
+    }
+
     /* Tras una respuesta dicha por voz, la guía vuelve a escuchar UNA vez. Nunca es lo primero que pasa: siempre
        viene después de algo que hizo la persona (pulsar la esfera, la tecla H, un botón o escribir). */
     function seguirEscuchando() {
@@ -1340,6 +1450,7 @@
 
     /* ---------- de un texto (oído o escrito) a la acción y a la respuesta ---------- */
     async function atender(texto, { auto = false } = {}) {
+      vigia.ultimoUso = Date.now();
       const accion = interpretarComando(texto, guia.idioma);
       if (accion.tipo === "afirmar" || accion.tipo === "negar") { accion.tipo = "desconocido"; accion.texto = normalizar(texto); }
       const turno = ++guia.turnoFrase;
@@ -1463,6 +1574,7 @@
     /* Pone todos los textos de la tarjeta en el idioma de la guía. */
     function pintarTextos() {
       const t = u();
+      if (vigia.encendido) { pararVigia(); }          // el reconocimiento de «Oye Eco» se reinicia en el idioma nuevo
       panel.lang = guia.idioma;
       panel.setAttribute("aria-label", t.nombre);
       for (const e of panel.querySelectorAll("[data-t]")) e.textContent = t[e.dataset.t];
@@ -1490,7 +1602,8 @@
       guia.lector = !!usa;
       guardar({ lector: guia.lector });
       ui.lector.checked = guia.lector;
-      if (guia.lector) callar();
+      if (guia.lector) { callar(); apagarOye(); }     // con lector de pantalla, nunca
+      pintarOye();
       pintarEstado();
       if (avisar) responder(guia.lector ? u().lectorSi : u().lectorNo, { seguir: false });
     }
@@ -1515,6 +1628,8 @@
     ui.idioma.addEventListener("change", () => fijarIdioma(ui.idioma.value));
     ui.lector.addEventListener("change", () => fijarLector(ui.lector.checked));
     ui.tecla.addEventListener("change", () => guardar({ tecla: ui.tecla.checked }));
+    ui.oye.addEventListener("change", () => { if (ui.oye.checked) encenderOye(); else apagarOye(); });   // no se recuerda: cada visita empieza apagado
+    ui.oyeApagar.addEventListener("click", () => { const dentro = ui.oyeIndicador.contains(doc.activeElement); apagarOye(); if (dentro) ui.hablar.focus(); });
     ui.seguir.addEventListener("change", () => guardar({ seguir: ui.seguir.checked }));
     ui.voz.addEventListener("change", () => guardar({ voces: { ...(leer().voces || {}), [guia.idioma]: ui.voz.value } }));
     ui.velocidad.addEventListener("input", () => {
@@ -1536,7 +1651,7 @@
       if (escribe || !ui.tecla.checked) return;
       if (e.key === "h" || e.key === "H") { e.preventDefault(); pulsarEsfera(); }
     });
-    ventana.addEventListener("pagehide", () => { callar(); try { if (rec) rec.abort(); } catch (e) { /* nada */ } });
+    ventana.addEventListener("pagehide", () => { callar(); apagarOye(); try { if (rec) rec.abort(); } catch (e) { /* nada */ } });
 
     /* ---------- estado inicial ---------- */
     if (typeof pref.tecla === "boolean") ui.tecla.checked = pref.tecla;
@@ -1563,6 +1678,7 @@
     // sin voz o sin reconocimiento: el campo para escribir y las frases sugeridas quedan a la vista desde el principio
     abrirEscribir(!Reconocedor || !sintesis);
     pintarTextos();
+    pintarOye();
     mostrarBienvenida();
 
     return { atender, escuchar, callar, recorrer, detenerRecorrido, fijarIdioma, fijarLector, estado: guia };
@@ -1570,5 +1686,5 @@
 
   return { interpretarComando, interpretarES, interpretarEN, normalizar, normalizarEN, palabrasANumeros, palabrasANumerosEN, buscarFecha, buscarPista, leerFecha,
     fechaDicha, resumenSerie, guionRecorrido, valorDicho, LUGARES, NOMBRES_LUGAR, lugarDicho, elegirVozDe, calidadVoz, prepararParaVoz, ACCIONES_RECORRIDO, SUGERENCIAS, TEXTOS: L, INTERFAZ: U, TONO_VOZ, VELOCIDAD_VOZ,
-    ESPERA_SEGUIR_MS, ESPERA_AVISO_MS, SILENCIO_MS, HABLA_MAX_MS, ejecutar, montar, AYUDA, AYUDA_EN };
+    ESPERA_SEGUIR_MS, ESPERA_AVISO_MS, SILENCIO_MS, OYE_MAX_MS, palabraActivacion, HABLA_MAX_MS, ejecutar, montar, AYUDA, AYUDA_EN };
 });

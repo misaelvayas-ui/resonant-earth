@@ -1202,3 +1202,18 @@ Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit 8
    escrito. Con menos movimiento: sin animación. Tocados: web/guia-voz.js, web/guia-voz.css, web/README.md.
    Verificado: node --test (28); navegador, sección nueva 26 de 26 (axe 0 en escritorio y móvil, es y en) y recorrido 14 de 14;
    verificar.cjs pasa V6 (primer Tab) y todo lo demás menos V11, la intermitente de siempre.
+3. «Oye Eco» / "Hey Eco" (opcional): casilla en «Ayuda y opciones», apagada por defecto y no recordada entre visitas, con el
+   aviso de Chrome y Edge. Encendida, un reconocimiento continuo escucha solo la palabra de activación y solo con la guía
+   libre y la página visible (un único micrófono a la vez; no se oye a sí misma). Tolera variantes. La palabra sola abre la
+   guía y escucha; con la orden detrás, la ejecuta. Indicador visible «Micrófono abierto» con botón para apagarlo. Se reinicia
+   si el navegador lo corta; se apaga solo tras 10 minutos sin usarse (GUIA_VOZ_CONFIG.oyeMinutos lo cambia). Nunca con
+   lector de pantalla. La nota del micrófono lo menciona. Tocados: web/guia-voz.js, web/guia-voz.css, web/pruebas/guia-voz.test.js,
+   web/README.md.
+   Verificado: node --test (web 29, con las variantes de la palabra de activación y frases que no deben activarla);
+   navegador: sección nueva 18 de 18, y la suite completa una sola vez al final, 215 de 215 (axe 0 violaciones en escritorio
+   y móvil, es y en; sin voces dobles con lector).
+NO probado en la ronda 39: micrófono real (en especial, cuánto aguanta Chrome un reconocimiento continuo y si en móviles
+lo permite), voces reales, lectores de pantalla reales. «Oye Eco» depende de que el navegador reconozca bien «Eco»; con
+micrófono de mentira se probaron las variantes escritas, no cómo las transcribe cada navegador.
+No hace falta volver a publicar el servicio por la ronda 39 (solo cambió la web).
+   verificar.cjs: pasa todo menos V11 (la intermitente de siempre, ver la nota de la ronda 38).

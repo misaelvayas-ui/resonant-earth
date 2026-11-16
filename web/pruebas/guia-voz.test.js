@@ -506,3 +506,14 @@ test("señalar: «dónde está…» y «señala…» llevan a un lugar de la lis
   assert.deepEqual(pedidos, [], "un lugar fuera de la lista ni siquiera se le pide al adaptador");
   assert.equal(Object.keys(NOMBRES_LUGAR.es).join(), LUGARES.join()); assert.equal(Object.keys(NOMBRES_LUGAR.en).join(), LUGARES.join());
 });
+
+test("«Oye Eco»: reconoce la palabra de activación con sus variantes y separa la orden", () => {
+  const { palabraActivacion, OYE_MAX_MS } = require("../guia-voz.js");
+  assert.equal(OYE_MAX_MS, 600000);
+  for (const f of ["Oye Eco", "oye eco", "Oye, Eco.", "oye ecco", "OYE ECO", "hey eco", "Hey Eco!", "ok eco", "okay echo", "ey eco", "oie eco", "bueno, oye eco"]) assert.deepEqual(palabraActivacion(f), { orden: "" }, f);
+  assert.deepEqual(palabraActivacion("oye eco qué estoy escuchando"), { orden: "que estoy escuchando" });
+  assert.deepEqual(palabraActivacion("Oye Eco, pon la pista dos"), { orden: "pon la pista dos" });
+  assert.deepEqual(palabraActivacion("hey eco please play"), { orden: "play" });
+  assert.deepEqual(palabraActivacion("oye eco por favor pausa"), { orden: "pausa" });
+  for (const f of ["eco", "el eco de la montaña", "oye", "hola", "economía", "oye ecología", "hey ecuador", "pon el eco", ""]) assert.equal(palabraActivacion(f), null, f);
+});
