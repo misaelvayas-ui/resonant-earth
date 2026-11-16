@@ -154,7 +154,7 @@ En navegador (Chrome sin ventana, con micrófono, voz y servicio de IA **de ment
 
 - Voz humana (de mentira): apagada por defecto; encendida suena el audio y calla la voz del navegador; si tarda, a los ~3 s habla el navegador; con 429 o error el respaldo es inmediato y no insiste; con lector no se pide.
 
-`pruebas/verificar.cjs`: pasa todo menos V11 (tras «Pausar», la amplitud no baja a tiempo), que ya fallaba antes de la ronda 38 con el código anterior y no es de la guía.
+`pruebas/verificar.cjs` (V1 a V14) pasa con la guía puesta. V11 (tras «Pausar», la amplitud baja a tiempo) falla a veces en esta máquina: falló en varias corridas, también con el código anterior a la ronda 38, y pasó en la última; no es de la guía.
 
 **No probado:** micrófono real, las voces reales de cada navegador (la elección de voz se probó con listas de nombres de Windows, Edge, Chrome y macOS), lectores de pantalla reales, Firefox, Safari, teléfonos reales, ni una llamada real a Gemini.
 

@@ -1185,3 +1185,6 @@ NO PROBADO CON GEMINI DE VERDAD: ninguna llamada real a los modelos de voz (ni s
 ni sus límites). La voz solo está documentada por la API de Interacciones, que el 15-nov-2026 no respondía para texto. Para
 comprobarlo: publicar y correr node probar.mjs <dirección> (paso 3).
 HAY QUE VOLVER A PUBLICAR EL SERVICIO (npx wrangler deploy) para que exista la ruta /voz y para que la IA pueda señalar.
+
+NOTA (ronda 38, al cierre): en la ultima corrida verificar.cjs paso completo, V11 incluida. V11 es intermitente en esta
+maquina (fallo en varias corridas de las fases 1 a 3 y tambien con el codigo anterior); no es un fallo fijo ni de la guia.
