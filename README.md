@@ -207,3 +207,40 @@ El detalle de cada cambio y de cada medición está en [docs/CAMBIOS.txt](docs/C
 La web del proyecto vive en `web/` y muestra solo las dos pistas reales (GISTEMP y SST/ECCO2). Para abrirla:
 `cd web && python -m http.server 8001` y entra a <http://localhost:8001>. Sus medios se regeneran desde el pipeline con
 `python -m herramientas.exportar_web` y `python -m herramientas.exportar_mapeo`. Detalles en `web/README.md`.
+
+## Uso de IA
+
+Las reglas del NASA Space Apps Challenge permiten usar IA si se declara. Esto es lo que se hizo con ayuda de IA y qué no:
+
+- **Herramienta:** Claude (Anthropic), usado desde Claude Code. No se usó ninguna otra herramienta de IA generativa.
+- **Código:** buena parte del programa en Python (`04`–`08`, `sintesis.py`, `evaluar.py`, `herramientas/`) y toda la web (`web/`, incluido el modo de sonido en vivo con Web Audio) se escribieron con ayuda de Claude.
+- **Documentación:** este README, `web/README.md`, `docs/` y los textos de la web se redactaron con ayuda de Claude.
+- **Revisión del equipo:** el equipo revisó, ejecutó y validó todo lo que la IA escribió: las pruebas (`evaluar.py`, `web/pruebas/`) y la comparación con la serie oficial GISTEMP y la accesibilidad (axe, teclado). Cada ronda hecha con IA está anotada como tal en [docs/CAMBIOS.txt](docs/CAMBIOS.txt).
+- **Lo que NO es IA:** el sonido y las descripciones. La música sale de reglas fijas sobre los números leídos del video (ver «Qué se oye»), y las frases de «Qué pasa ahora» se arman con plantillas a partir de los mismos números. Con los mismos datos, el resultado es siempre el mismo.
+- **Imágenes:** la web no usa imágenes generadas con IA. El ícono se dibuja por código (`web/hacer_icono.py`), las texturas del globo son de la NASA y `web/assets/compartir.jpg` es una captura de la propia web.
+- **Datos:** no hay datos generados con IA. Los videos son de la NASA (Scientific Visualization Studio).
+
+## Referencias
+
+**Datos y visualizaciones (NASA)**
+
+- NASA Scientific Visualization Studio, **SVS 5207**: «Global Temperature Anomalies from 1880 to 2023» (visualización de GISTEMP). <https://svs.gsfc.nasa.gov/5207/>
+- NASA Scientific Visualization Studio, **SVS 3912**: corrientes y temperatura de la superficie del mar (modelo ECCO2), 2007–2008. <https://svs.gsfc.nasa.gov/3912/>
+- **GISTEMP v4**, NASA Goddard Institute for Space Studies: serie oficial de anomalías de temperatura que usamos para validar la lectura (`docs/datos_oficiales/`). <https://data.giss.nasa.gov/gistemp/>
+- **ECCO2** (Estimating the Circulation and Climate of the Ocean, Phase II), NASA/JPL: modelo de océano detrás de SVS 3912. <https://ecco.jpl.nasa.gov/>
+- Texturas del globo: Blue Marble Next Generation y Black Marble, NASA Earth Observatory (dominio público).
+
+**Sonido**
+
+- **SoundFont FluidR3_GM** (Frank Wen), licencia MIT: instrumentos reales que usa FluidSynth en `06`. Es opcional: sin ella `06` usa un respaldo con numpy.
+- **FluidSynth** (LGPL-2.1+) y **ffmpeg**: opcionales.
+
+**Tipografías de la web** (licencia SIL OFL 1.1, textos en `web/assets/fonts/`): Unbounded, Plus Jakarta Sans y Space Mono.
+
+**Bibliotecas**
+
+- Python (`requirements.txt`): numpy, scipy, opencv-python-headless, matplotlib, sounddevice, mido.
+- Web (`web/vendor/`, ver `LICENCIAS.md`): three.js (MIT), GSAP y ScrollTrigger (licencia estándar gratuita de GreenSock).
+- Pruebas: Playwright y axe-core.
+
+Este proyecto no está avalado por la NASA.
