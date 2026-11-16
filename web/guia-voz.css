@@ -274,6 +274,13 @@
 .guia-voz[data-lado="arriba"][data-vista="completo"] #gv-tarjeta { position: fixed; top: 84px; right: max(16px, env(safe-area-inset-right)); }
 .guia-voz[data-min="si"] #gv-tarjeta { opacity: 0; pointer-events: none; transition: opacity 0.2s; }
 
+/* ------------------------------------------------------------------ «Oye Eco»: su estado, siempre con palabras */
+.gv-oye-linea { margin: 0 0 8px; color: var(--gv-tinta-2); font-size: 0.75rem; line-height: 1.35; }
+.gv-oye-linea[data-estado="escuchando"] { color: var(--gv-acento); }
+.gv-oye-linea[data-estado="escuchando"]::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #ff6b6b; vertical-align: 1px; }
+.guia-voz[data-vista="barra"] .gv-oye-linea { flex: 1 0 100%; order: 4; margin: 0; }
+.gv-oye-linea-apagar { margin-left: 6px; padding: 0 2px; background: none; border: 0; color: var(--gv-acento); font: inherit; text-decoration: underline; cursor: pointer; min-height: 24px; }
+.gv-hablar-texto { white-space: normal; max-width: 170px; text-align: center; line-height: 1.25; }
 /* ------------------------------------------------------------------ «Oye Eco»: aviso visible de micrófono abierto, encima de la esfera */
 .gv-oye-indicador { display: flex; align-items: center; gap: 6px; margin: 0; padding: 2px 2px 2px 10px; background: #000000; border: 1px solid var(--gv-acento-2); border-radius: var(--r-pildora, 999px); color: var(--gv-tinta-2); font-size: 0.72rem; line-height: 1.3; }   /* discreto */
 .gv-oye-punto { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #ff6b6b; box-shadow: 0 0 8px #ff6b6b; animation: gv-latido 1.6s ease-in-out infinite; }
