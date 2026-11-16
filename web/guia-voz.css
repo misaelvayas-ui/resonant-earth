@@ -141,6 +141,14 @@
 .gv-cerrar { flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; background: transparent; border: 1px solid var(--gv-borde); border-radius: 50%; color: var(--gv-tinta); cursor: pointer; }
 .gv-cerrar:hover { border-color: var(--gv-tinta); }
 
+/* bienvenida: el mismo panel, con dos botones; aparece con un leve deslizamiento (nada con «menos movimiento») */
+.gv-bienvenida { animation: gv-aparecer 0.35s ease-out both; }
+.gv-bienvenida .gv-subtitulo { margin-bottom: 14px; }
+.gv-bienvenida .gv-fila { gap: 8px; }
+.gv-boton.gv-boton-principal { background: var(--gv-acento); border-color: var(--gv-acento); color: #000000; }
+.gv-boton.gv-boton-principal:hover { background: #a9dcfc; border-color: #a9dcfc; }
+@keyframes gv-aparecer { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
 /* el subtítulo: lo último que dijo la guía, siempre a la vista */
 .gv-subtitulo { margin: 0 0 10px; font-size: 1rem; line-height: 1.45; overflow-wrap: anywhere; }
 .gv-ia-etiqueta { display: inline-block; margin: -2px 0 10px; padding: 3px 10px; border: 1px solid var(--gv-acento-2); border-radius: var(--r-pildora, 999px); color: var(--gv-acento); font: 400 0.68rem/1.4 var(--f-dato, ui-monospace, monospace); }
@@ -260,7 +268,7 @@
 
 /* ------------------------------------------------------------------ menos movimiento: nada se mueve */
 @media (prefers-reduced-motion: reduce) {
-  .gv-esfera, .gv-esfera::before, .gv-esfera::after, .gv-escucha-barra, .gv-anillo { animation: none !important; transition: none; }
+  .gv-esfera, .gv-esfera::before, .gv-esfera::after, .gv-escucha-barra, .gv-anillo, .gv-bienvenida { animation: none !important; transition: none; }
   .gv-puntero, .gv-puntero svg { transition: none; }
   .gv-hablar:hover .gv-esfera { transform: none; }
   .guia-voz[data-estado="escuchando"] .gv-esfera::after { inset: -8px; border-width: 3px; }

@@ -792,6 +792,9 @@
   /* Textos de la tarjeta, en los dos idiomas. Frases cortas y sin jerga: deben entenderse a la primera. */
   const U = {
     es: {
+      bienvenida: "Hola, soy Eco. En menos de un minuto te enseño cómo suena el clima de la Tierra.", empezar: "Empezar el recorrido guiado",
+      explorar: "Explorar yo solo", cerrarBienvenida: "Cerrar la bienvenida",
+      intro: "Hola, soy Eco, tu guía en Resonant Earth. Aquí los mapas del clima de la NASA se convierten en música. Sube el volumen: en menos de un minuto vas a oír cómo se ha calentado el planeta.",
       nombre: "Eco, la guía por voz", alias: "Eco", rol: "Guía por voz", hablar: "Háblame", escuchando: "Te escucho…", cerrar: "Cerrar la guía", inicial: "Pulsa la esfera y háblame.",
       saludo: "Hola, soy Eco, la guía de Resonant Earth. ¿Qué quieres escuchar?",
       pistaLector: "Atajo: tecla H. Si usas un lector de pantalla, márcalo en Ayuda y opciones y la guía responderá por escrito.",
@@ -824,6 +827,9 @@
       },
     },
     en: {
+      bienvenida: "Hi, I am Eco. In under a minute I will show you what Earth's climate sounds like.", empezar: "Start the guided tour",
+      explorar: "Explore on my own", cerrarBienvenida: "Close the welcome",
+      intro: "Hello, I am Eco, your guide to Resonant Earth. Here, NASA climate maps become music. Turn up the volume: in under a minute you will hear how the planet has warmed.",
       nombre: "Eco, the voice guide", alias: "Eco", rol: "Voice guide", hablar: "Talk to me", escuchando: "Listening…", cerrar: "Close the guide", inicial: "Press the sphere and talk to me.",
       saludo: "Hello, I am Eco, the Resonant Earth guide. What would you like to hear?",
       pistaLector: "Shortcut: H key. If you use a screen reader, tick it under Help and options and the guide will answer in writing.",
@@ -866,6 +872,20 @@
   /* La tarjeta no lleva textos: los pone pintarTextos() en el idioma elegido (atributos data-t y data-t-aria).
      Orden: cabecera (avatar, nombre, cerrar), subtítulo, estado, «Escribir» y «Ayuda y opciones» plegado. */
   const PLANTILLA = `
+    <div class="gv-tarjeta gv-bienvenida" id="gv-bienvenida" role="dialog" aria-labelledby="gv-bienvenida-titulo" aria-describedby="gv-bienvenida-texto" hidden>
+      <div class="gv-cabecera">
+        <span class="gv-avatar" aria-hidden="true"></span>
+        <p class="gv-identidad" id="gv-bienvenida-titulo"><strong class="gv-alias" data-t="alias"></strong> <span class="gv-rol" data-t="rol"></span></p>
+        <button type="button" id="gv-bienvenida-cerrar" class="gv-cerrar" data-t-aria="cerrarBienvenida">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="16" height="16"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+        </button>
+      </div>
+      <p id="gv-bienvenida-texto" class="gv-subtitulo" data-t="bienvenida"></p>
+      <div class="gv-fila">
+        <button type="button" id="gv-empezar" class="gv-boton gv-boton-principal" data-t="empezar"></button>
+        <button type="button" id="gv-explorar" class="gv-boton" data-t="explorar"></button>
+      </div>
+    </div>
     <div class="gv-tarjeta" id="gv-tarjeta" hidden>
       <div class="gv-cabecera">
         <span class="gv-avatar" aria-hidden="true"></span>
@@ -947,7 +967,8 @@
     const ui = { hablar: $("gv-hablar"), hablarTexto: $("gv-hablar-texto"), estado: $("gv-estado"), formulario: $("gv-formulario"), campo: $("gv-campo"),
       tarjeta: $("gv-tarjeta"), cerrar: $("gv-cerrar"), detener: $("gv-detener"), respuesta: $("gv-respuesta"), vivo: $("gv-vivo"), escucha: $("gv-escucha"),
       escribir: $("gv-escribir"), zonaEscribir: $("gv-zona-escribir"), opciones: $("gv-opciones"), listaAyuda: $("gv-lista-ayuda"), idioma: $("gv-idioma"),
-      lector: $("gv-lector"), tecla: $("gv-tecla"), seguir: $("gv-seguir"), voz: $("gv-voz"), velocidad: $("gv-velocidad"), probar: $("gv-probar") };
+      lector: $("gv-lector"), tecla: $("gv-tecla"), seguir: $("gv-seguir"), voz: $("gv-voz"), velocidad: $("gv-velocidad"), probar: $("gv-probar"),
+      bienvenida: $("gv-bienvenida"), empezar: $("gv-empezar"), explorar: $("gv-explorar"), cerrarBienvenida: $("gv-bienvenida-cerrar") };
 
     /* ---------- preferencias (pueden fallar: ventana privada) ---------- */
     const leer = () => { try { return JSON.parse(ventana.localStorage.getItem(CLAVE)) || {}; } catch (e) { return {}; } };
@@ -1268,8 +1289,36 @@
       if (!ui.seguir.checked || !Reconocedor || guia.escuchando || guia.enRecorrido || modoLector() || doc.hidden || ui.tarjeta.hidden) return;
       escuchar({ auto: true });
     }
+    /* ---------- bienvenida: una tarjeta breve al cargar, una vez por sesión. No es modal ni roba el foco al cargar (el
+       primer Tab sigue llevando a «Saltar al contenido»); el enlace «Saltar a la guía por voz» lleva a ella mientras está
+       abierta. Esc la cierra. Los navegadores no dejan sonar nada sin un clic: por eso la voz empieza al pulsar un botón. */
+    const CLAVE_BIENVENIDA = "rocola-guia-bienvenida";
+    function mostrarBienvenida() {
+      try {
+        if (ventana.sessionStorage.getItem(CLAVE_BIENVENIDA)) return;
+        ventana.sessionStorage.setItem(CLAVE_BIENVENIDA, "1");
+      } catch (e) { /* sin almacenamiento (ventana privada): se muestra igual */ }
+      ui.bienvenida.hidden = false;
+    }
+    function cerrarBienvenida({ foco = true } = {}) {
+      if (ui.bienvenida.hidden) return;
+      const dentro = ui.bienvenida.contains(doc.activeElement);
+      ui.bienvenida.hidden = true;
+      if (dentro && foco) ui.hablar.focus();
+    }
+    /* «Empezar el recorrido guiado»: Eco se presenta, presenta la web, invita, y el recorrido arranca solo.
+       Con lector de pantalla, todo va por escrito (sin voz). */
+    function empezarGuiado() {
+      cerrarBienvenida({ foco: false });
+      guia.saludo = true;                             // la esfera ya no vuelve a saludar
+      abrirTarjeta();
+      recorrer({ intro: u().intro });
+      ui.detener.focus();                             // con el teclado, Enter detiene el recorrido
+    }
+
     /* La esfera (o la tecla H). La primera vez abre la guía, saluda en una frase y escucha. Después, escucha. */
     function pulsarEsfera() {
+      cerrarBienvenida({ foco: false });
       if (!guia.saludo && ui.tarjeta.hidden && !guia.escuchando) {
         guia.saludo = true;
         abrirTarjeta();
@@ -1355,14 +1404,16 @@
       el.click();                                     // el clic de verdad, en el control de la página
       for (let i = 0; i < 50 && sigue() && !A.listo(); i++) await esperar(100);   // la pista se está cargando
     }
-    async function recorrer() {
+    async function recorrer({ intro = "" } = {}) {
       const mio = ++guia.recorrido, sigue = () => mio === guia.recorrido;
       cerrarMicro();                                  // que el micrófono no oiga a la guía contar el recorrido
       guia.enRecorrido = true;
       ui.detener.hidden = false;
       if (ia) ia.marcar(false);
       let hablado = false;
-      for (const paso of guionRecorrido(A, guia.idioma)) {
+      const pasos = guionRecorrido(A, guia.idioma);
+      if (intro && pasos[0]) pasos[0] = { ...pasos[0], texto: intro };   // desde la bienvenida: Eco se presenta en vez del primer paso
+      for (const paso of pasos) {
         if (paso.pulsar || paso.accion) await pulsarPaso(paso, sigue);
         if (!sigue()) return;
         const senalado = paso.lugar ? senalar(paso.lugar, { dure: 9000 }) : false;   // señala el lugar mientras lo explica
@@ -1446,6 +1497,9 @@
 
     /* ---------- eventos ---------- */
     ui.hablar.addEventListener("click", pulsarEsfera);
+    ui.empezar.addEventListener("click", empezarGuiado);
+    ui.explorar.addEventListener("click", () => cerrarBienvenida());
+    ui.cerrarBienvenida.addEventListener("click", () => cerrarBienvenida());
     ui.cerrar.addEventListener("click", cerrarTarjeta);
     ui.detener.addEventListener("click", () => detenerRecorrido());
     ui.escribir.addEventListener("click", () => { const abrir = ui.zonaEscribir.hidden; abrirEscribir(abrir); if (abrir) ui.campo.focus(); });
@@ -1472,6 +1526,7 @@
     /* Atajos: H habla con la guía (se puede apagar) y Esc cierra. No hay más teclas: la barra espaciadora no se usa. */
     doc.addEventListener("keydown", (e) => {
       if (e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey) return;
+      if (e.key === "Escape" && !ui.bienvenida.hidden) { cerrarBienvenida(); return; }
       const d = e.target, etiqueta = d.tagName;
       const escribe = etiqueta === "TEXTAREA" || etiqueta === "SELECT" || d.isContentEditable ||
         (etiqueta === "INPUT" && !["range", "checkbox"].includes(d.type));
@@ -1497,7 +1552,7 @@
     if (salto) {
       enlaceSalto = doc.createElement("a");
       enlaceSalto.className = salto.className; enlaceSalto.href = "#gv-hablar";
-      enlaceSalto.addEventListener("click", (e) => { e.preventDefault(); ui.hablar.focus(); });
+      enlaceSalto.addEventListener("click", (e) => { e.preventDefault(); (ui.bienvenida.hidden ? ui.hablar : ui.empezar).focus(); });
       salto.after(enlaceSalto);
     }
     try {
@@ -1508,6 +1563,7 @@
     // sin voz o sin reconocimiento: el campo para escribir y las frases sugeridas quedan a la vista desde el principio
     abrirEscribir(!Reconocedor || !sintesis);
     pintarTextos();
+    mostrarBienvenida();
 
     return { atender, escuchar, callar, recorrer, detenerRecorrido, fijarIdioma, fijarLector, estado: guia };
   }

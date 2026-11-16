@@ -77,6 +77,8 @@ El Chromium de Playwright no trae H.264 ni AAC. Para que reproduzca las pistas, 
 
 Una esfera azul cielo fija abajo a la derecha, **«Háblame»** (o la tecla `H`). La guía se llama **Eco** y funciona **por voz primero**, como una persona que atiende en la web: al abrirla saluda en una frase («Hola, soy Eco, la guía de Resonant Earth. ¿Qué quieres escuchar?») y escucha. Está en **español e inglés**; la web de Misael no se traduce.
 
+**Bienvenida y recorrido guiado al entrar.** Los navegadores no dejan sonar nada hasta que la persona hace clic, así que al cargar la página aparece, abajo a la derecha, una tarjeta breve de Eco («Hola, soy Eco. En menos de un minuto te enseño cómo suena el clima de la Tierra.») con dos botones: **«Empezar el recorrido guiado»** y **«Explorar yo solo»** (en inglés, “Start the guided tour” y “Explore on my own”). No es modal ni tapa la web, y no roba el foco al cargar: el primer `Tab` sigue llevando a «Saltar al contenido», y el enlace «Saltar a la guía por voz» lleva al botón «Empezar» mientras la tarjeta está abierta. `Esc` o la `×` la cierran. «Empezar» cierra la tarjeta, Eco se presenta en una frase, presenta la web en otra, invita al recorrido en una tercera, y el recorrido arranca solo; el foco va a «Detener el recorrido». «Explorar yo solo» cierra la tarjeta y deja la esfera. Pulsar la esfera o la tecla `H` también la cierra. Sale una vez por sesión (`sessionStorage`, dentro de `try/catch`). Con lector de pantalla no hay voz automática: la tarjeta es texto y, al pulsar «Empezar», todo va por escrito. Con «menos movimiento» aparece sin animación.
+
 **Un apartado propio, con poco texto.** La guía usa la misma paleta que la web (el azul cielo `--acento` de `estilos.css`), pero se ve como un panel aparte: avatar, cabecera, borde superior de luz y brillo propios. Todos los textos cumplen contraste AA (10:1 o más el acento, 4,5:1 o más los bordes). Su panel, encima de la esfera, solo tiene:
 
 - una **cabecera** con el avatar (la misma esfera en pequeño), el nombre «Eco · Guía por voz» y el botón de cerrar;
@@ -143,6 +145,7 @@ cd servicio-ia && node --test pruebas/servicio.test.js                      # 15
 En navegador (Chrome sin ventana, con micrófono, voz y servicio de IA **de mentira**; el guion de prueba no está en el repositorio), 171 comprobaciones, todas pasan:
 
 - axe con 0 violaciones en escritorio (1440 px) y móvil (390 px), en español y en inglés: cerrada, escuchando y con todo desplegado. Sin desborde horizontal.
+- Bienvenida: se ve al cargar en escritorio y móvil, en español e inglés, con axe en 0; no es modal ni roba el foco; teclado y `Esc`; una vez por sesión; «Explorar yo solo»; «Empezar» presenta y arranca el recorrido; lector sin voz; «menos movimiento» sin animación.
 - Voz primero: al cargar no se abre el micrófono; `H` abre, saluda y escucha; la barra espaciadora no hace nada; tarjeta mínima; la ayuda solo aparece al pedirla.
 - Escucha de seguimiento: se abre tras responder y se cierra sola a los 10 s sin decir nada; si la persona habla, el temporizador se oculta, no se le corta aunque pasen los 10 s, y responde tras 2,5 s de silencio juntando los trozos; no encadena y se apaga en opciones.
 - Sin IA: 20 comandos y frases de punta a punta, «no entendí» repite más despacio, preguntas sobre la web con texto fijo, y no sale ninguna petición.

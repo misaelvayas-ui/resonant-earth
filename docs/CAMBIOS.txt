@@ -1195,3 +1195,10 @@ Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit 8
    quita el violeta. Conserva su identidad (avatar, cabecera, borde superior de luz, brillo) en esa paleta. Contraste: acento
    10:1 o más y bordes 4,5:1 o más sobre el fondo del panel. Tocados: web/guia-voz.css, web/README.md.
    Verificado: navegador, secciones de axe (es/en, escritorio y móvil) y señalar: 35 de 35, axe 0 violaciones.
+2. Bienvenida y arranque guiado: tarjeta breve al cargar (no modal, no roba el foco: el primer Tab sigue en «Saltar al
+   contenido»; «Saltar a la guía por voz» lleva a ella; Esc la cierra) con «Empezar el recorrido guiado» y «Explorar yo solo»
+   (y en inglés). «Empezar»: Eco se presenta, presenta la web, invita, y el recorrido arranca solo (sustituye su primer paso);
+   el foco va a «Detener el recorrido». Una vez por sesión (sessionStorage con try/catch). Con lector: sin voz, todo por
+   escrito. Con menos movimiento: sin animación. Tocados: web/guia-voz.js, web/guia-voz.css, web/README.md.
+   Verificado: node --test (28); navegador, sección nueva 26 de 26 (axe 0 en escritorio y móvil, es y en) y recorrido 14 de 14;
+   verificar.cjs pasa V6 (primer Tab) y todo lo demás menos V11, la intermitente de siempre.
