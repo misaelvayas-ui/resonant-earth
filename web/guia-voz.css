@@ -242,6 +242,38 @@
 .gv-campo-opcion input[type="range"] { width: 100%; accent-color: var(--gv-acento); }
 .gv-boton-chico { justify-self: start; }
 
+/* ------------------------------------------------------------------ la barra de subtítulos (vista "barra")
+   Por defecto y durante el recorrido solo se ven los subtítulos: una barra compacta, abajo y centrada, de 2 a 3 líneas con
+   desplazamiento interno y fondo opaco. El panel completo (vista "completo") solo se abre cuando la persona lo pide. */
+.gv-barra-acciones { display: none; }
+.guia-voz[data-vista="barra"] #gv-tarjeta {
+  position: fixed;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  width: min(680px, calc(100vw - 2 * (var(--gv-esfera) + 40px)));
+  max-height: none;
+  overflow: visible;
+  padding: 10px 10px 10px 16px;
+  background: var(--gv-fondo);
+  border-top-width: 1px;
+}
+.guia-voz[data-vista="barra"] #gv-tarjeta > :is(.gv-cabecera, .gv-estado, #gv-escribir, #gv-zona-escribir, .gv-opciones, .gv-ia-aviso) { display: none !important; }
+.guia-voz[data-vista="barra"] #gv-respuesta { flex: 1 1 200px; min-width: 0; max-height: 4.4em; overflow-y: auto; margin: 0; padding-right: 4px; font-size: 0.95rem; line-height: 1.45; cursor: pointer; overscroll-behavior: contain; }
+.guia-voz[data-vista="barra"] :is(.gv-escucha, .gv-ia-etiqueta) { flex: 1 0 100%; order: -1; margin: 0; }
+.guia-voz[data-vista="barra"] .gv-detener { order: 2; width: auto; min-height: 36px; margin: 0; padding: 6px 14px; }
+.guia-voz[data-vista="barra"] .gv-barra-acciones { display: flex; order: 3; flex: none; align-items: center; gap: 6px; }
+.gv-subtitulo:focus-visible { outline: 2px solid var(--gv-tinta); outline-offset: 2px; border-radius: 4px; }
+
+/* lo que se señala no queda tapado: la barra o el panel se van arriba y, si aun así tapan, se minimizan un momento */
+.guia-voz[data-lado="arriba"][data-vista="barra"] #gv-tarjeta { top: max(84px, env(safe-area-inset-top)); bottom: auto; }
+.guia-voz[data-lado="arriba"][data-vista="completo"] #gv-tarjeta { position: fixed; top: 84px; right: max(16px, env(safe-area-inset-right)); }
+.guia-voz[data-min="si"] #gv-tarjeta { opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+
 /* ------------------------------------------------------------------ «Oye Eco»: aviso visible de micrófono abierto, encima de la esfera */
 .gv-oye-indicador { display: flex; align-items: center; gap: 8px; margin: 0; padding: 4px 4px 4px 12px; background: #000000; border: 1px solid var(--gv-acento); border-radius: var(--r-pildora, 999px); color: var(--gv-tinta); font-size: 0.78rem; line-height: 1.3; }
 .gv-oye-punto { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #ff6b6b; box-shadow: 0 0 8px #ff6b6b; animation: gv-latido 1.6s ease-in-out infinite; }
@@ -271,13 +303,17 @@
 /* ------------------------------------------------------------------ móvil */
 @media (max-width: 600px) {
   .guia-voz { --gv-esfera: 72px; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); }
+  /* en el teléfono, una tira baja a lo ancho, junto a la esfera */
+  .guia-voz[data-vista="barra"] #gv-tarjeta { left: max(8px, env(safe-area-inset-left)); right: calc(var(--gv-esfera) + 24px); bottom: max(8px, env(safe-area-inset-bottom)); transform: none; width: auto; padding: 8px 8px 8px 12px; }
+  .guia-voz[data-vista="barra"] #gv-respuesta { font-size: 0.9rem; max-height: 4.2em; }
+  .guia-voz[data-lado="arriba"][data-vista="barra"] #gv-tarjeta { top: max(76px, env(safe-area-inset-top)); bottom: auto; }
   .gv-esfera svg { width: 26px; height: 26px; }
 }
 
 /* ------------------------------------------------------------------ menos movimiento: nada se mueve */
 @media (prefers-reduced-motion: reduce) {
   .gv-esfera, .gv-esfera::before, .gv-esfera::after, .gv-escucha-barra, .gv-anillo, .gv-bienvenida, .gv-oye-punto { animation: none !important; transition: none; }
-  .gv-puntero, .gv-puntero svg { transition: none; }
+  .gv-puntero, .gv-puntero svg, .gv-tarjeta { transition: none !important; }
   .gv-hablar:hover .gv-esfera { transform: none; }
   .guia-voz[data-estado="escuchando"] .gv-esfera::after { inset: -8px; border-width: 3px; }
   .guia-voz[data-estado="pensando"] .gv-esfera::after { border-color: var(--gv-acento); border-style: dashed; }

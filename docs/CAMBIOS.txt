@@ -1227,3 +1227,11 @@ Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit 1
    Verificado: node --test 29 (la pista actual termina en la 2 y suena; llamadas elegir 0, irA, elegir 1, irA); navegador,
    recorrido y bienvenida 41 de 41: recorrido completo en 41 s, la pista actual cambia al mar y suena (sonando = true)
    mientras se presenta y en su salto.
+2. Barra de subtítulos: por defecto y en el recorrido solo se ve una barra compacta (abajo y centrada; en móvil, tira baja
+   junto a la esfera), de 3 líneas como mucho con scroll interno y fondo opaco, con «Escribir», «Ayuda y opciones» y cerrar.
+   El panel completo solo se abre cuando se pide (esos botones, un clic en la barra o «ayuda»). Al señalar, si la barra o el
+   panel tapan el lugar (getBoundingClientRect), se van arriba y, si aun así tapan, se minimizan hasta que se quita el resalte.
+   Tocados: web/guia-voz.js, web/guia-voz.css, web/README.md.
+   Verificado: node --test 29; navegador, secciones de barra, bienvenida, recorrido, voz primero, axe y señalar: todas pasan
+   (axe 0 en escritorio y móvil, es y en, con barra y con panel; al señalar 9 lugares nunca los tapa); verificar.cjs como
+   siempre: todo pasa menos V11, la intermitente.

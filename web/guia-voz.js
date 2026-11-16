@@ -807,6 +807,7 @@
       saludo: "Hola, soy Eco, la guía de Resonant Earth. ¿Qué quieres escuchar?",
       pistaLector: "Atajo: tecla H. Si usas un lector de pantalla, márcalo en Ayuda y opciones y la guía responderá por escrito.",
       lista: "Lista.", pensando: "Un momento…", espera: "Un momento.", teEscucho: "Te escucho.", hablando: "Hablando…", sigo: "Sigo escuchando…", silencio: "(en silencio)",
+      abrirPanel: "Abrir el panel de la guía", cerrarBarra: "Cerrar los subtítulos",
       escribir: "Escribir", campo: "Escribe tu pregunta", enviar: "Enviar", sugeridas: "Atajos", recorrido: "Dame un recorrido", detener: "Detener el recorrido",
       opciones: "Ayuda y opciones", quePuedoDecir: "Puedes decir",
       ayudaLista: ["«Reproduce» o «pausa»", "«Llévame a 1990»", "«¿Qué estoy escuchando?»", "«Dame un recorrido»"],
@@ -845,6 +846,7 @@
       saludo: "Hello, I am Eco, the Resonant Earth guide. What would you like to hear?",
       pistaLector: "Shortcut: H key. If you use a screen reader, tick it under Help and options and the guide will answer in writing.",
       lista: "Ready.", pensando: "One moment…", espera: "One moment.", teEscucho: "I am listening.", hablando: "Speaking…", sigo: "Still listening…", silencio: "(silent)",
+      abrirPanel: "Open the guide panel", cerrarBarra: "Close the captions",
       escribir: "Type", campo: "Type your question", enviar: "Send", sugeridas: "Shortcuts", recorrido: "Give me a tour", detener: "Stop the tour",
       opciones: "Help and options", quePuedoDecir: "You can say",
       ayudaLista: ["“Play” or “pause”", "“Take me to 1990”", "“What am I hearing?”", "“Give me a tour”"],
@@ -921,7 +923,14 @@
           <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="16" height="16"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
         </button>
       </div>
-      <p id="gv-respuesta" class="gv-subtitulo"></p>
+      <p id="gv-respuesta" class="gv-subtitulo" tabindex="0"></p>
+      <div class="gv-barra-acciones">
+        <button type="button" id="gv-barra-escribir" class="gv-boton gv-boton-chico" data-t="escribir"></button>
+        <button type="button" id="gv-barra-opciones" class="gv-boton gv-boton-chico" aria-controls="gv-opciones" data-t="opciones"></button>
+        <button type="button" id="gv-barra-cerrar" class="gv-cerrar" data-t-aria="cerrarBarra">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="14" height="14"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+        </button>
+      </div>
       <p id="gv-escucha" class="gv-escucha" hidden><span class="gv-escucha-barra" aria-hidden="true"></span><span data-t="sigo"></span></p>
       <p id="gv-estado" class="gv-estado"></p>
       <button type="button" id="gv-detener" class="gv-boton gv-detener" data-t="detener" hidden></button>
@@ -991,6 +1000,7 @@
     panel.id = "guia-voz";
     panel.className = "guia-voz";
     panel.dataset.estado = "reposo";                 // reposo | escuchando | pensando | respondiendo (lo usa guia-voz.css)
+    panel.dataset.vista = "barra";                   // barra: solo los subtítulos (por defecto y en el recorrido) | completo: el panel
     panel.innerHTML = PLANTILLA;
     const ancla = A.ancla && A.ancla(), principal = doc.querySelector("main");   // el adaptador dice dónde va el panel
     if (ancla) ancla.before(panel); else if (principal) principal.before(panel); else doc.body.prepend(panel);
@@ -999,6 +1009,7 @@
       tarjeta: $("gv-tarjeta"), cerrar: $("gv-cerrar"), detener: $("gv-detener"), respuesta: $("gv-respuesta"), vivo: $("gv-vivo"), escucha: $("gv-escucha"),
       escribir: $("gv-escribir"), zonaEscribir: $("gv-zona-escribir"), opciones: $("gv-opciones"), listaAyuda: $("gv-lista-ayuda"), idioma: $("gv-idioma"),
       lector: $("gv-lector"), tecla: $("gv-tecla"), seguir: $("gv-seguir"), voz: $("gv-voz"), velocidad: $("gv-velocidad"), probar: $("gv-probar"),
+      barraEscribir: $("gv-barra-escribir"), barraOpciones: $("gv-barra-opciones"), barraCerrar: $("gv-barra-cerrar"),
       oye: $("gv-oye"), oyeIndicador: $("gv-oye-indicador"), oyeTexto: $("gv-oye-texto"), oyeApagar: $("gv-oye-apagar"),
       bienvenida: $("gv-bienvenida"), empezar: $("gv-empezar"), explorar: $("gv-explorar"), cerrarBienvenida: $("gv-bienvenida-cerrar") };
 
@@ -1015,8 +1026,16 @@
 
     /* ---------- la tarjeta (el subtítulo) y el estado de la esfera ---------- */
     const abrirTarjeta = () => { ui.tarjeta.hidden = false; ui.hablar.setAttribute("aria-expanded", "true"); };
-    const cerrarTarjeta = () => { const dentro = ui.tarjeta.contains(doc.activeElement); ui.tarjeta.hidden = true; ui.hablar.setAttribute("aria-expanded", "false"); if (dentro) ui.hablar.focus(); };
-    const abrirEscribir = (abierta = true) => { ui.zonaEscribir.hidden = !abierta; ui.escribir.setAttribute("aria-expanded", String(abierta)); };
+    /* Por defecto (y durante el recorrido) solo se ve una barra de subtítulos compacta, abajo y centrada, para no tapar la
+       web. El panel completo solo se abre cuando la persona lo pide: «Escribir», «Ayuda y opciones» o un clic en la barra. */
+    function ponerVista(vista) {
+      if (panel.dataset.vista === vista) return;
+      panel.dataset.vista = vista;
+      const f = doc.activeElement;
+      if (vista === "barra" && f && ui.tarjeta.contains(f) && !f.getClientRects().length) (ui.detener.hidden ? ui.hablar : ui.detener).focus();   // el foco no se pierde
+    }
+    const cerrarTarjeta = () => { const dentro = ui.tarjeta.contains(doc.activeElement); ui.tarjeta.hidden = true; ui.hablar.setAttribute("aria-expanded", "false"); ponerVista("barra"); if (dentro) ui.hablar.focus(); };
+    const abrirEscribir = (abierta = true) => { ui.zonaEscribir.hidden = !abierta; ui.escribir.setAttribute("aria-expanded", String(abierta)); if (abierta) ponerVista("completo"); };
     let relojBrillo = 0;
     const pintarEsfera = () => {
       panel.dataset.estado = guia.escuchando ? "escuchando" : guia.pensando ? "pensando" : guia.hablando || guia.brillando ? "respondiendo" : "reposo";
@@ -1039,7 +1058,15 @@
     puntero.innerHTML = '<svg focusable="false" viewBox="0 0 24 24" width="34" height="34"><path d="M5 2.5l13.5 10.2-6 .9 3.6 7-2.7 1.4-3.6-7L5 19z" fill="currentColor" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>';
     for (const e of [anillo, puntero]) { e.hidden = true; e.setAttribute("aria-hidden", "true"); panel.append(e); }
     let relojAnillo = 0, cuadroAnillo = 0;
-    const quitarAnillo = () => { ventana.clearTimeout(relojAnillo); if (ventana.cancelAnimationFrame) ventana.cancelAnimationFrame(cuadroAnillo); anillo.hidden = true; delete panel.dataset.lugar; };
+    const quitarAnillo = () => { ventana.clearTimeout(relojAnillo); if (ventana.cancelAnimationFrame) ventana.cancelAnimationFrame(cuadroAnillo); anillo.hidden = true; delete panel.dataset.lugar; delete panel.dataset.lado; delete panel.dataset.min; };
+    const tapa = (a, b) => a.width > 0 && b.width > 0 && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    /* Si la barra o el panel tapan el lugar señalado: primero se van al borde opuesto (arriba); si aun así lo tapan, se
+       minimizan hasta que se quite el resalte. */
+    function apartarDe(r) {
+      if (ui.tarjeta.hidden || panel.dataset.min) return;
+      if (!tapa(r, ui.tarjeta.getBoundingClientRect())) return;
+      if (!panel.dataset.lado) panel.dataset.lado = "arriba"; else panel.dataset.min = "si";
+    }
     const quitarSenal = () => { quitarAnillo(); puntero.hidden = true; puntero.classList.remove("gv-puntero-clic"); };
     const llevarA = (el) => { try { el.scrollIntoView({ behavior: sinMovimiento() ? "auto" : "smooth", block: "center", inline: "nearest" }); } catch (e) { try { el.scrollIntoView(); } catch (x) { /* sin scroll */ } } };
     /* Lleva la página hasta un lugar de la lista fija y lo rodea con un anillo de luz que se quita solo.
@@ -1054,6 +1081,7 @@
         const arriba = Math.max(r.top - m, 4), abajo = Math.min(r.bottom + m, alto - 4), izq = Math.max(r.left - m, 4), der = Math.min(r.right + m, ancho - 4);
         anillo.style.top = arriba + "px"; anillo.style.left = izq + "px";
         anillo.style.width = Math.max(der - izq, 0) + "px"; anillo.style.height = Math.max(abajo - arriba, 0) + "px";
+        apartarDe(r);
         if (!anillo.hidden && ventana.requestAnimationFrame) cuadroAnillo = ventana.requestAnimationFrame(colocar);
       };
       anillo.hidden = false; panel.dataset.lugar = lugar;
@@ -1489,7 +1517,7 @@
       if (r.callar) { callar(); ui.respuesta.textContent = u().silencio; return; }
       if (r.recorrido) { recorrer(); return; }
       if (r.detenerRecorrido) { responder(u().sinRecorrido); return; }
-      if (r.ayuda) ui.opciones.open = true;           // la ayuda con ejemplos solo aparece cuando la piden
+      if (r.ayuda) { ui.opciones.open = true; ponerVista("completo"); }   // la ayuda con ejemplos solo aparece cuando la piden
       // una frase que no se entendió en la escucha de seguimiento no abre otra escucha (así no se encadenan ruidos)
       responder(r.texto, { ...r, seguir: !(auto && accion.tipo === "desconocido" && !r.deIA) });
     }
@@ -1528,6 +1556,7 @@
       cerrarMicro();                                  // que el micrófono no oiga a la guía contar el recorrido
       guia.enRecorrido = true;
       ui.detener.hidden = false;
+      ponerVista("barra");                            // durante el recorrido, solo los subtítulos: la web queda a la vista
       if (ia) ia.marcar(false);
       let hablado = false;
       const pasos = guionRecorrido(A, guia.idioma);
@@ -1622,6 +1651,10 @@
     ui.explorar.addEventListener("click", () => cerrarBienvenida());
     ui.cerrarBienvenida.addEventListener("click", () => cerrarBienvenida());
     ui.cerrar.addEventListener("click", cerrarTarjeta);
+    ui.barraCerrar.addEventListener("click", () => { callar(); cerrarTarjeta(); });
+    ui.barraEscribir.addEventListener("click", () => { ponerVista("completo"); abrirEscribir(true); ui.campo.focus(); });
+    ui.barraOpciones.addEventListener("click", () => { ponerVista("completo"); ui.opciones.open = true; ui.opciones.querySelector("summary").focus(); });
+    ui.respuesta.addEventListener("click", () => { if (panel.dataset.vista === "barra" && !guia.enRecorrido) ponerVista("completo"); });   // un clic en la barra abre el panel
     ui.detener.addEventListener("click", () => detenerRecorrido());
     ui.escribir.addEventListener("click", () => { const abrir = ui.zonaEscribir.hidden; abrirEscribir(abrir); if (abrir) ui.campo.focus(); });
     ui.formulario.addEventListener("submit", (e) => {
