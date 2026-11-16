@@ -214,7 +214,7 @@ async function desplazarTodo(page) {
     `${rotTxt}; .revelar con opacidad < 1: ${rr.revelar}; cifras con su valor: ${rr.cifras}; líneas del pipeline dibujadas: ${rr.lineas}`);
   await red.ctx.close();
 
-  // ---- Pulido (V16 a V23) ----
+  // ---- Textos, gráfico, atajos y menú (V16 a V23) ----
   const pul = await nuevaPagina(browser, { viewport: { width: 1118, height: 800 } });
   const pg = pul.page;
   await pg.goto(url, { waitUntil: "domcontentloaded" });

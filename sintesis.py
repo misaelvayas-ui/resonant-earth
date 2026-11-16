@@ -1,8 +1,8 @@
 """
-sintesis.py — Bloque A: fundamentos de síntesis de audio (motor de la rocola).
+sintesis.py — motor de audio de la rocola: osciladores, envolventes, escalas, paneo y WAV.
 
-Numpy y scipy. Cada función es pequeña a propósito: léela, cámbiala y escucha qué pasa.
-Convención: señales float en [-1, 1], frecuencia de muestreo FS.
+Solo numpy y scipy. Señales float en [-1, 1], frecuencia de muestreo FS.
+Cada función hace una sola cosa y se prueba en evaluar.py (grupo A).
 """
 import os
 

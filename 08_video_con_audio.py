@@ -216,8 +216,8 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmp:
         f_aplicado = factor if estirar else 1.0
-        # al estirar se conserva la cadencia del original (fps=...): con ffmpeg >= 7, setpts la reducía y el
-        # retardo de los 2 B-frames (sin lista de edición) pasaba de 0,1 s a 0,2 s en el ejemplo sintético
+        # al estirar se conserva la cadencia del original (fps=...): con ffmpeg >= 7, setpts la reduce y el
+        # retardo de los 2 B-frames (sin lista de edición) pasa de 0,1 s a 0,2 s en el ejemplo sintético
         base = [f"setpts=PTS*{factor:.6f}", f"fps={cadencia(video)}"] if estirar else []
         extra, pos = [], None
         if tiene_drawtext():
@@ -237,7 +237,7 @@ def main():
                *extra, opcion_grafo(), "grafo.txt", "-map", "[v]",
                "-map", "1:a:0", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
                "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
-               # sin listas de edición: VLC las maneja mal y el audio se entrecortaba al inicio
+               # sin listas de edición: VLC las maneja mal y el audio se entrecorta al inicio
                "-use_editlist", "0", os.path.abspath(salida)]
         ejecutar(cmd, cwd=tmp)
 

@@ -75,7 +75,7 @@ bal = np.array(bal)
 con = np.array(ctl.get("ataque_en_fotograma", [True] * n_f))
 bal_a, idx_a = bal[con], np.arange(n_f)[con]
 # el paneo solo se mide donde 06 lo aplica: con area < 0,01 (AREA_CENTRO de 06) el sonido va al centro por diseño;
-# por eso ya no se exige empezar a la izquierda: basta que el balance suba hacia la derecha (> 6 dB, Spearman > 0,9)
+# por eso solo se exige que el balance suba hacia la derecha (> 6 dB, Spearman > 0,9)
 rangos = lambda a_, b_: np.corrcoef(np.argsort(np.argsort(a_)), np.argsort(np.argsort(b_)))[0, 1]    # Spearman: la curva pan -> dB no es lineal
 con_zona = np.array([rr.get("area", 0.0) >= 0.01 for rr in r])
 bal_p, idx_p = bal[con & con_zona], np.arange(n_f)[con & con_zona]
