@@ -517,5 +517,8 @@ test("«Oye Eco»: reconoce la palabra de activación con sus variantes y separa
   assert.deepEqual(palabraActivacion("Oye Eco, pon la pista dos"), { orden: "pon la pista dos" });
   assert.deepEqual(palabraActivacion("hey eco please play"), { orden: "play" });
   assert.deepEqual(palabraActivacion("oye eco por favor pausa"), { orden: "pausa" });
-  for (const f of ["eco", "el eco de la montaña", "oye", "hola", "economía", "oye ecología", "hey ecuador", "pon el eco", ""]) assert.equal(palabraActivacion(f), null, f);
+  // lo que de verdad transcriben Edge y Chrome
+  for (const f of ["oye ego", "Oye, ecco.", "hoy eco", "oye eso", "Hey Echo.", "Eco", "eco.", "Oyeeco", "oye ecos"]) assert.deepEqual(palabraActivacion(f), { orden: "" }, f);
+  assert.deepEqual(palabraActivacion("hoy eco qué pistas hay"), { orden: "que pistas hay" });
+  for (const f of ["el eco de la montaña", "oye", "hola", "economía", "oye ecología", "hey ecuador", "pon el eco", "eco eco eco", "hoy es lunes", ""]) assert.equal(palabraActivacion(f), null, f);
 });

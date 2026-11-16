@@ -1251,3 +1251,36 @@ Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit 1
 NO probado en la ronda 40: micrófono real (cuánto aguanta Chrome escuchando sin parar, móviles, cómo transcribe «Eco»), si
 el eco de altavoces reales se cuela tras el margen de casi un segundo, voces reales y lectores de pantalla reales.
 No hace falta volver a publicar el servicio por la ronda 40 (solo cambió la web).
+
+RONDA 41 - «Oye Eco» con micrófono real: diagnóstico y estado siempre visible   (2026-11-15)
+Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit 1635587 (ronda 40).
+Problema (probado por Juan en Edge con micrófono real): «Oye Eco» no respondía y no se veía ni se decía el comando.
+Causas encontradas revisando el código (no se pudo reproducir con micrófono real en esta máquina):
+  a) Idioma: la escucha de «Oye Eco» usaba siempre es-EC. Si el navegador no admite es-EC, el error language-not-supported
+     se ignoraba y se reiniciaba en bucle, sin oír nunca nada. La guía sí pasaba a es-ES (por eso H funcionaba). Ahora usa la
+     misma variante que ya aceptó el navegador y, si falla, prueba la siguiente.
+  b) Errores silenciosos: not-allowed, service-not-allowed y audio-capture lo apagaban sin decir nada, y el indicador
+     desaparecía; network se reintentaba sin pausa. Ahora cada caso tiene su estado visible y network espera cada vez más.
+  c) La guía podía quedarse "escuchando" para siempre: al pulsar la esfera, en modo continuo, si nadie hablaba, algunos
+     navegadores nunca cierran el reconocimiento; mientras tanto «Oye Eco» seguía en pausa. Ahora se cierra a los 10 s.
+  d) La comprobación speechSynthesis.speaking (que en Edge puede quedarse en true) podía dejarlo pausado: se quitó; basta con
+     el estado de la propia guía y casi un segundo de margen tras hablar.
+  e) Dos reconocimientos a la vez: entre start() y onstart de la guía, o en los 350 ms tras «oye eco», podía arrancar la
+     escucha de «Oye Eco» y quedarse con el micrófono. Ahora espera.
+  f) El aviso hablado solo se decía la primera vez que quedaba guardado, así que en pruebas repetidas no se oía nunca.
+  g) La regla de la palabra no aceptaba lo que suelen escribir los reconocimientos: «oye ego», «hoy eco», «oye eso», «Eco» a
+     secas, «Oyeeco», «hey echo»: ahora sí.
+Tocados: web/guia-voz.js, web/guia-voz.css, web/pruebas/guia-voz.test.js, web/README.md.
+1. Diagnóstico: registro temporal en la consola con la etiqueta [oye-eco] (console.debug: estado, start, errores, cortes y lo
+   transcrito). Se apaga con depurarOye = false. Al primer clic se pide el permiso con getUserMedia.
+2. Estado siempre en palabras, en la barra (y sobre la esfera si la barra está cerrada), con un enlace «Apagar».
+3. Rótulo «Háblame · o di «Oye Eco»» y aviso hablado al terminar la presentación inicial y al final del recorrido, sin
+   depender del permiso.
+4. Si la escucha continua no es viable (8 cortes seguidos nada más empezar), se apaga con un mensaje claro; H y la esfera
+   siguen funcionando.
+Verificado: node --test 29 (variantes reales de la palabra); navegador, sección de «Oye Eco» 34 de 34 (permiso pedido tras el
+primer clic, permiso denegado con mensaje, no viable, sin reconocimiento, aviso al final de la presentación y del recorrido,
+estados en la barra, un solo micrófono a la vez, axe 0) y secciones de axe, voz primero, bienvenida y barra: todas pasan (una
+corrida se cortó por una carga lenta de la página y su sección pasó al repetirla). verificar.cjs: todo pasa menos V11, la
+intermitente.
+NO probado: micrófono real. Para comprobarlo: abrir la consola (nivel Detallado) y buscar [oye-eco].
