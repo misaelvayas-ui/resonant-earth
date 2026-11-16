@@ -1235,3 +1235,19 @@ Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit 1
    Verificado: node --test 29; navegador, secciones de barra, bienvenida, recorrido, voz primero, axe y señalar: todas pasan
    (axe 0 en escritorio y móvil, es y en, con barra y con panel; al señalar 9 lugares nunca los tapa); verificar.cjs como
    siempre: todo pasa menos V11, la intermitente.
+3. «Oye Eco» activo por defecto desde el primer clic (nunca al cargar): se activa con «Empezar el recorrido guiado», «Explorar
+   yo solo», la esfera, la tecla H o al escribir. Eco lo dice una vez con voz («Puedes llamarme en cualquier momento diciendo:
+   Oye Eco») y queda un indicador pequeño con un botón para apagarlo. La elección se recuerda en localStorage (try/catch).
+   Protección contra el eco: la escucha se pausa mientras Eco habla y casi un segundo después, y nunca hay dos micrófonos a la
+   vez. Permiso denegado: queda apagado sin avisos. 10 minutos sin uso: se pausa y vuelve con la siguiente interacción. Nunca
+   con lector de pantalla. Tocados: web/guia-voz.js, web/guia-voz.css, web/README.md.
+   Verificado: node --test 29; navegador, sección de «Oye Eco» 24 de 24 (no se abre al cargar; los dos botones
+   de la bienvenida lo activan y lo dicen una vez; pausado mientras Eco habla; variantes y orden en la misma frase; se reinicia;
+   el interruptor lo apaga y se recuerda; pausa por tiempo y vuelta con la siguiente acción; permiso denegado sin avisos;
+   nunca con lector; axe 0). La suite completa del final se cortó a mitad por falta de memoria del equipo (no por un fallo):
+   42 comprobaciones, todas pasando; las secciones de los cambios 1 y 2 ya habían pasado completas por separado.
+   Límite conocido: el permiso del micrófono se conoce tarde (es asíncrono). Si se deniega, Eco puede haber dicho ya el aviso
+   de «Oye Eco» una vez, aunque luego quede apagado.
+NO probado en la ronda 40: micrófono real (cuánto aguanta Chrome escuchando sin parar, móviles, cómo transcribe «Eco»), si
+el eco de altavoces reales se cuela tras el margen de casi un segundo, voces reales y lectores de pantalla reales.
+No hace falta volver a publicar el servicio por la ronda 40 (solo cambió la web).
