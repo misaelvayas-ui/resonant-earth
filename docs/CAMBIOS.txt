@@ -1470,7 +1470,17 @@ corrida se cortó por una carga lenta de la página y su sección pasó al repet
 intermitente.
 NO probado: micrófono real. Para comprobarlo: abrir la consola (nivel Detallado) y buscar [oye-eco].
 
-RONDA 54 - integración de la guía por voz (PR #19) en master (rama misael/integrar-pr19)   (2026-11-16)
+RONDA 54 - bienvenida: configurar idioma y «Oye Eco» antes de empezar   (2026-11-15)
+Revisado por Juan. Antes: commit e1242e1 (ronda 53).
+La tarjeta de bienvenida trae, antes de los dos botones, el selector de idioma y la casilla «Activar «Oye Eco»» (marcada por
+defecto), con su explicación en texto. Con «Explorar yo solo» o «Empezar el recorrido guiado»: Eco menciona «Oye Eco» antes de
+hacer nada (voz y subtítulo), se pide el permiso del micrófono con ese clic y «Oye Eco» queda activo (en el recorrido, en
+pausa hasta que termina). Sin cambiar nada más. Tocados: web/guia-voz.js, web/guia-voz.css, web/README.md.
+Verificado: node --test 29; navegador, secciones de la bienvenida, «Oye Eco», barra y axe: 60 de 60 (axe 0 en escritorio y móvil).
+Límite: ningún navegador deja sonar audio antes de un clic; la mención hablada llega con el clic en uno de los dos botones.
+NO probado: micrófono real.
+
+RONDA 55 - integración de la guía por voz (PR #19) en master (ramas misael/integrar-pr19 y misael/integrar-pr19-r42)   (2026-11-16)
 La rama juan/guia-voz-ia-v2 partía de la web anterior a la versión en inglés (ronda 43) y a la limpieza (ronda 44). Al unirla:
 1. docs/CAMBIOS.txt: las rondas 33-41 de la rama pasan a ser la 45-53 (detrás de las de master); web/README.md junta las dos tablas de archivos.
 2. Idioma: la guía usa el idioma de la página (<html lang>, que pone js/idioma.js) y lo sigue al pulsar ES / EN; si se cambia desde la guía

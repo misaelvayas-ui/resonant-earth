@@ -145,6 +145,8 @@
 .gv-bienvenida { animation: gv-aparecer 0.35s ease-out both; }
 .gv-bienvenida .gv-subtitulo { margin-bottom: 14px; }
 .gv-bienvenida .gv-fila { gap: 8px; }
+.gv-bienvenida-opciones { display: grid; gap: 10px; margin: 0 0 14px; padding: 10px 0; border-top: 1px solid rgba(var(--gv-luz), 0.2); border-bottom: 1px solid rgba(var(--gv-luz), 0.2); }
+.gv-bienvenida-opciones .gv-campo-opcion label { margin-bottom: 4px; }
 .gv-boton.gv-boton-principal { background: var(--gv-acento); border-color: var(--gv-acento); color: #000000; }
 .gv-boton.gv-boton-principal:hover { background: #a9dcfc; border-color: #a9dcfc; }
 @keyframes gv-aparecer { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
