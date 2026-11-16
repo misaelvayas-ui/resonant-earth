@@ -15,7 +15,7 @@ Prototipo para NASA Space Apps (reto 9), probado con el video **NASA SVS 5207 �
 5. Cambia a **Sonido en vivo** y apaga casillas (melodía, volumen, paneo, dron) para oír qué aporta cada capa.
 6. La cifra clave: lo que leemos del video coincide con la serie oficial GISTEMP de la NASA con una **correlación de 0,99** (58 años). Se repite con un comando: `python -m herramientas.validar_gistemp`.
 7. Límites que declaramos: nuestra lectura queda 0,09 °C por debajo de la serie oficial; la pista del mar es un índice relativo, no grados exactos; el paneo de GISTEMP lo decide una zona pequeña del mapa.
-8. Todo está probado: `python evaluar.py` (47 pruebas) y `web/pruebas/verificar.cjs` (31 comprobaciones con Playwright y axe).
+8. Todo está probado: `python evaluar.py` (47 pruebas) y `web/pruebas/verificar.cjs` (33 comprobaciones con Playwright y axe).
 
 ## Cómo respondemos al reto «The Earth Information Jukebox»
 
@@ -27,7 +27,7 @@ Prototipo para NASA Space Apps (reto 9), probado con el video **NASA SVS 5207 �
 | Equilibrio entre dato y música | Escala pentatónica, dron de referencia, arpegios; y pruebas que exigen que cada nota coincida con el dato (`evaluar.py`, 07, I1) |
 | Traducción exploratoria e interactiva | Casillas para apagar melodía, volumen, paneo o dron; gráfico navegable; «Antes y después»; «Explorar el mapa» |
 | Accesibilidad para personas ciegas o con baja visión: lector de pantalla, respuesta táctil, texto descriptivo | Todo con teclado; lectura en vivo para el lector de pantalla; descripción de cada pista; mapa explorable con flechas que dice latitud, longitud y valor; vibración al cambiar de nota (teléfonos que la permiten) |
-| Contar el porqué de las decisiones | Sección «El porqué» de la web, `docs/CAMBIOS.txt` (39 rondas con mediciones) y `docs/ESPEC_MODO_EN_VIVO.md` |
+| Contar el porqué de las decisiones | Sección «El porqué» de la web, `docs/CAMBIOS.txt` (43 rondas con mediciones) y `docs/ESPEC_MODO_EN_VIVO.md` |
 
 ## Qué se oye
 
