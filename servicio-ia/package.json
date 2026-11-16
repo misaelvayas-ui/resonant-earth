@@ -1,0 +1,10 @@
+{
+  "name": "rocola-guia-ia",
+  "private": true,
+  "type": "module",
+  "description": "Servicio intermediario de la guía por voz con IA (Cloudflare Workers). La clave nunca va en este repositorio.",
+  "scripts": {
+    "test": "node --test pruebas/servicio.test.js",
+    "publicar": "wrangler deploy"
+  }
+}

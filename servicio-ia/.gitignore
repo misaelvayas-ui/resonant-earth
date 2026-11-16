@@ -1,0 +1,8 @@
+# nada de esto se sube: dependencias, archivos locales de wrangler y cualquier archivo con secretos
+node_modules/
+.wrangler/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+*.clave

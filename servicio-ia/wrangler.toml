@@ -1,0 +1,55 @@
+# Rocola de la Tierra — servicio de la guía por voz con IA (Cloudflare Workers, plan gratuito).
+# AQUÍ NO VA LA CLAVE. La clave de Gemini se guarda como secreto con:  npx wrangler secret put GEMINI_API_KEY
+# Todo lo de este archivo es público: se puede leer en GitHub sin riesgo.
+
+name = "rocola-guia-ia"
+main = "src/index.js"
+compatibility_date = "2026-06-01"
+
+# Variables del servicio (no son secretas). Cámbialas aquí y vuelve a publicar con:  npx wrangler deploy
+[vars]
+# Páginas que pueden usar el servicio, separadas por comas, sin barra al final.
+# misaelvayas-ui es el usuario de GitHub donde se publica la web. localhost es para probar en tu computadora.
+ORIGENES_PERMITIDOS = "http://localhost:8000,http://localhost:8001,https://misaelvayas-ui.github.io"
+# Modelos de Gemini, separados por comas y en orden de preferencia. Si el primero da 503, 429, otro 5xx, 404 o no responde
+# en ESPERA_INTENTO_MS, se prueba el siguiente (todos dentro del presupuesto ESPERA_MODELO_MS). Si todos fallan, la web
+# sigue con los comandos de siempre. Nombres vigentes: https://aistudio.google.com/docs/models  (o corre: node probar-gemini.mjs)
+GEMINI_MODELOS = "gemini-3.5-flash-lite,gemini-3.5-flash,gemini-3.6-flash"
+# Cuánto razona el modelo antes de responder: low, medium o high. gemini-3.8-flash NO admite "minimal".
+GEMINI_THINKING = "low"
+# Tokens máximos de salida. Incluye los de razonamiento, por eso es más que lo que ocupa la respuesta.
+MAX_TOKENS_SALIDA = "1200"
+# Límites propios. Deben quedar POR DEBAJO de los de tu cuenta gratuita de Gemini,
+# que se ven en https://aistudio.google.com/rate-limit (peticiones por minuto y por día del modelo).
+MAX_POR_MINUTO_VISITANTE = "6"
+MAX_POR_MINUTO_GLOBAL = "8"
+MAX_POR_DIA = "200"
+# Tamaños máximos, en caracteres.
+MAX_TEXTO = "300"
+MAX_CONTEXTO = "9000"
+# Tiempo: presupuesto TOTAL para todos los intentos, y lo máximo que se espera a un modelo mientras quede otro de respaldo.
+# La web espera 9 s en total (ESPERA_MS en web/guia-voz-ia.js): deja el presupuesto por debajo.
+ESPERA_MODELO_MS = "8000"
+ESPERA_INTENTO_MS = "3500"
+
+# Voz humana (ruta /voz): texto a voz de Gemini para las respuestas de la IA. "no" la apaga del todo.
+VOZ_GEMINI = "si"
+# Modelos de voz, en orden. Nombres en https://aistudio.google.com/docs/speech-generation
+GEMINI_VOZ_MODELOS = "gemini-3.8-flash-tts,gemini-3.1-flash-tts-preview"
+# Voz preparada. "Sulafat" está descrita como cálida. Otras: Achird (amable), Vindemiatrix (suave), Kore (firme).
+GEMINI_VOZ = "Sulafat"
+# Límites propios de la voz. Ponlos POR DEBAJO de los del modelo de voz en https://aistudio.google.com/rate-limit
+VOZ_POR_MINUTO_VISITANTE = "4"
+VOZ_POR_MINUTO_GLOBAL = "6"
+VOZ_POR_DIA = "60"
+# Lo máximo que el servicio espera a la voz. La web espera unos 3 s y, si no llega, usa la voz del navegador.
+ESPERA_VOZ_MS = "3500"
+
+# El contador de los límites (un Durable Object con SQLite; funciona en el plan gratuito).
+[[durable_objects.bindings]]
+name = "CONTADOR"
+class_name = "Contador"
+
+[exports.Contador]
+type = "durable-object"
+storage = "sqlite"

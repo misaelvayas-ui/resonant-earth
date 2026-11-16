@@ -26,6 +26,12 @@
   <script src="vendor/gsap.min.js" defer></script>
   <script src="vendor/ScrollTrigger.min.js" defer></script>
   <script type="module" src="js/principal.js"></script>
+  <!-- Guía por voz (Juan). Si se quitan estas líneas, la página funciona igual que sin ella.
+       guia-voz-config.js y guia-voz-ia.js son la conversación con IA; sin ellas la guía solo usa comandos. -->
+  <script src="guia-voz-config.js" defer></script>
+  <script src="guia-voz-adaptador.js" defer></script>
+  <script src="guia-voz-ia.js" defer></script>
+  <script src="guia-voz.js" defer></script>
 </head>
 <body>
   <a data-t class="saltar" href="#rocola">Saltar a la rocola</a>
