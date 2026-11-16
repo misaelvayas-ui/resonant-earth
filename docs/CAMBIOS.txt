@@ -1111,3 +1111,13 @@ Pedido: la web bilingüe, rehecha sobre la web actual (no se trae nada de la web
 5. Prueba V33 (verificar.cjs): selector con teclado, <html lang>, ?lang=, recuerdo tras recargar, ningún texto fijo sin traducir y axe sin violaciones en inglés a 1440 y 390 px.
 Comprobado: node --test 13 PASA; verificar.cjs V1-V33 todo PASA; evaluar.py 47 PASA.
 Pendiente de revisión humana: la calidad del inglés (lo escribió una IA), el texto de las carreras del equipo y probar con un lector de pantalla real en inglés.
+
+RONDA 44 - limpieza final de código y documentación (rama misael/limpieza-final)   (2026-11-16)
+1. Eliminados: archivo/ (el tag practica-completa lo conserva), docs/AUDITORIA*.md, docs/PLAN_MODO_EN_VIVO.md, docs/REVISION_Y_MEJORAS.md, docs/CONTEXTO_ESTETICA_WEB.md y docs/catalogo_propuesto.json. Las decisiones de diseño del modo en vivo pasan a la sección 5 de docs/ESPEC_MODO_EN_VIVO.md.
+2. Las citas «06:NN» y «sin:NN» de la ESPEC, exportar_mapeo.py, mapeo.js y vivo.js ahora citan el identificador (06:media_movil, sintesis:valor_a_nota): ya no se rompen al añadir líneas.
+3. Comentarios sin historia («ronda N», «de siempre», «antes fallaba») ni tono de tutorial (bloque EJERCICIOS de 06); README, README_EN, web/README y CONTRIBUTING al día (34 comprobaciones V1-V33, publicación automática).
+4. Código muerto fuera: rasgosDatos, gDron y audio.alternar (JS); PENTATONICA_MENOR; lecturas repetidas en 07; comprobaciones imposibles en 05 y video_io. 05 y 08 comparten latitudes(), rasgos_del_video() y rotulo().
+5. .gitignore: web_entrega/, /salidas_*/, CLAUDE.md, .cursor/, parches, registros, .webm.
+Sin cambios de comportamiento: 05 y 06 de las dos pistas y exportar_mapeo reproducen byte a byte (12 cmp iguales) rasgos.json, control.json, rocola.mid, rocola.wav y los _mapeo/_esperado.json de web/assets.
+Comprobado: evaluar.py 47 PASA, 0 FALLA, 0 OMITIDA; node --test 13 PASA; verificar.cjs V1-V33 = 34 PASA.
+No se quitaron las comprobaciones «Ejecuta desde la raíz» de herramientas/: siguen siendo alcanzables con «python herramientas/x.py».
