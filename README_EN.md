@@ -163,6 +163,7 @@ Environment variables: `ROCOLA_SALIDAS` and `ROCOLA_CONFIG` redirect output/conf
 - **Color tolerance in SVS 5207:** the map rendering is slightly more desaturated than its reference color bar, so `config_eic.json` raises `dist_max` to `17`.
 - **Frame duration and sync:** each sampled frame lasts 0.5 s of audio (`SEG_POR_FOTOGRAMA` in `06`). When `fps_muestreo` differs from 2, `08` stretches or compresses video playback to match audio duration. In `demo_rocola.mp4`, video starts 0.1 s after audio to prevent stuttering in VLC.
 - **Browser coverage:** tested thoroughly in Chromium (desktop and mobile) and with Spanish screen readers; full validation in Safari, Firefox, and English screen readers remains pending.
+- **Voice guide:** works best in Chrome and Edge. Firefox has no speech recognition and Brave does not connect it to any service, so there the guide is used by typing; the voice it speaks with depends on the voices installed on the system.
 
 Detailed logs and measurements for every iteration are recorded in [docs/CAMBIOS.txt](docs/CAMBIOS.txt).
 

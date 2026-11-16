@@ -213,6 +213,7 @@ En navegador (Chrome sin ventana, con micrófono, voz y servicio de IA **de ment
 - Contraste AA o mejor, también en el peor caso (texto sobre una zona blanca del globo).
 - Se respetan `prefers-reduced-motion` y el alto contraste forzado de Windows.
 - Con el idioma activo se actualizan `<html lang>` y todos los textos, y el selector ES / EN es un grupo de dos botones con `aria-pressed`.
+- **La guía por voz funciona mejor en Chrome y Edge.** Firefox no trae reconocimiento de voz y Brave no lo conecta a ningún servicio: ahí la guía se usa escribiendo. La voz con que habla depende de las voces instaladas en el sistema (en Linux suelen sonar robóticas o no haber ninguna).
 
 ## Créditos y licencias
 
