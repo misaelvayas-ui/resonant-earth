@@ -823,7 +823,7 @@
       oyePausadoEscucho: "«Oye Eco»: pausado mientras te escucho", oyePausadoRecorrido: "«Oye Eco»: pausado durante el recorrido", oyePausadoPienso: "«Oye Eco»: pausado mientras pienso",
       oyeActivando: "«Oye Eco»: activando el micrófono…", oyeRed: "«Oye Eco»: sin conexión con el servicio de voz; reintento en unos segundos",
       oyeNoDisponible: "«Oye Eco» no está disponible en este navegador. Usa la esfera o la tecla H.", oyeNoViable: "«Oye Eco» no funciona bien en este navegador y lo apagué. Usa la esfera o la tecla H.",
-      oyeLector: "«Oye Eco» está apagado con lector de pantalla.", oyeSinMicro: "«Oye Eco»: no encuentro ningún micrófono.", oyeDormido: "«Oye Eco» en pausa por 10 minutos sin uso: vuelve con tu próxima acción.",
+      oyeLector: "«Oye Eco» está apagado con lector de pantalla.", oyeSinMicro: "«Oye Eco»: no encuentro ningún micrófono.", oyeSinRed: "«Oye Eco» no puede entender la voz en este navegador y lo apagué. Escribe tu pregunta; para hablar usa Chrome o Edge.", oyeDormido: "«Oye Eco» en pausa por 10 minutos sin uso: vuelve con tu próxima acción.",
       oyePrimerClic: "«Oye Eco» se activa con tu primer clic.", oyeApagadoTexto: "«Oye Eco»: apagado.",
       seguir: "Escuchar de nuevo después de cada respuesta", voz: "Voz", vozAuto: "La más natural", velocidad: "Velocidad", probar: "Probar la voz", prueba: "Esta es la voz de la guía.",
       velocidades: ["lenta", "normal", "rápida"],
@@ -842,7 +842,7 @@
         "service-not-allowed": "El navegador no deja usar el micrófono en esta página. Puedes escribir tu pregunta.",
         "audio-capture": "No encuentro ningún micrófono. Conecta uno o escribe tu pregunta.",
         "no-speech": "No escuché nada. Pulsa la esfera o la tecla H y habla después del pitido.",
-        "network": "Para entender tu voz, este navegador necesita internet y no respondió. Puedes escribir tu pregunta.",
+        "network": "Este navegador no pudo conectar el reconocimiento de voz. Escribe tu pregunta; para hablar con Eco usa Chrome o Edge.",
         "language-not-supported": "Este navegador no entiende voz en español. Puedes escribir tu pregunta.",
       },
     },
@@ -870,7 +870,7 @@
       oyePausadoEscucho: "“Hey Eco”: paused while I listen to you", oyePausadoRecorrido: "“Hey Eco”: paused during the tour", oyePausadoPienso: "“Hey Eco”: paused while I think",
       oyeActivando: "“Hey Eco”: turning the microphone on…", oyeRed: "“Hey Eco”: no connection to the speech service; retrying in a few seconds",
       oyeNoDisponible: "“Hey Eco” is not available in this browser. Use the sphere or the H key.", oyeNoViable: "“Hey Eco” does not work well in this browser, so I turned it off. Use the sphere or the H key.",
-      oyeLector: "“Hey Eco” is off while using a screen reader.", oyeSinMicro: "“Hey Eco”: I cannot find a microphone.", oyeDormido: "“Hey Eco” paused after 10 minutes without use: it comes back with your next action.",
+      oyeLector: "“Hey Eco” is off while using a screen reader.", oyeSinMicro: "“Hey Eco”: I cannot find a microphone.", oyeSinRed: "“Hey Eco” cannot understand speech in this browser, so I turned it off. Type your question; to talk, use Chrome or Edge.", oyeDormido: "“Hey Eco” paused after 10 minutes without use: it comes back with your next action.",
       oyePrimerClic: "“Hey Eco” turns on with your first click.", oyeApagadoTexto: "“Hey Eco”: off.",
       seguir: "Listen again after each answer", voz: "Voice", vozAuto: "Most natural", velocidad: "Speed", probar: "Test the voice", prueba: "This is the guide's voice.",
       velocidades: ["slow", "normal", "fast"],
@@ -889,7 +889,7 @@
         "service-not-allowed": "The browser does not allow the microphone on this page. You can type your question.",
         "audio-capture": "I cannot find a microphone. Connect one or type your question.",
         "no-speech": "I did not hear anything. Press the sphere or the H key and speak after the beep.",
-        "network": "To understand your voice, this browser needs the internet and it did not respond. You can type your question.",
+        "network": "This browser could not connect speech recognition. Type your question; to talk to Eco use Chrome or Edge.",
         "language-not-supported": "This browser cannot understand speech in English. You can type your question.",
       },
     },
@@ -1358,10 +1358,11 @@
         if (e.error === "aborted") { callado = true; return; }
         if (oido.length) return;                                         // ya dijo algo: se atiende eso
         fallo = true;
-        if (auto) return;                                                // en la escucha de seguimiento, los fallos no se dicen
+        if (auto) { if (e.error === "network") { vigia.sinRed = true; apagarOye({ olvidar: false }); } return; }   // en la escucha de seguimiento, los fallos no se dicen
         if (e.error === "language-not-supported" && idiomaRec < idiomas.length - 1) { idiomaRec++; ventana.setTimeout(escuchar, 200); return; }
         let texto = u().errores[e.error] || u().errorVoz(e.error);
         if (e.error === "not-allowed" && ventana.isSecureContext === false) texto = u().https;
+        if (e.error === "network") { vigia.sinRed = true; apagarOye({ olvidar: false }); abrirEscribir(); }   // sin servicio de voz: se escribe
         responder(texto, { seguir: false });
       };
       mio.onend = () => {
@@ -1393,7 +1394,7 @@
     const depurarOye = true;
     const registroOye = (...x) => { if (depurarOye) { try { ventana.console.debug("[oye-eco]", ...x); } catch (e) { /* sin consola */ } } };
     const vigia = { encendido: false, rec: null, reloj: 0, ultimoUso: 0, reinicios: [], esperaHasta: 0, oyendo: false, inicio: 0,
-      fallosSeguidos: 0, denegado: false, sinMicro: false, noViable: false, dormido: false, red: 0, ultimoEstado: "" };
+      fallosSeguidos: 0, denegado: false, sinMicro: false, sinRed: false, noViable: false, dormido: false, red: 0, ultimoEstado: "" };
     const oyeMaxMs = () => { const m = Number(ventana.GUIA_VOZ_CONFIG && ventana.GUIA_VOZ_CONFIG.oyeMinutos); return m > 0 ? m * 60000 : OYE_MAX_MS; };
     const oyeElegido = () => leer().oye !== false;
     const oyePosible = () => !!Reconocedor && !modoLector() && !vigia.noViable;
@@ -1408,6 +1409,7 @@
       if (vigia.noViable) return ["no_viable", t.oyeNoViable];
       if (vigia.denegado) return ["sin_permiso", t.oyeSinPermiso];
       if (vigia.sinMicro) return ["sin_micro", t.oyeSinMicro];
+      if (vigia.sinRed) return ["sin_red", t.oyeSinRed];
       if (!vigia.encendido) {
         if (vigia.dormido) return ["dormido", t.oyeDormido];
         return oyeElegido() ? ["espera_clic", t.oyePrimerClic] : ["apagado", t.oyeApagadoTexto];
@@ -1450,7 +1452,7 @@
       pintarOye();
     }
     function vigilar() {
-      if (!vigia.encendido || vigia.rec || !oyePosible() || vigia.denegado || vigia.sinMicro || !guiaLibre() || Date.now() < vigia.esperaHasta) return;
+      if (!vigia.encendido || vigia.rec || !oyePosible() || vigia.denegado || vigia.sinMicro || vigia.sinRed || !guiaLibre() || Date.now() < vigia.esperaHasta) return;
       const idiomas = IDIOMAS_VOZ[guia.idioma];
       const r = vigia.rec = new Reconocedor();
       r.lang = idiomas[Math.min(idiomaRec, idiomas.length - 1)];    // el mismo idioma que ya aceptó el navegador para la guía
@@ -1476,7 +1478,7 @@
         if (e.error === "not-allowed" || e.error === "service-not-allowed") { vigia.denegado = true; apagarOye({ olvidar: false }); return; }
         if (e.error === "audio-capture") { vigia.sinMicro = true; apagarOye({ olvidar: false }); return; }
         if (e.error === "language-not-supported" && idiomaRec < idiomas.length - 1) { idiomaRec++; return; }   // se reintenta con la otra variante
-        if (e.error === "network") { vigia.red++; vigia.esperaHasta = Date.now() + Math.min(30000, 2000 * vigia.red); }
+        if (e.error === "network") { vigia.sinRed = true; registroOye("sin servicio de voz en este navegador: se apaga, sin reintentos"); apagarOye({ olvidar: false }); return; }
         // "no-speech" y "aborted" son normales en una escucha continua: se reinicia al terminar
       };
       r.onend = () => {                               // el navegador lo corta cada cierto tiempo: se reinicia
@@ -1819,7 +1821,7 @@
     ui.tecla.addEventListener("change", () => guardar({ tecla: ui.tecla.checked }));
     ui.oye.addEventListener("change", () => {           // la elección se recuerda
       guardar({ oye: ui.oye.checked });
-      if (ui.oye.checked) { vigia.denegado = false; vigia.sinMicro = false; pedirPermiso(); encenderOye(); } else apagarOye({ olvidar: true });
+      if (ui.oye.checked) { vigia.denegado = false; vigia.sinMicro = false; vigia.sinRed = false; pedirPermiso(); encenderOye(); } else apagarOye({ olvidar: true });
     });
     ui.oyeLineaApagar.addEventListener("click", () => { guardar({ oye: false }); apagarOye({ olvidar: true }); ui.hablar.focus(); });
     ui.oyeApagar.addEventListener("click", () => { const dentro = ui.oyeIndicador.contains(doc.activeElement); guardar({ oye: false }); apagarOye({ olvidar: true }); if (dentro) ui.hablar.focus(); });
