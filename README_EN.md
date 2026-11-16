@@ -156,7 +156,6 @@ salidas/       everything generated (WAV, MP4, PNG, JSON)
 herramientas/  calibrar.py, exportar_mapeo.py, exportar_web.py, validar_gistemp.py
 web/           the accessible web jukebox, in Spanish and English
 docs/          CAMBIOS.txt (change log), audits and specifications (in Spanish)
-archivo/       early exercises
 ```
 
 ## Known limitations

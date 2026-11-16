@@ -97,7 +97,7 @@ python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 | `07_validar.py` | comprueba tono y notas del WAV (con el video sintético, también tendencia de tono y paneo; con uno real esas quedan NO APLICA) → `salidas/validacion.png` + PASA/FALLA |
 | `08_video_con_audio.py [video] [wav] [mp4]` | une video y audio sincronizados → `salidas/demo_rocola.mp4` |
 
-`sintesis.py` es el motor de audio (osciladores, ADSR, escalas, paneo). Los ejercicios de síntesis básica (`01`–`03`) están en `archivo/`.
+`sintesis.py` es el motor de audio (osciladores, ADSR, escalas, paneo). Los ejercicios de síntesis básica (`01`–`03`) están en el tag git `practica-completa`.
 
 ## Video real (NASA SVS 5207)
 
@@ -188,8 +188,6 @@ herramientas/  calibrar.py   →  python -m herramientas.calibrar (barra vertica
                exportar_web.py   → python -m herramientas.exportar_web (MP4 y rasgos de web/assets desde la MISMA salida que el demo; comprueba el audio)
 web/           web del proyecto: GISTEMP y SST con globo 3D y rocola accesible (ver web/README.md)
 docs/          CAMBIOS.txt (historial de cambios), AUDITORIA.md y AUDITORIA_2.md (auditorías)
-archivo/       ejercicios 01–03, verificar_01/graficar_01, PLAN.md y sus salidas (nada se borró;
-               también está en el tag git "practica-completa")
 ```
 
 Variables de entorno: `ROCOLA_SALIDAS` y `ROCOLA_CONFIG` redirigen las carpetas; con `ROCOLA_SIN_AUDIO=1` no se reproduce sonido.
