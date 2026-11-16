@@ -1,7 +1,8 @@
 /* Resonant Earth — estilos de la guía por voz, «Eco» (los carga guia-voz.js).
-   La guía es un apartado propio, distinto de los botones de la web: una esfera violeta fija abajo a la derecha
+   La guía es un apartado propio, distinto de los botones de la web: una esfera azul cielo fija abajo a la derecha
    («Háblame») y, encima, su panel: cabecera (avatar, nombre y cerrar), subtítulo, estado, «Escribir» y
-   «Ayuda y opciones» plegado. La web usa azul; la guía usa violeta, con su propio brillo y su propio borde.
+   «Ayuda y opciones» plegado. Usa la paleta de la web (el azul cielo --acento de estilos.css); se distingue por su
+   avatar, su cabecera, su borde superior de luz y su brillo, no por otro color.
    Las frases rápidas se ven como atajos secundarios (una lista de enlaces discretos), no como botones de la web.
    Usa las tipografías y radios de estilos.css; los valores tras la coma son de respaldo.
 
@@ -14,14 +15,14 @@
    Los fondos con texto son opacos para que el contraste no dependa de lo que haya detrás. */
 
 .guia-voz {
-  --gv-acento: #c9b3ff;                 /* violeta claro: 11:1 sobre el fondo del panel */
-  --gv-acento-2: #8f78d6;
-  --gv-luz: 201, 179, 255;              /* el mismo violeta, para brillos con transparencia */
-  --gv-tinta: #f6f3ff;
-  --gv-tinta-2: #cdc6e0;
-  --gv-borde: #8d86a3;
-  --gv-fondo: #100c1e;
-  --gv-fondo-2: #1a1430;
+  --gv-acento: var(--acento, #86cdfa);  /* el azul cielo de la web: 10:1 o más sobre el fondo del panel */
+  --gv-acento-2: #4f86ad;               /* bordes: 4,5:1 o más sobre el fondo (mínimo 3:1 para bordes) */
+  --gv-luz: 134, 205, 250;              /* el mismo azul, para brillos con transparencia */
+  --gv-tinta: var(--tinta, #f3f6f8);
+  --gv-tinta-2: var(--tinta-2, #c3cad2);
+  --gv-borde: var(--linea-control, #7d8792);
+  --gv-fondo: #070b11;
+  --gv-fondo-2: #0f1a26;
   --gv-esfera: 92px;
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
@@ -59,7 +60,7 @@
   background:
     radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 24%),
     radial-gradient(circle at 72% 78%, rgba(var(--gv-luz), 0.9) 0%, rgba(var(--gv-luz), 0) 55%),
-    radial-gradient(circle at 50% 50%, #7a4fd6 0%, #2a1466 58%, #07030f 100%);
+    radial-gradient(circle at 50% 50%, #2f7ab8 0%, #0d2c4d 58%, #03070d 100%);
 }
 .gv-esfera {
   position: relative;
