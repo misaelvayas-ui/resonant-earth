@@ -12,7 +12,7 @@ mismas notas (mismo .mid, otro timbre). En el WAV el paneo se aplica después de
 muestras estéreo de la SoundFont ignoran el CC10.
 
 Uso:  python 06_rasgos_a_audio.py [rasgos.json] [--sintetico]
-Claves opcionales (vienen del config de 05; por defecto, DEFECTOS): README, "Configuración de 05".
+Claves opcionales (vienen del config de 05; por defecto, DEFECTOS): docs/CONFIG.md.
 Entorno: ROCOLA_SF2 = otra SoundFont; ROCOLA_SIN_AUDIO=1 = no reproducir.
 """
 import json
@@ -84,7 +84,7 @@ area = rellenar([r["area"] for r in R], 0.0)
 cx = rellenar([r["centroide_x"] for r in R], 0.5)
 media_s = media_movil(media, cfg["suavizado"]) if int(cfg["suavizado"]) > 1 else media
 
-# --- nota base por fotograma ---------------------------------------------
+# nota base por fotograma
 notas = escala(tonica_midi=48, octavas=3)                   # Do3 ... Do6
 v0, v1 = d.get("vmin_sonido", d["vmin"]), d.get("vmax_sonido", d["vmax"])   # rango propio del sonido
 midi = valor_a_nota(media_s, v0, v1, notas)
@@ -135,7 +135,7 @@ def n_notas(m):                                   # densidad según la anomalía
     return 1 if m < u1 else (2 if m <= u2 else 4)
 
 
-# --- melodía: lista de [inicio, fin, nota, velocidad] en ticks -------------
+# melodía: lista de [inicio, fin, nota, velocidad] en ticks
 idx_escala = {int(n): i for i, n in enumerate(notas)}
 por_fotograma, mel = [], []
 for i in range(n_f):
@@ -190,7 +190,7 @@ if cfg["humanizar"]:                              # semilla fija: mismo resultad
         a_[1] = max(a_[0] + 1, min(a_[1], b_[0] - 1))
 mel = [[ini, fin, int(np.clip(nota + 12 * octava, 0, 127)), v] for ini, fin, nota, v in mel]
 
-# --- archivo MIDI ----------------------------------------------------------
+# archivo MIDI
 ev = []                                           # (tick, orden, mensaje)
 for canal, prog in ((0, prog_mel), (1, prog_dron)):
     ev += [(0, 0, mido.Message("program_change", channel=canal, program=prog)),
@@ -219,7 +219,7 @@ archivo.save(ruta_mid)
 N = n_f * int(SEG_POR_FOTOGRAMA * FS)             # muestras totales (igual en los dos modos)
 
 
-# --- audio 1: instrumentos reales con FluidSynth ------------------------------
+# audio 1: instrumentos reales con FluidSynth
 def renderizar_canal(fs_bin, sf2, canal):
     """Renderiza SOLO un canal del .mid y devuelve (N, 2) float. Se hace por separado porque las
     muestras estéreo de la SoundFont ignoran el CC10 (paneo): el paneo se aplica después, por muestra."""
@@ -280,7 +280,7 @@ def renderizar_fluidsynth():
     return limitar(x)                                                       # mismo limitador que el respaldo (techo 0,85)
 
 
-# --- audio 2 (respaldo): síntesis numpy dirigida por las mismas notas ------------------------
+# audio 2 (respaldo): síntesis numpy dirigida por las mismas notas
 def sintetizar_numpy():
     spf = int(SEG_POR_FOTOGRAMA * FS)
     t_f = (np.arange(n_f) + 0.5) * spf
@@ -313,7 +313,7 @@ if estereo is None:
     estereo = sintetizar_numpy()
 guardar_wav(sal("rocola.wav"), estereo)
 
-# --- control.json: lo leen 07 y evaluar.py -----------------------------------------------------
+# control.json: lo leen 07 y evaluar.py
 voz = midi + 12 * octava
 fechas = [r.get("fecha") for r in R]
 tras = [i for i in range(n_f) if (voz[i:] >= nota_ref + 12 * octava).all()]

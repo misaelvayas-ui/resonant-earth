@@ -25,7 +25,7 @@ DRON_FLUID = 0.35                  # 06:DRON_FLUID, renderizar_fluidsynth: con F
 PISTAS = {"gistemp_1880_2023": "gistemp", "sst_ecco2_2007_2008": "sst"}
 
 
-# ---------------------------------------------------------------------------- utilidades (portables a JS)
+# utilidades (portables a JS)
 def redondear(x):
     """Redondeo al par en los empates (np.round / round de Python 3). En JS: ver ESPEC, redondearPar()."""
     return round(x)
@@ -81,7 +81,7 @@ def db_a_lineal(db):
     return 10 ** (db / 20)
 
 
-# ---------------------------------------------------------------------------- mapeo
+# mapeo
 def construir_mapeo(doc, id_="pista"):
     """Todos los parámetros que el JS necesita, a partir del rasgos.json (doc) de la pista."""
     R = doc["rasgos"]
@@ -238,7 +238,7 @@ def comprobar_mid(ruta_mid, ctl, calc):
     return fallas
 
 
-# ---------------------------------------------------------------------------- exportación
+# exportación
 def exportar(id_, carpeta, destino):
     for n in ("rasgos.json", "control.json", "rocola.mid"):
         if not os.path.exists(os.path.join(carpeta, n)):

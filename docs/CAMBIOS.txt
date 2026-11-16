@@ -1,4 +1,5 @@
 REGISTRO DE CAMBIOS - resonant-earth
+El código de cada ronda se escribió con ayuda de Claude Code y lo revisó el equipo (ver «Uso de IA» en README.md).
 
 ======================================================================
 RONDA 1 - verificación de 01_tono_prueba.py   (2026-11-12)
@@ -200,7 +201,7 @@ Causa: listas de edición (elst) del MP4 que ffmpeg escribe para ocultar el
 retardo de los B-frames (video) y el relleno inicial del AAC (audio); VLC las
 maneja mal. Se probaron 4 variantes en VLC (sin B-frames / sin listas de
 edición / audio 48 kHz / todo junto): la variante sin listas de edición
-funcionó (confirmado por el usuario).
+funcionó (confirmado en VLC).
 
 CAMBIOS EN 08_video_con_audio.py
 --------------------------------
@@ -226,7 +227,7 @@ entrecortes; esa combinación exacta no se probó como variante.
 
 
 ======================================================================
-RONDA 5 - reorganización + evaluar.py (pedida como "Ronda 3")   (2026-11-12)
+RONDA 5 - reorganización + evaluar.py   (2026-11-12)
 ======================================================================
 (Numerada 5 porque las rondas 1-4 ya existían; PLAN.md es docs/PLAN.md.)
 
@@ -348,7 +349,7 @@ RONDA 7 - 08: vuelta a la configuración confirmada en VLC   (2026-11-12)
 ======================================================================
 
 PROBLEMA: el demo generado en la ronda 4 (con -bf 0, -g 20 y tpad añadidos) volvió a
-entrecortarse en VLC. La variante que el usuario había confirmado SIN entrecortes fue
+entrecortarse en VLC. La variante confirmada SIN entrecortes fue
 solo "-use_editlist 0" (sin -bf 0, sin -g 20, sin tpad); la combinación final nunca se
 había probado en VLC (lo anotó la ronda 4 como pendiente).
 
@@ -400,7 +401,7 @@ herramientas/calibrar.py  NUEVO. python -m herramientas.calibrar [--vmin --vmax 
   - Rango de °C: la barra trae las cifras como imagen y no hay OCR. El script dibuja la barra
     sobre fondo gris con líneas en los extremos del degradado en salidas/calibracion.png y pide
     --vmin/--vmax. LEÍDO A OJO en esa imagen: +2 °C arriba y -2 °C abajo (marcas de 1 °C
-    equiespaciadas; las de °F, 3 °F = 1,67 °C, cuadran). PENDIENTE de confirmar por el usuario.
+    equiespaciadas; las de °F, 3 °F = 1,67 °C, cuadran). PENDIENTE de confirmar.
   - Escribe config/config_eic.json: escala 0,25, ponderar_latitud (si el mapa es 2:1 y a alto
     completo), fechas, referencia 0, dist_max = percentil 95 de las distancias (17), umbral 1,0.
 evaluar.py            Pruebas C4 (ponderar_latitud) y C5 (escala + fechas + defecto = escala 1,0)
@@ -646,7 +647,7 @@ Antes: commit de la ronda 18.
 evaluar.py: 29 PASA, 0 FALLA.
 
 RONDA 20 - web/: rocola web accesible con el estilo "universo en movimiento"   (2026-11-14)
-Hecho con ayuda de IA (Claude, de Anthropic) en el código; revisado y probado por Juan.
+Revisado y probado por Juan.
 Problema: el repositorio no tenía interfaz para escuchar las visualizaciones (B1 de la ronda 18: "sin Web Audio /
 HTML / JS en el repo").
 Cambio: se agrega la carpeta web/ (HTML, CSS y JS puros, sin frameworks ni compilación) y
@@ -769,7 +770,7 @@ Antes: commit c816180 (master). No se modificó ningún script del pipeline ni n
 Hallazgos: SST casi no varía de volumen (ganancia 0,912-1,0 con area/area_max); el pan de SST solo recorre -0,525..+0,495 (rama estrecha); GISTEMP usa rama amplia.
 
 RONDA 27 - web/: marca de agua "Generado con IA" en el logo (rama juan/marca-ia)   (2026-11-14)
-Hecho con ayuda de IA (Claude, de Anthropic) en el código; revisado por Juan.
+Revisado por Juan.
 Antes: commit 0505d9d (master). Solo se tocó web/ y este archivo.
 Problema: el logo de Resonant Earth fue generado con IA y las reglas del evento piden una marca de agua visible en las
 imágenes o videos generados con IA. El README y el pie lo decían, pero la imagen descargada no llevaba nada.
@@ -858,7 +859,7 @@ Resultados (ventanas de 0,5 s; marimba = canal 0 solo, "más de 15 dB bajo su ni
    SST      marimba floja  7 de 61 -> 3 de 61;                              WAV completo: 0 ventanas < -40 dB, 0 caídas > 12 dB, mínima -25,3 dB
 
 RONDA 31 - tono por diferencia entre hemisferios: "hemisferios" (05) y "rasgo_tono" (06), rama juan/tono-hemisferios   (2026-11-14)
-Hecho con ayuda de IA (Claude, de Anthropic) en el código; revisado y probado por Juan.
+Revisado y probado por Juan.
 Antes: commit 575023f (misael/sst, ya en master). Solo se tocaron 05, 06 y este archivo.
 Problema: en el video del mar (SVS 3912, ECCO2) la media global casi no cambia en el año: varía menos de 1 °C (ronda 24:
 21,48-22,44). Para que la melodía use la escala hay que estirar ese grado sobre 3 octavas, y entonces se oye sobre todo el
@@ -899,7 +900,7 @@ año, como corresponde a un ciclo. Sin pruebas nuevas en evaluar.py.
 evaluar.py en esta máquina: 33 PASA, 3 FALLA (C2, C3, D1), idéntico prueba por prueba al de misael/sst sin estos cambios
 (D1: 08 ya corre con ffmpeg 9, pero el video empieza 0,200 s después del audio y el límite es 0,15 s).
 Actualización tras fusionar master (rondas 27-30, PR #7 y #8): el bloque pasa de ronda 28 a ronda 31 y se añade el modo en vivo.
-Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Se tocaron herramientas/exportar_mapeo.py,
+Revisado por Juan. Se tocaron herramientas/exportar_mapeo.py,
 docs/ESPEC_MODO_EN_VIVO.md, evaluar.py y este archivo. 05 y 06 no cambian respecto a la versión anterior de esta rama.
 3. Modo en vivo con "rasgo_tono": construir_mapeo() y aplicar_mapeo() leen el rasgo del tono igual que 06 (relleno
    (vmin_sonido + vmax_sonido)/2, mensaje claro si falta el rasgo o el rango). El _mapeo.json lleva "rasgo_tono" SOLO si no
@@ -922,7 +923,7 @@ de la media, no de la diferencia entre hemisferios.
 
 RONDA 32 - web nueva: solo GISTEMP y SST, globo 3D y rocola accesible (rama misael/web-nueva)   (2026-11-14)
 Antes: commit 0cf4c5c (master, con los PR #6, #7 y #8). Las rondas 31-35 del PR #9 (Alberto, aún sin fusionar) chocan en número con la 31 de Juan y chocarán también en web/.
-Decisión de Misael: rehacer la web desde cero mostrando solo lo importante del pipeline (GISTEMP y SST). Plan: .claude/plans/plan-20261114-163945.md.
+Decisión de Misael: rehacer la web desde cero mostrando solo lo importante del pipeline (GISTEMP y SST).
 1. Se borró la web anterior: web/app.js, describir.js, catalogo.json, GUIA_ESTILO.md, capturas/, preparar_datos.py, el ejemplo sintético (mp4 y rasgos) y el logo generado con IA (logo*.jpg).
 2. Web nueva en web/ (HTML, CSS y JS puro con módulos ES, sin compilación): index.html, estilos.css, pistas.json, equipo.json y js/ (principal, datos, audio, rocola, lectura,
    grafico, visualizador, globo, animaciones, tarjetas). Hero con globo 3D (Three.js, Blue Marble y Black Marble de NASA) y anillo de sonido que sigue el espectro real; rocola con
@@ -1014,7 +1015,7 @@ NO comprobado (lista manual del plan, 5.4): Firefox de escritorio, Safari de mac
 escucha con auriculares del paneo hacia la derecha, lector de pantalla real (Orca o NVDA) y pestaña oculta 10 s. Sin PR todavía.
 
 RONDA 38 - revisión del modo en vivo (rama misael/en-vivo)   (2026-11-15)
-Origen: revisión con Claude en Chrome (0 errores de consola; sincronía, autoplay, casillas, búsqueda y final OK). Sin cambios en el pipeline.
+Origen: revisión en Chrome (0 errores de consola; sincronía, autoplay, casillas, búsqueda y final OK). Sin cambios en el pipeline.
 1. Eje del paneo, comprobado con dos videos sintéticos (fuera del repo, con "paneo": "y"). (a) Tormenta que sube de sur a norte: centroide_y de 0,107 a 0,847 y pan de 06 de -0,65 a +1,0 (los fotogramas con area < 0,01 van al centro).
    (b) Banda caliente en el centro y luego en el 10 % superior del mapa: centroide_y 0,502 -> 0,933 y pan -1,0 -> +1,0. El eje es correcto: 05 da valores cercanos a 1 con el calor al norte y 06 panea a la derecha. Ojo: el pan es RELATIVO
    (percentiles 5-95 de la serie): una banda siempre al norte daría pan 0.
@@ -1023,11 +1024,11 @@ Origen: revisión con Claude en Chrome (0 errores de consola; sincronía, autopl
    Corregido también el punto 3 de la lista manual del plan: decía «derecha hacia 2000-2023» y los datos dan el centro.
 3. Gráfico: aria-valuenow y aria-valuetext siguen la reproducción solo al cambiar de fotograma y como mucho una vez por segundo, no pisan lo que se elige con las flechas (4 s) y cambian al instante con el clic. Prueba V29 (6 cambios en 6 s, separación mínima 1000 ms).
 4. A 390 px el texto de ayuda del modo reserva su alto (2 líneas; 3 hasta 480 px): las casillas y el gráfico no se mueven al cambiar de modo. V27 lo mide; sin la reserva se movían 25 px.
-Comprobado: node --test 13 PASA; evaluar.py 46 PASA, 0 FALLA; verificar.cjs completo (V1-V29) PASA. El scratchpad de pruebas se limpió durante la ronda: se reinstalaron Playwright y los webm fuera del repo.
+Comprobado: node --test 13 PASA; evaluar.py 46 PASA, 0 FALLA; verificar.cjs completo (V1-V29) PASA. La carpeta temporal de pruebas se borró durante la ronda: se reinstalaron Playwright y los webm fuera del repo.
 
 RONDA 39 - mejoras de docs/REVISION_Y_MEJORAS.md: macOS, informes que no se cortan, validación oficial, web de entrega (rama mejoras/ronda-38)   (2026-11-15)
 Base: master (ronda 36) + fusión de misael/en-vivo (ronda 37, modo de sonido en vivo). Máquina: macOS Intel, Python 3.13.4, ffmpeg 8.0.1 de Homebrew, Node 24, sin FluidSynth.
-1. Video en macOS (fallo 1 del PROMPT_SIGUIENTE_AGENTE y hallazgo H2). video_io.py nuevo: abrir_escritor() prueba cada método con un video diminuto que se vuelve a leer y usa el primero que sirve
+1. Video en macOS (hallazgo H2). video_io.py nuevo: abrir_escritor() prueba cada método con un video diminuto que se vuelve a leer y usa el primero que sirve
    (opencv mp4v -> ffmpeg mpeg4 -> ffmpeg h264 sin pérdida -> ffmpeg h264 -> opencv avc1); aborta con mensaje si ninguno. En esta Mac elige "ffmpeg mpeg4" (el mismo códec que mp4v en Linux).
    Lo usan 04 y los 4 escritores de evaluar.py. 04 sale con error si el video no se puede releer. Medido: antes 04 no creaba archivo y evaluar.py moría sin tabla; con "opencv avc1" C1 fallaba (error 0,0130 > 0,01);
    con "ffmpeg mpeg4" C1 pasa sin tocar el umbral.
@@ -1097,7 +1098,7 @@ Primera ejecución de .github/workflows/pruebas.yml: Ubuntu 46 PASA + K1 con Flu
 alto_video() de 08 y en duracion() de exportar_web (duracion_real y cadencia ya lo hacían). Aquí: evaluar.py 46 PASA, 0 FALLA, 1 OMITIDA.
 
 RONDA 43 - web en inglés (rama misael/aporte-pr9)   (2026-11-16)
-Pedido: la web bilingüe, rehecha sobre la web actual (no se trae nada de la web vieja del PR #9; solo se tomó como base el inglés de sus textos).
+Objetivo: la web bilingüe, rehecha sobre la web actual (no se trae nada de la web vieja del PR #9; solo se tomó como base el inglés de sus textos).
 1. web/js/idioma.js (nuevo): idioma («es» por defecto; ?lang=en o ?lang=es; si no, el recordado en localStorage con try/catch), <html lang>, og:locale
    y el selector ES/EN de la cabecera (dos botones con aria-pressed y aria-label «Español» / «English»; a 390 px quedan junto al botón Menú).
    Los textos fijos de index.html llevan data-t (texto) o data-t-attr (aria-label, title, meta content): el español se queda en la página y el inglés
@@ -1110,7 +1111,7 @@ Pedido: la web bilingüe, rehecha sobre la web actual (no se trae nada de la web
 4. equipo.json no se tocó: si un integrante lleva «carrera_en» o «aporte_en» se usan en inglés; si no, se ve el español.
 5. Prueba V33 (verificar.cjs): selector con teclado, <html lang>, ?lang=, recuerdo tras recargar, ningún texto fijo sin traducir y axe sin violaciones en inglés a 1440 y 390 px.
 Comprobado: node --test 13 PASA; verificar.cjs V1-V33 todo PASA; evaluar.py 47 PASA.
-Pendiente de revisión humana: la calidad del inglés (lo escribió una IA), el texto de las carreras del equipo y probar con un lector de pantalla real en inglés.
+Pendiente: revisión del inglés por una persona nativa, el texto de las carreras del equipo y una prueba con lector de pantalla real en inglés.
 
 RONDA 44 - limpieza final de código y documentación (rama misael/limpieza-final)   (2026-11-16)
 1. Eliminados: archivo/ (el tag practica-completa lo conserva), docs/AUDITORIA*.md, docs/PLAN_MODO_EN_VIVO.md, docs/REVISION_Y_MEJORAS.md, docs/CONTEXTO_ESTETICA_WEB.md y docs/catalogo_propuesto.json. Las decisiones de diseño del modo en vivo pasan a la sección 5 de docs/ESPEC_MODO_EN_VIVO.md.

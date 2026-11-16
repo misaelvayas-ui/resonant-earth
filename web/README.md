@@ -1,6 +1,6 @@
 # Escucha la Tierra · web de Resonant Earth
 
-> La carpeta `web/` se hizo con ayuda de IA (Claude Code). No usa el logotipo de la NASA ni imágenes generadas con IA.
+> El código de `web/` se escribió con ayuda de Claude Code y lo revisó el equipo (ver «Uso de IA» en el README principal). No usa el logotipo de la NASA ni imágenes generadas con IA.
 
 Página única para el jurado del NASA Space Apps Challenge 2026 (Quito), en español e inglés. Tiene las dos pistas reales del pipeline: GISTEMP (temperatura del planeta, 1881–2023) y SST/ECCO2 (temperatura y corrientes del mar, 2007–2008). Es HTML, CSS y JavaScript con módulos ES, sin compilación.
 

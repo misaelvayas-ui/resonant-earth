@@ -18,14 +18,12 @@ export function iniciarAnimaciones() {
   };
 
   mm.add("(prefers-reduced-motion: no-preference)", () => {
-    // carga del hero
     const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
     tl.from(".barra", { opacity: 0, duration: 0.6 }, 0)
       .from(".heroe-titulo .linea", { y: 24, opacity: 0, duration: 0.9, ease: "power3.out", stagger: 0.08 }, 0)
       .from(".heroe-cierre", { y: 16, opacity: 0, duration: 0.6 }, 0.35)
       .from(".escucha-lista > div", { x: -12, duration: 0.5, stagger: 0.06 }, 0.5)      // sin opacity: la lista nunca se ve vacía
       .from(".cifra-ficha, .heroe-tarjetas > *", { y: 16, opacity: 0, duration: 0.6, stagger: 0.1, clearProps: "opacity,y" }, 0.7);
-    // contadores
     document.querySelectorAll(".cifra").forEach((c) => {
       const fin = Number(c.dataset.valor);
       const o = { v: 0 };
@@ -33,20 +31,17 @@ export function iniciarAnimaciones() {
         onUpdate: () => { c.textContent = Math.round(o.v); },
         onComplete: () => { c.textContent = fin; } }, 0.8);
     });
-    // entradas con scroll
     gsap.set(".revelar", { opacity: 0 });
     ScrollTrigger.batch(".revelar", {
       start: "top 85%", once: true,
       onEnter: (els) => gsap.fromTo(els, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out", stagger: 0.08, overwrite: true }),
     });
-    // línea del pipeline
     const lineas = gsap.utils.toArray(".linea-pipeline");
     gsap.set(lineas, { strokeDashoffset: 1 });
     ScrollTrigger.create({
       trigger: ".pipeline", start: "top 70%", end: "bottom 60%", scrub: 0.6,
       onUpdate: (s) => { lineas.forEach((l) => { l.style.strokeDashoffset = String(1 - s.progress); }); marcarPasos(s.progress); },
     });
-    // paralaje del hero
     gsap.to(".heroe-contenido", { y: -60, opacity: 0.2, ease: "none", scrollTrigger: { trigger: "#inicio", start: "top top", end: "bottom top", scrub: true } });
     gsap.to("#globo", { scale: 1.06, ease: "none", scrollTrigger: { trigger: "#inicio", start: "top top", end: "bottom top", scrub: true } });
   });
