@@ -1217,3 +1217,13 @@ lo permite), voces reales, lectores de pantalla reales. «Oye Eco» depende de q
 micrófono de mentira se probaron las variantes escritas, no cómo las transcribe cada navegador.
 No hace falta volver a publicar el servicio por la ronda 39 (solo cambió la web).
    verificar.cjs: pasa todo menos V11 (la intermitente de siempre, ver la nota de la ronda 38).
+
+RONDA 40 - guía por voz: recorrido completo, barra de subtítulos y «Oye Eco» por defecto   (2026-11-15)
+Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit 1236663 (ronda 39).
+1. Recorrido con las dos pistas sonando: 8 pasos. Presenta la web; pista 1 (GISTEMP): la elige, suena, muestra el botón,
+   salta antes del máximo (2023) y lo explica en el gráfico; pista 2 (mar): cambia, pulsa reproducir si hace falta («Escucha
+   cómo suena el mar»), salta antes de su punto más bajo (nov 2007) y lo explica en la lectura; cierra invitando a explorar.
+   Textos más cortos para seguir en 40 a 60 s. Tocados: web/guia-voz.js, web/pruebas/guia-voz.test.js, web/README.md.
+   Verificado: node --test 29 (la pista actual termina en la 2 y suena; llamadas elegir 0, irA, elegir 1, irA); navegador,
+   recorrido y bienvenida 41 de 41: recorrido completo en 41 s, la pista actual cambia al mar y suena (sonando = true)
+   mientras se presenta y en su salto.

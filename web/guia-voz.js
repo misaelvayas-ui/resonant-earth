@@ -492,11 +492,13 @@
       recorrido: {
         bienvenida: "Te doy la bienvenida a Resonant Earth. Aquí los mapas de la NASA se vuelven música: cuanto más caliente está el mapa, más agudo suena.",
         primera: (t, desde) => `Primera pista: ${t}${desde ? `, desde ${desde}` : ""}. Escucha cómo empieza.`,
-        salto: (f, v) => `Salto hacia ${f}: ${v}. Es el punto más alto de la pista, por eso la melodía suena cada vez más aguda.`,
-        segunda: (t, dir, min) => `Segunda pista: ${t}.` + (dir ? ` Aquí la melodía ${dir}: su punto más bajo es ${min}.` : ""),
+        salto: (f, v) => `Salto hacia ${f}: ${v}. Es el punto más alto: por eso la melodía sube hasta aquí.`,
+        segunda: (t, dir) => `Segunda pista: ${t}.` + (dir ? ` Aquí la melodía ${dir}.` : ""),
         direccion: { sube: "sube", baja: "baja", "sube y baja": "sube y baja" },
-        boton: "Con este botón pausas y sigues cuando quieras.",
-        fin: "Fin del recorrido. Pulsa la esfera Háblame y pregúntame lo que quieras.",
+        boton: "Con este botón pausas cuando quieras.",
+        suenaMar: "Escucha cómo suena el mar.",
+        saltoMar: (f, v) => `Salto hacia ${f}: ${v}. Es el punto más bajo: por eso suena más grave.`,
+        fin: "Fin del recorrido. Ahora explora tú, o pregúntame lo que quieras.",
       },
     },
     en: {
@@ -531,11 +533,13 @@
       recorrido: {
         bienvenida: "Welcome to Resonant Earth. Here NASA maps become music: the warmer the map, the higher the sound.",
         primera: (t, desde) => `First track: ${t}${desde ? `, starting in ${desde}` : ""}. Listen to how it begins.`,
-        salto: (f, v) => `Jumping towards ${f}: ${v}. It is the highest point of the track, which is why the melody keeps getting higher.`,
-        segunda: (t, dir, min) => `Second track: ${t}.` + (dir ? ` Here the melody ${dir}: its lowest point is ${min}.` : ""),
+        salto: (f, v) => `Jumping towards ${f}: ${v}. It is the highest point: the melody climbs up to here.`,
+        segunda: (t, dir) => `Second track: ${t}.` + (dir ? ` Here the melody ${dir}.` : ""),
         direccion: { sube: "rises", baja: "falls", "sube y baja": "rises and falls" },
-        boton: "With this button you pause and resume whenever you like.",
-        fin: "End of the tour. Press the sphere and ask me anything.",
+        boton: "This button pauses whenever you like.",
+        suenaMar: "Listen to how the ocean sounds.",
+        saltoMar: (f, v) => `Jumping towards ${f}: ${v}. It is the lowest point: that is why it sounds lower.`,
+        fin: "End of the tour. Now it is your turn: explore, or ask me anything.",
       },
     },
   };
@@ -584,20 +588,24 @@
   function guionRecorrido(A, idioma = "es") {
     const pistas = A.pistas(idioma), R0 = textos(idioma).recorrido, f = (x) => fechaDicha(x, idioma);
     const de = (i) => { const d = (A.detalle && pistas[i] && A.detalle(i)) || {}; return { ...d, resumen: resumenSerie(d.serie) }; };
-    const pasos = [{ accion: null, pausa: 300, texto: R0.bienvenida, lugar: "pistas" }];
+    const pasos = [{ accion: null, pausa: 0, texto: R0.bienvenida, lugar: "pistas" }];
     if (pistas[0]) {
       const d = de(0), R = d.resumen;
       pasos.push({ accion: { tipo: "elegir", numero: 1 }, pulsar: { control: "pista", indice: 0 }, lugar: "reproductor", pausa: 2500,
         texto: R0.primera(pistas[0].titulo, R ? f(R.tendencia.inicio.fecha) : "") });
-      pasos.push({ accion: { tipo: "reproducir" }, pulsar: { control: "reproducir" }, lugar: "reproducir", pausa: 500, texto: R0.boton });
+      pasos.push({ accion: { tipo: "reproducir" }, pulsar: { control: "reproducir" }, lugar: "reproducir", pausa: 300, texto: R0.boton });
       // unos segundos antes del punto más alto: la música sube hasta él mientras la guía lo cuenta
       if (R) pasos.push({ accion: { tipo: "saltar_tiempo", segundos: Math.max(0, Math.round((R.maximo.t - 7) * 10) / 10) }, pulsar: { control: "avance" }, lugar: "grafico", pausa: 2000,
         texto: R0.salto(f(R.maximo.fecha), valorDicho(R.maximo.valor, d, idioma)) });
     }
     if (pistas[1]) {
       const d = de(1), R = d.resumen;
-      pasos.push({ accion: { tipo: "elegir", numero: 2 }, pulsar: { control: "cambiar" }, lugar: "lectura", pausa: 2500,
-        texto: R0.segunda(pistas[1].titulo, R ? R0.direccion[R.tendencia.direccion] : "", R ? f(R.minimo.fecha) : "") });
+      // la segunda pista también se oye de verdad: se cambia, se pulsa reproducir si hace falta, y se salta a su momento clave
+      pasos.push({ accion: { tipo: "elegir", numero: 2 }, pulsar: { control: "cambiar" }, lugar: "reproductor", pausa: 300,
+        texto: R0.segunda(pistas[1].titulo, R ? R0.direccion[R.tendencia.direccion] : "") });
+      pasos.push({ accion: { tipo: "reproducir" }, pulsar: { control: "reproducir" }, lugar: "reproducir", pausa: 2000, texto: R0.suenaMar });
+      if (R) pasos.push({ accion: { tipo: "saltar_tiempo", segundos: Math.max(0, Math.round((R.minimo.t - 4) * 10) / 10) }, pulsar: { control: "avance" }, lugar: "lectura", pausa: 2000,
+        texto: R0.saltoMar(f(R.minimo.fecha), valorDicho(R.minimo.valor, d, idioma)) });
     }
     pasos.push({ accion: null, pausa: 0, texto: R0.fin });
     return pasos;

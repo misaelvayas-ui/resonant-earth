@@ -304,15 +304,16 @@ test("las tres frases sugeridas tienen respuesta sin IA, con cifras que están e
   }
 });
 
-test("recorrido: guion fijo, solo acciones permitidas, cifras de los datos y unos 40 segundos", async () => {
+test("recorrido: guion fijo con las dos pistas sonando, solo acciones permitidas, cifras de los datos y de 40 a 60 segundos", async () => {
   const { ACCIONES, validarRespuesta, aAccionLocal } = require("../guia-voz-ia.js");
   const r = reproductorReal();
   const pasos = guionRecorrido(r.A);
-  assert.equal(pasos.length, 6);
-  assert.deepEqual(pasos.map((p) => (p.accion ? p.accion.tipo : null)), [null, "elegir", "reproducir", "saltar_tiempo", "elegir", null]);
-  // cada paso señala un lugar de la lista fija, y cuatro pulsan un control de verdad: elegir pista, reproducir, saltar y cambiar de pista
-  assert.deepEqual(pasos.map((p) => p.lugar || null), ["pistas", "reproductor", "reproducir", "grafico", "lectura", null]);
-  assert.deepEqual(pasos.map((p) => (p.pulsar ? p.pulsar.control : null)), [null, "pista", "reproducir", "avance", "cambiar", null]);
+  assert.equal(pasos.length, 8);
+  // pista 1: elegir, reproducir y saltar a su momento clave; pista 2: cambiar, reproducir y saltar a su momento clave
+  assert.deepEqual(pasos.map((p) => (p.accion ? p.accion.tipo : null)), [null, "elegir", "reproducir", "saltar_tiempo", "elegir", "reproducir", "saltar_tiempo", null]);
+  assert.deepEqual(pasos.map((p) => p.lugar || null), ["pistas", "reproductor", "reproducir", "grafico", "reproductor", "reproducir", "lectura", null]);
+  assert.deepEqual(pasos.map((p) => (p.pulsar ? p.pulsar.control : null)), [null, "pista", "reproducir", "avance", "cambiar", "reproducir", "avance", null]);
+  assert.deepEqual(pasos.filter((p) => p.accion && p.accion.tipo === "elegir").map((p) => p.accion.numero), [1, 2]);
   for (const p of pasos.filter((x) => x.lugar)) assert.ok(LUGARES.includes(p.lugar), p.lugar);
   for (const p of pasos.filter((x) => x.accion)) {
     assert.ok(ACCIONES_RECORRIDO.includes(p.accion.tipo) && ACCIONES.includes(p.accion.tipo), p.accion.tipo);
@@ -322,9 +323,10 @@ test("recorrido: guion fijo, solo acciones permitidas, cifras de los datos y uno
     assert.ok(v, JSON.stringify(p.accion)); assert.deepEqual(aAccionLocal(v), { ...p.accion, ...(tipo === "saltar_tiempo" ? {} : {}) });
     await ejecutar(p.accion, r.A, {});
   }
-  assert.deepEqual(r.llamadas, ["elegir 0", "irA 22.0", "elegir 1"]);                         // GISTEMP, su momento clave, y el mar
+  assert.deepEqual(r.llamadas, ["elegir 0", "irA 22.0", "elegir 1", "irA " + (Math.round((resumenSerie(SERIES[1]).minimo.t - 4) * 10) / 10).toFixed(1)]);   // GISTEMP y su momento clave; el mar y el suyo
+  assert.equal(r.actual, 1); assert.equal(r.sonando, true, "al final suena la pista 2");
   const texto = pasos.map((p) => p.texto).join(" ");
-  assert.match(texto, /bienvenida a Resonant Earth/); assert.match(texto, /Salto hacia 2023: más 1,06 grados/); assert.match(texto, /punto más bajo es nov 2007/); assert.match(texto, /Fin del recorrido/);
+  assert.match(texto, /bienvenida a Resonant Earth/); assert.match(texto, /Salto hacia 2023: más 1,06 grados/); assert.match(texto, /Escucha cómo suena el mar/); assert.match(texto, /Salto hacia nov 2007: índice [\d,]+\. Es el punto más bajo/); assert.match(texto, /Fin del recorrido\. Ahora explora tú/);
   // palabras a 2,5 por segundo, las pausas, y 1,5 s por cada vez que el puntero va a un control
   const palabras = texto.split(/\s+/).length, segundos = palabras / 2.5 + pasos.reduce((a, p) => a + p.pausa, 0) / 1000 + 1.5 * pasos.filter((p) => p.pulsar).length;
   assert.ok(segundos >= 40 && segundos <= 60, `duración estimada ${segundos.toFixed(0)} s (${palabras} palabras)`);
@@ -396,7 +398,7 @@ test("en inglés: las frases sugeridas, las respuestas fijas y el recorrido sale
   assert.deepEqual(en.map((p) => p.accion), es.map((p) => p.accion));
   const texto = en.map((p) => p.texto).join(" ");
   assert.match(texto, /^Welcome to Resonant Earth/); assert.match(texto, /First track: Planet temperature, starting in 1881/); assert.match(texto, /Jumping towards 2023: plus 1\.06 degrees/);
-  assert.match(texto, /rises and falls: its lowest point is November 2007/); assert.match(texto, /End of the tour/);
+  assert.match(texto, /Here the melody rises and falls/); assert.match(texto, /Jumping towards November 2007: index [\d.]+\. It is the lowest point/); assert.match(texto, /End of the tour\. Now it is your turn/);
   assert.ok(!/[áéíóúñ¿¡«»]/i.test(texto), "el recorrido en inglés no lleva español");
   // los dos idiomas tienen exactamente los mismos textos
   const claves = (o) => Object.keys(o).sort().join();
