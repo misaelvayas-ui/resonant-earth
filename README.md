@@ -163,6 +163,7 @@ Variables de entorno útiles: `ROCOLA_SALIDAS` y `ROCOLA_CONFIG` permiten rediri
 - **Tolerancia de color en SVS 5207:** el mapa tiene tonos ligeramente más lavados que su barra de referencia, motivo por el cual `config_eic.json` eleva `dist_max` a `17`.
 - **Duración y sincronización:** cada fotograma muestreado dura 0,5 s de audio (`SEG_POR_FOTOGRAMA` en `06`). Si `fps_muestreo` es distinto de 2, `08` estira o comprime la velocidad del video para ajustar la duración. En `demo_rocola.mp4` el video inicia 0,1 s después del audio para evitar cortes de reproducción en VLC.
 - **Cobertura de navegadores:** probado a fondo en Chromium (escritorio y móvil) y con lectores de pantalla en español; falta validación completa en Safari, Firefox y lectores de pantalla en inglés.
+- **Guía por voz:** funciona mejor en Chrome y Edge. Firefox no trae reconocimiento de voz y Brave no lo conecta a ningún servicio, así que ahí la guía se usa escribiendo; la voz con que habla depende de las voces instaladas en el sistema.
 
 El registro detallado de cada iteración y sus mediciones está en [docs/CAMBIOS.txt](docs/CAMBIOS.txt).
 
