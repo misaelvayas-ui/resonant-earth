@@ -150,6 +150,13 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 6px; border: 1px solid
 .marco { position: relative; border: 1px solid var(--linea); border-radius: var(--r-marco); overflow: hidden; background: var(--negro); }
 .fecha-video { position: absolute; left: var(--e-4); top: var(--e-4); padding: 6px 14px; border-radius: var(--r-pildora); background: rgba(0, 0, 0, .78); border: 1px solid var(--linea); color: var(--tinta); font: 300 clamp(1.1rem, 3.2vw, 1.75rem)/1.2 var(--f-titular); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; pointer-events: none; }
 .fecha-video[hidden] { display: none; }
+/* explorar el mapa: capa sobre el video (misma proporción 2:1) con una mira */
+.zona-explorar { position: absolute; left: 0; top: 0; width: 100%; aspect-ratio: 2 / 1; cursor: crosshair; touch-action: none; }
+.zona-explorar[hidden] { display: none; }
+.zona-explorar:focus-visible { outline: 3px solid var(--acento); outline-offset: -3px; }
+.mira { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px #000, inset 0 0 0 2px #000; pointer-events: none; }
+.explorar-texto { min-height: 1.5em; margin: 0; color: var(--tinta); }
+.explorar-texto:empty { display: none; }
 #medio { width: 100%; aspect-ratio: 2 / 1; object-fit: contain; background: var(--negro); }
 #visualizador { width: 100%; height: 96px; border-top: 1px solid var(--linea); }
 .cabecera-pista { display: grid; gap: var(--e-2); }
@@ -168,6 +175,9 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 6px; border: 1px solid
 #modo-ayuda { min-height: 3.2em; }   /* alto de 2 líneas reservado: al cambiar de modo el texto cambia de largo y las casillas no deben moverse */
 .volumen { font-size: var(--t-chico); color: var(--tinta-2); }
 input[type="range"], input[type="checkbox"] { accent-color: var(--acento); }
+input[type="checkbox"] { width: 1.5rem; height: 1.5rem; flex: none; }
+input[type="range"] { min-height: 1.5rem; }
+.grupo-volumen { display: inline-flex; align-items: center; gap: .6rem; }   /* la etiqueta y su barra no se separan al saltar de línea */
 #volumen { width: 120px; }
 #avance { width: 100%; margin: 0; }
 .grafico-pista { border: 1px solid var(--linea); border-radius: var(--r-control); padding: var(--e-3); }

@@ -11,6 +11,7 @@ import sys
 import numpy as np
 from rutas import sal, cfg_ruta
 import cv2
+from video_io import abrir_escritor, contar_fotogramas
 from matplotlib import colormaps
 
 W, H, FPS = 640, 360, 20
@@ -35,7 +36,7 @@ bx0, by0, bx1, by1 = BARRA
 col_barra = np.linspace(VMAX, VMIN, by1 - by0)[:, None].repeat(bx1 - bx0, 1)
 img_barra = a_bgr(col_barra)
 
-out = cv2.VideoWriter(sal("04_video_sintetico.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
+out = abrir_escritor(sal("04_video_sintetico.mp4"), FPS, (W, H))
 n_frames = FPS * DUR
 for k in range(n_frames):
     p = k / (n_frames - 1)                                    # 0 -> 1
@@ -54,6 +55,9 @@ for k in range(n_frames):
     cv2.putText(frame, "0.0", (603, 340), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
     out.write(frame)
 out.release()
+leidos = contar_fotogramas(sal("04_video_sintetico.mp4"))
+if leidos < n_frames - 2:      # algunos códecs pierden el último fotograma al releer
+    sys.exit(f"El video {sal('04_video_sintetico.mp4')} no se escribió bien: se leen {leidos} de {n_frames} fotogramas.")
 
 # Configuración que leerá el script 05 (para un video real, la editas a mano)
 cfg = {"video": sal("04_video_sintetico.mp4"), "mapa": MAPA, "barra": BARRA,

@@ -11,6 +11,7 @@ import * as lectura from "./lectura.js";
 import { iniciarGlobo, cuadro, depuracion } from "./globo.js";
 import { iniciarAnimaciones } from "./animaciones.js";
 import { iniciarTarjetas } from "./tarjetas.js";
+import * as explorar from "./explorar.js";
 import { iniciarMenu, listaEnfocableSiDesborda } from "./menu.js";
 
 const $ = (id) => document.getElementById(id);
@@ -32,7 +33,8 @@ cargarEquipo().then((eq) => {
     const h = document.createElement("h3"); h.textContent = p.nombre;
     const c = document.createElement("p"); c.className = "carrera"; c.textContent = p.carrera;
     const a = document.createElement("p"); a.textContent = p.aporte;
-    li.append(h, c, a);
+    li.append(h, c);
+    if (p.aporte) li.append(a);                // sin aporte escrito no se muestra nada (nunca un texto de relleno)
     ul.appendChild(li);
   }
 }).catch(() => { $("lista-equipo").textContent = "No pude leer equipo.json."; });
@@ -61,4 +63,4 @@ if (window.gsap) {
   });
 }
 
-window.__web = { audio, vivo, globo: depuracion, rocola: { elegir, cambiar, pistaActual } };
+window.__web = { explorar, audio, vivo, globo: depuracion, rocola: { elegir, cambiar, pistaActual } };

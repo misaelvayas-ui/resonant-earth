@@ -33,6 +33,10 @@ _faltan = [k for k in ("video", "mapa", "barra", "vmin", "vmax", "umbral", "fps_
            + (("barra_arriba_es_max",) if cfg.get("barra_vertical") else ()) if k not in cfg]
 if _faltan:
     sys.exit(f"Faltan claves obligatorias en '{_ruta_cfg}': {', '.join(_faltan)} (ver el README, «Configuración de 05»).")
+_no_num = [k for k in ("vmin", "vmax", "umbral", "fps_muestreo", "escala", "dist_max", "referencia", "vmin_sonido", "vmax_sonido")
+           if k in cfg and (isinstance(cfg[k], bool) or not isinstance(cfg[k], (int, float)))]
+if _no_num:
+    sys.exit(f"En '{_ruta_cfg}' estas claves deben ser números (sin comillas): {', '.join(_no_num)}.")
 DIST_MAX = cfg.get("dist_max", 8.0)
 ESC = cfg.get("escala", 1.0)
 MODO = cfg.get("modo_color", "lab")

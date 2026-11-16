@@ -1,0 +1,58 @@
+name: Pruebas
+on:
+  pull_request:
+  push:
+    branches: [master]
+permissions:
+  contents: read
+jobs:
+  pipeline:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Programas del sistema (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fluidsynth fluid-soundfont-gm
+      - name: Programas del sistema (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - run: pip install -r requirements.txt
+      - name: evaluar.py
+        env:
+          ROCOLA_SIN_AUDIO: "1"
+        run: python evaluar.py
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Dependencias de las pruebas
+        working-directory: web/pruebas
+        run: npm install && npx playwright install --with-deps chromium
+      - name: Copias webm de las pistas
+        run: |
+          mkdir -p /tmp/webm
+          for id in gistemp_1880_2023 sst_ecco2_2007_2008; do
+            ffmpeg -y -v error -i web/assets/$id.mp4 -c:v libvpx -b:v 400k -c:a libopus /tmp/webm/$id.webm
+          done
+      - name: verificar.cjs
+        env:
+          WEBM_DIR: /tmp/webm
+        run: |
+          python3 -m http.server 8137 --directory web &
+          sleep 2
+          node web/pruebas/verificar.cjs http://localhost:8137/ /tmp/capturas
