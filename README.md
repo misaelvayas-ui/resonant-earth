@@ -1,12 +1,14 @@
 # Rocola de la Tierra
 
+**English version: [README_EN.md](README_EN.md)**
+
 Convierte una visualización científica en video en sonido: lee los colores de cada fotograma, los traduce a valores con la barra de colores y los toca como una melodía estéreo.
 
 Prototipo para NASA Space Apps (reto 9), probado con el video **NASA SVS 5207 — Anomalías de temperatura global 1880–2023 (GISTEMP)**.
 
 ## Guía de 5 minutos para el jurado
 
-1. Abre la web: <https://misaelvayas-ui.github.io/resonant-earth/> (o, sin internet, `cd web && python -m http.server 8001` y <http://localhost:8001>).
+1. Abre la web: <https://misaelvayas-ui.github.io/resonant-earth/> (en inglés con los botones ES / EN de la cabecera o con `?lang=en`; o, sin internet, `cd web && python -m http.server 8001` y <http://localhost:8001>).
 2. Pulsa **Temperatura del planeta** y escucha 30 segundos con auriculares. La melodía se queda abajo un siglo y sube en los últimos cuarenta años. La nota grave fija es el promedio de 1951–1980.
 3. Pulsa **Antes y después**: suenan los primeros 5 segundos (1881–1903) y enseguida los últimos (2011–2023).
 4. Pulsa **Explorar el mapa** y mueve el cursor (o las flechas): cada punto suena y dice su latitud, longitud y temperatura, calculadas en ese instante desde el color del fotograma.
@@ -204,7 +206,7 @@ El detalle de cada cambio y de cada medición está en [docs/CAMBIOS.txt](docs/C
 
 ## Web
 
-La web del proyecto vive en `web/` y muestra solo las dos pistas reales (GISTEMP y SST/ECCO2). Para abrirla:
+La web del proyecto vive en `web/`, es bilingüe (español e inglés: botones ES / EN en la cabecera o `?lang=en`) y muestra solo las dos pistas reales (GISTEMP y SST/ECCO2). Para abrirla:
 `cd web && python -m http.server 8001` y entra a <http://localhost:8001>. Sus medios se regeneran desde el pipeline con
 `python -m herramientas.exportar_web` y `python -m herramientas.exportar_mapeo`. Detalles en `web/README.md`.
 
@@ -212,7 +214,7 @@ La web del proyecto vive en `web/` y muestra solo las dos pistas reales (GISTEMP
 
 Las reglas del NASA Space Apps Challenge permiten usar IA si se declara. Esto es lo que se hizo con ayuda de IA y qué no:
 
-- **Herramienta:** Claude (Anthropic), usado desde Claude Code. No se usó ninguna otra herramienta de IA generativa.
+- **Herramienta:** Claude (Anthropic), usado desde Claude Code.
 - **Código:** buena parte del programa en Python (`04`–`08`, `sintesis.py`, `evaluar.py`, `herramientas/`) y toda la web (`web/`, incluido el modo de sonido en vivo con Web Audio) se escribieron con ayuda de Claude.
 - **Documentación:** este README, `web/README.md`, `docs/` y los textos de la web se redactaron con ayuda de Claude.
 - **Revisión del equipo:** el equipo revisó, ejecutó y validó todo lo que la IA escribió: las pruebas (`evaluar.py`, `web/pruebas/`) y la comparación con la serie oficial GISTEMP y la accesibilidad (axe, teclado). Cada ronda hecha con IA está anotada como tal en [docs/CAMBIOS.txt](docs/CAMBIOS.txt).
