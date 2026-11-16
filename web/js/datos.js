@@ -1,6 +1,8 @@
 /* Carga de pistas.json, equipo.json, y los rasgos y el mapeo (modo en vivo) de cada pista. */
 "use strict";
 
+import { t } from "./idioma.js";
+
 const CLAVES_PISTA = ["id", "titulo", "periodo", "fuente", "fuente_url", "resumen", "descripcion", "descripcion_accesible",
   "leyenda", "fotograma", "video", "rasgos", "duracion_s", "lectura", "grafico"];
 const memoria = new Map();
@@ -17,11 +19,11 @@ export async function cargarPistas() {
   try {
     doc = await leerJson("pistas.json");
   } catch (e) {
-    throw new Error("No pude leer la lista de pistas. Abre la página con un servidor: en la carpeta web/ ejecuta «python -m http.server 8001» y entra a http://localhost:8001");
+    throw new Error(t("datos.sinServidor"));
   }
   const lista = doc && doc.pistas;
   if (!Array.isArray(lista) || lista.length < 1 || lista.some((p) => CLAVES_PISTA.some((k) => !(k in p)))) {
-    throw new Error("No pude leer la lista de pistas.");
+    throw new Error(t("datos.sinLista"));
   }
   return lista;
 }

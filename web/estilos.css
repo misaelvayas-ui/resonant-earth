@@ -94,7 +94,11 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 6px; border: 1px solid
 .barra nav ul { display: flex; justify-content: center; gap: clamp(14px, 2.2vw, var(--e-6)); }
 .barra nav a { font-size: var(--t-chico); text-decoration: none; color: var(--tinta-2); padding: 8px 2px; white-space: nowrap; }
 .barra nav a:hover { color: var(--tinta); }
-.barra-acciones { display: flex; gap: var(--e-3); }
+.barra-acciones { display: flex; gap: var(--e-3); align-items: center; }
+.idioma { display: inline-flex; gap: 4px; }
+.marca svg { flex: none; }
+.idioma .boton { min-width: 44px; min-height: 44px; padding: 0 10px; font-size: var(--t-chico); }
+.idioma .boton[aria-pressed="true"] { background: var(--tinta); color: var(--negro); border-color: var(--tinta); }
 .boton-menu, .solo-menu { display: none; }
 
 /* ---------- héroe ---------- */
@@ -271,9 +275,10 @@ html.js .revelar { opacity: 0; }
   .boton-rocola { display: none; }            /* repite el enlace "La rocola" del menú */
 }
 @media (max-width: 899px) {
-  .barra { grid-template-columns: 1fr auto; }
-  .barra-acciones { display: none; }
-  .boton-menu { display: inline-flex; }
+  .barra { grid-template-columns: 1fr auto auto; }
+  .barra-acciones { order: 1; }
+  .barra-acciones .boton-repo { display: none; }      /* en el menú sigue «Repositorio» */
+  .boton-menu { display: inline-flex; order: 2; }
   .solo-menu { display: list-item; }
   .barra nav { display: none; position: absolute; top: 100%; left: 0; right: 0; padding: var(--e-2) var(--margen-x) var(--e-4); background: rgba(0, 0, 0, .96); border-bottom: 1px solid var(--linea); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
   .barra nav.abierto { display: block; }
