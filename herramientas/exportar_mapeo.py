@@ -12,16 +12,16 @@ import math
 import os
 import sys
 
-SEG_POR_FOTOGRAMA = 0.5            # 06:30
-TPB, BPM = 480, 120                # 06:33
-TICKS_F = int(SEG_POR_FOTOGRAMA * TPB * BPM / 60)          # 06:34
-TONICA, OCTAVAS, GRADOS = 48, 3, (0, 2, 4, 7, 9)           # 06:88 + sintesis.py:74,78-81
+SEG_POR_FOTOGRAMA = 0.5            # 06:SEG_POR_FOTOGRAMA
+TPB, BPM = 480, 120                # 06:TPB, BPM
+TICKS_F = int(SEG_POR_FOTOGRAMA * TPB * BPM / 60)          # 06:TICKS_F
+TONICA, OCTAVAS, GRADOS = 48, 3, (0, 2, 4, 7, 9)           # 06:notas + sintesis:PENTATONICA_MAYOR, escala
 DEFECTOS = {"ligar": True, "suavizado": 3, "densidad": True, "octava": 1, "humanizar": True,
             "instrumento_melodia": 13, "dron_programa": 90, "dron_octava": 0, "dron_nivel": 0.048,
-            "reverb": 50, "paneo": "x", "regolpe_ligado": 1, "regolpe_vel": 0.7, "umbral_evento": None}   # 06:38-40
-VEL_FUERTE = 100                   # 06:154
-AREA_CENTRO = 0.01                 # 06:31,119: con area < 0,01 el paneo va al centro
-DRON_FLUID = 0.35                  # 06:32,274-278: con FluidSynth el RMS del dron = DRON_FLUID * dron_nivel / raiz(2)
+            "reverb": 50, "paneo": "x", "regolpe_ligado": 1, "regolpe_vel": 0.7, "umbral_evento": None}   # 06:DEFECTOS
+VEL_FUERTE = 100                   # 06:VEL_FUERTE
+AREA_CENTRO = 0.01                 # 06:AREA_CENTRO: con area < 0,01 el paneo va al centro
+DRON_FLUID = 0.35                  # 06:DRON_FLUID, renderizar_fluidsynth: con FluidSynth el RMS del dron = DRON_FLUID * dron_nivel / raiz(2)
 PISTAS = {"gistemp_1880_2023": "gistemp", "sst_ecco2_2007_2008": "sst"}
 
 
@@ -36,7 +36,7 @@ def limitar(x, lo, hi):
 
 
 def rellenar(v, defecto):
-    """None/NaN -> último valor válido (o 'defecto' al inicio). 06:54-63."""
+    """None/NaN -> último valor válido (o 'defecto' al inicio). 06:rellenar."""
     salida, ultimo = [], defecto
     for x in v:
         if x is None or (isinstance(x, float) and math.isnan(x)):
@@ -48,7 +48,7 @@ def rellenar(v, defecto):
 
 
 def media_movil(x, n):
-    """Media móvil centrada de n fotogramas; en los bordes la ventana se acorta. 06:66-69."""
+    """Media móvil centrada de n fotogramas; en los bordes la ventana se acorta. 06:media_movil."""
     h = (int(n) | 1) // 2
     out = []
     for i in range(len(x)):
@@ -67,12 +67,12 @@ def percentil(v, q):
 
 
 def escala_notas():
-    """sintesis.py:78-81: tónica + 12*o + grado para 3 octavas, más la tónica 3 octavas arriba (16 notas)."""
+    """sintesis:escala: tónica + 12*o + grado para 3 octavas, más la tónica 3 octavas arriba (16 notas)."""
     return [TONICA + 12 * o + g for o in range(OCTAVAS) for g in GRADOS] + [TONICA + 12 * OCTAVAS]
 
 
 def indice_nota(x, v0, v1, n_notas):
-    """sintesis.py:84-88 (valor_a_nota, devolviendo el ÍNDICE en la escala)."""
+    """sintesis:valor_a_nota (valor_a_nota, devolviendo el ÍNDICE en la escala)."""
     t = limitar((x - v0) / (v1 - v0 + 1e-12), 0.0, 1.0)
     return redondear(t * (n_notas - 1))
 
@@ -85,10 +85,10 @@ def db_a_lineal(db):
 def construir_mapeo(doc, id_="pista"):
     """Todos los parámetros que el JS necesita, a partir del rasgos.json (doc) de la pista."""
     R = doc["rasgos"]
-    cfg = {**DEFECTOS, **{k: doc[k] for k in DEFECTOS if doc.get(k) is not None}}      # 06:51
+    cfg = {**DEFECTOS, **{k: doc[k] for k in DEFECTOS if doc.get(k) is not None}}      # 06:cfg
     notas = escala_notas()
-    v0, v1 = doc.get("vmin_sonido", doc["vmin"]), doc.get("vmax_sonido", doc["vmax"])  # 06:89
-    # "rasgo_tono": el rasgo que hace de "media" en la nota, la densidad, los eventos y el dron      # 06:72-82
+    v0, v1 = doc.get("vmin_sonido", doc["vmin"]), doc.get("vmax_sonido", doc["vmax"])  # 06:v0, v1
+    # "rasgo_tono": el rasgo que hace de "media" en la nota, la densidad, los eventos y el dron      # 06:RASGO_TONO
     rasgo_tono = doc.get("rasgo_tono") or "media"
     if rasgo_tono == "media":
         relleno = (doc["vmin"] + doc["vmax"]) / 2
@@ -98,17 +98,17 @@ def construir_mapeo(doc, id_="pista"):
         if doc.get("vmin_sonido") is None or doc.get("vmax_sonido") is None:
             sys.exit(f"{id_}: con 'rasgo_tono' = {rasgo_tono!r} hacen falta 'vmin_sonido' y 'vmax_sonido' en sus unidades.")
         relleno = (v0 + v1) / 2                        # vmin/vmax son de la paleta, no de este rasgo
-    media = rellenar([r.get(rasgo_tono) for r in R], relleno)                           # 06:74
-    area = rellenar([r.get("area") for r in R], 0.0)                                    # 06:83
-    media_s = media_movil(media, cfg["suavizado"]) if int(cfg["suavizado"]) > 1 else media   # 06:85
+    media = rellenar([r.get(rasgo_tono) for r in R], relleno)                           # 06:RASGO_TONO
+    area = rellenar([r.get("area") for r in R], 0.0)                                    # 06:area
+    media_s = media_movil(media, cfg["suavizado"]) if int(cfg["suavizado"]) > 1 else media   # 06:media_s
     octava = int(cfg["octava"])
     ref = doc.get("referencia")
     idx_ref = indice_nota(ref, v0, v1, len(notas)) if ref is not None else indice_nota(media_s[0], v0, v1, len(notas))
-    nota_ref = notas[idx_ref]                                                           # 06:95
-    nota_dron = int(limitar(nota_ref + 12 * octava - 12 + 12 * int(cfg["dron_octava"]), 0, 127))   # 06:98
-    umbral_evento = cfg["umbral_evento"] if cfg["umbral_evento"] is not None else (v1 - v0) / 12     # 06:91-92
-    u1, u2 = doc.get("densidad_umbrales") or (v0 + 0.5 * (v1 - v0), v0 + 13 / 18 * (v1 - v0))      # 06:131
-    # paneo (06:109-120)
+    nota_ref = notas[idx_ref]                                                           # 06:nota_ref
+    nota_dron = int(limitar(nota_ref + 12 * octava - 12 + 12 * int(cfg["dron_octava"]), 0, 127))   # 06:nota_dron
+    umbral_evento = cfg["umbral_evento"] if cfg["umbral_evento"] is not None else (v1 - v0) / 12     # 06:umbral_evento
+    u1, u2 = doc.get("densidad_umbrales") or (v0 + 0.5 * (v1 - v0), v0 + 13 / 18 * (v1 - v0))      # 06:u1, u2
+    # paneo (06:eje, c_pan, pan)
     eje = cfg["paneo"]
     if eje == "y" and not any("centroide_y" in r for r in R):
         eje = "x"

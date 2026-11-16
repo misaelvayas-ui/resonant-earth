@@ -1,8 +1,8 @@
 """
-sintesis.py — Bloque A: fundamentos de síntesis de audio (motor de la rocola).
+sintesis.py — motor de audio de la rocola: osciladores, envolventes, escalas, paneo y WAV.
 
-Numpy y scipy. Cada función es pequeña a propósito: léela, cámbiala y escucha qué pasa.
-Convención: señales float en [-1, 1], frecuencia de muestreo FS.
+Solo numpy y scipy. Señales float en [-1, 1], frecuencia de muestreo FS.
+Cada función hace una sola cosa y se prueba en evaluar.py (grupo A).
 """
 import os
 
@@ -72,7 +72,6 @@ def adsr(n_muestras, a=0.01, d=0.08, s=0.7, r=0.12):
 # 4) Cuantizar a escala (la pentatónica suena bien en cualquier orden)
 # ---------------------------------------------------------------------------
 PENTATONICA_MAYOR = [0, 2, 4, 7, 9]  # grados en semitonos respecto a la tónica
-PENTATONICA_MENOR = [0, 3, 5, 7, 10]
 
 
 def escala(tonica_midi=60, octavas=3, grados=PENTATONICA_MAYOR):

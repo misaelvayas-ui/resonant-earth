@@ -379,7 +379,7 @@ def d1():
         # algunas versiones de ffprobe terminan cada línea del CSV con una coma ('4.093832,')
         pts.append(min(float(x.strip(",").split(",")[0]) for x in out if x.strip(",")))
     # El video empieza ~0,100 s después del audio (retardo de 2 B-frames a 20 fps): es la
-    # configuración confirmada sin entrecortes en VLC (ronda 7); el umbral deja margen de 1 fotograma.
+    # configuración confirmada sin entrecortes en VLC; el umbral deja margen de 1 fotograma.
     desfase = abs(pts[0] - pts[1])
     return desfase <= 0.15, f"08 PASA; primer pts video {pts[0]:.3f} s, audio {pts[1]:.3f} s (desfase {desfase:.3f} s)"
 
@@ -538,7 +538,7 @@ def e3():
     return all(out), "; ".join(partes)
 
 
-# ============================================================ F) casos de la auditoría (videos nuevos)
+# ============================================================ F) videos nuevos y casos límite de 05 y 06
 def f1():
     """Densidad con otro rango de datos (270-310): los umbrales siguen al rango de sonido y no saturan en 4 notas."""
     with tempfile.TemporaryDirectory() as d:
@@ -617,7 +617,7 @@ def _serie(n=60, fechas=False):
 
 
 def f4():
-    """08 con 600 rasgos (un drawtext por rasgo): la línea de comandos ya no revienta."""
+    """08 con 600 rasgos (un drawtext por rasgo): la línea de comandos no supera su tope."""
     if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
         return None, "ffmpeg/ffprobe no instalados"
     base = os.path.join(pipeline()["dir"], "salidas")
@@ -778,7 +778,7 @@ def h1():
             esperado = _barra_png(png, hor, mes)
             rect, vertical = rect_degradado_orientado(png)
             res.append((nombre, rect == esperado and vertical == (not hor)))
-        # la función de siempre (solo vertical) da lo mismo que antes en la vertical
+        # rect_degradado (solo vertical) da el mismo rectángulo que la versión orientada
         vieja = rect_degradado(os.path.join(d, "vertical.png")) == _barra_png(os.path.join(d, "v2.png"), False)
     return all(ok for _, ok in res) and vieja, "; ".join(f"{n}: {'sí' if ok else 'NO'}" for n, ok in res) + f"; rect_degradado vertical: {'igual' if vieja else 'CAMBIÓ'}"
 
@@ -849,7 +849,7 @@ def h3():
         ok_msg = r.returncode != 0 and "fechas_formato" in (r.stderr + r.stdout) and "Traceback" not in r.stderr
         unit = (crudos[0] == "2007-03-25T00:00Z" and etiqueta(crudos[0], "mes") == "mar 2007" and etiqueta(crudos[0]) == 2007
                 and etiqueta("1881", "mes") == 1881 and etiqueta("2008-12-01T00:00Z", "mes") == "dic 2008" and leer_fechas(anio) == ["1881", "1882"])
-        # formatos que antes fallaban: segundos, mes de 1 cifra, mes imposible (sin excepción) y 2 columnas sin ISO
+        # formatos límite: segundos, mes de 1 cifra, mes imposible (sin excepción) y 2 columnas sin ISO
         raros = (etiqueta("2007-03-25T12:00:00Z", "mes") == "mar 2007" and etiqueta("2007-3-25T12:00Z", "mes") == "mar 2007"
                  and etiqueta("2007-03-25T12:00:00+00:00") == 2007 and etiqueta("2007-13-01T00:00Z", "mes") == "2007-13-01T00:00Z")
         dos_col = os.path.join(d, "dos.txt")
@@ -876,7 +876,7 @@ def i1():
         # eje y con rama amplia, sin densidad ni suavizado, umbral de evento propio
         "y amplia sin densidad": dict(extra={"paneo": "y", "densidad": False, "suavizado": 0, "umbral_evento": 0.1},
                                       cx=np.full(n, 0.5), cy=np.clip(0.5 + 0.3 * np.cos(np.arange(n) / 6), 0, 1), area="normal"),
-        # tono por otro rasgo (ronda 31): dif_hemisferios en °C (1,5 a 8,3), con la media casi fija como en el mar
+        # tono por otro rasgo: dif_hemisferios en °C (1,5 a 8,3), con la media casi fija como en el mar
         "tono dif_hemisferios": dict(extra={"rasgo_tono": "dif_hemisferios", "vmin_sonido": 1.5, "vmax_sonido": 8.3,
                                             "referencia": 5.08, "paneo": "y"},
                                      cx=np.full(n, 0.5), cy=np.clip(0.5 + 0.3 * np.sin(np.arange(n) / 8), 0, 1), area="normal",
@@ -1187,7 +1187,7 @@ EVALUACIONES = [
     ("G5", "06: paneo con centroide fijo", "|pan| máx. < 0,1 con centroide 0,5 ± 0,002", g5),
     ("E5", "06 numpy + 07 con 4 notas", "07 sin FALLA con arpegios de 4 notas", e5),
     ("E4", "06: retardo media → notas", "|retardo| ≤ 1 fotograma (correlación cruzada), r > 0,8", e4),
-    ("H1", "calibrar: orientación de la barra", "horizontal detectada; vertical (también con mesetas) igual que antes", h1),
+    ("H1", "calibrar: orientación de la barra", "horizontal detectada; vertical (también con mesetas) da el mismo rectángulo", h1),
     ("H2", "05: modo_color 'matiz'", "barra horizontal + color atenuado: error < 0,5 °C, validos > 0,95; 'lab' < 0,5", h2),
     ("H3", "fechas ISO: 'mar 2007'", "mes con fechas_formato 'mes', año por defecto, time.txt intacto, error claro", h3),
     ("H4", "calibrar: modo matiz", "dist_max 4, borde_px 0, mascara_estatica false; sin mezclar claves de Lab", h4),

@@ -21,7 +21,7 @@ from scipy.io import wavfile
 SEG_POR_FOTOGRAMA = 0.5            # igual que en 06_rasgos_a_audio.py
 PISTAS = {"gistemp_1880_2023": "gistemp", "sst_ecco2_2007_2008": "sst"}
 VIDEOS = {"gistemp_1880_2023": "2023GISTEMP_Map_SOS.mp4", "sst_ecco2_2007_2008": "ecco2_sst_flow.mp4"}   # video original de cada pista
-MAX_MB = 5          # cada pista se descarga entera antes de sonar: que pese poco (ronda 38)
+MAX_MB = 5          # cada pista se descarga entera antes de sonar: que pese poco
 VENTANA = 0.5                      # s
 PISO_DB = -45.0                    # solo se comparan las ventanas con más señal que esto (en las casi mudas el AAC dominaría)
 TOL_RMS_DB, TOL_BALANCE_DB = 1.5, 3.0

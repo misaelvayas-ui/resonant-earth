@@ -1,10 +1,10 @@
-# Earth Jukebox (Rocola de la Tierra)
+# Resonant Earth: the Earth jukebox
 
 **Versión en español: [README.md](README.md)**
 
 Turns a scientific video visualization into sound: it reads the colors of every frame, converts them to values with the video's own color bar, and plays them as a stereo melody.
 
-A prototype by team **Resonant Earth** for the NASA Space Apps Challenge 2026 (challenge 9, "The Earth Information Jukebox"). It is designed for people who are blind or have low vision: what the map shows with colors, you can hear.
+A prototype by team Resonant Earth for the NASA Space Apps Challenge 2026 (challenge 9, "The Earth Information Jukebox"). It is designed for people who are blind or have low vision: what the map shows with colors, you can hear. The web page is called "Listen to the Earth".
 
 It has two parts:
 
@@ -22,7 +22,7 @@ NASA data used: **SVS 5207 — Global temperature anomalies 1880–2023 (GISTEMP
 3. Press **Before and after**: the first 5 seconds (1881–1903) play, then, right away, the last 5 (2011–2023).
 4. Press **Explore the map** and move the cursor (or the arrow keys): every point sounds and says its latitude, longitude and temperature, computed at that instant from the color of the frame.
 5. Switch to **Live sound** and uncheck features (melody, volume, panning, drone) to hear what each layer adds.
-6. The key figure: what we read from the video matches NASA's official GISTEMP series with a **correlation of 0.99** (58 years). You can repeat it with one command: `python -m herramientas.validar_gistemp`.
+6. Validation: what we read from the video matches NASA's official GISTEMP series with a **correlation of 0.99** (58 years). You can repeat it with one command: `python -m herramientas.validar_gistemp`.
 7. Limits we state: our reading sits 0.09 °C below the official series; the sea track is a relative index, not exact degrees; the panning of GISTEMP is decided by a small area of the map.
 8. Everything is tested: `python evaluar.py` (47 tests) and `web/pruebas/verificar.cjs` (Playwright and axe checks, including both languages).
 
@@ -156,7 +156,6 @@ salidas/       everything generated (WAV, MP4, PNG, JSON)
 herramientas/  calibrar.py, exportar_mapeo.py, exportar_web.py, validar_gistemp.py
 web/           the accessible web jukebox, in Spanish and English
 docs/          CAMBIOS.txt (change log), audits and specifications (in Spanish)
-archivo/       early exercises
 ```
 
 ## Known limitations
@@ -165,7 +164,8 @@ archivo/       early exercises
 - The °C range of the color bar is read by eye from `calibracion.png` (there is no OCR).
 - Each sampled frame lasts 0.5 s of audio (`SEG_POR_FOTOGRAMA` in 06); with a different `fps_muestreo` the video is stretched or compressed to match.
 - The English of the web page was written with AI and has not been reviewed by a native speaker. It has not been tried with a screen reader in English.
-- Not yet tried by the team: Safari (macOS and iOS) and Firefox, a hidden tab for 10 seconds, real headphones.
+- Not tried by the team: Safari (macOS and iOS), Firefox, a hidden tab for 10 seconds and real headphones.
+- `web/equipo.json` has the contribution of each member empty; the web page shows nothing in its place.
 
 ## Use of AI
 

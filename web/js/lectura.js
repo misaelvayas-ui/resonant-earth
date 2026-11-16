@@ -10,7 +10,7 @@ let ultimoAnuncio = 0;
 let espera = 0;                         // ms mínimos hasta el próximo anuncio
 
 /* Índice del último rasgo con t_video <= t (rasgos ordenados por t_video): búsqueda binaria. */
-export function indiceEn(rasgos, t) {
+function indiceEn(rasgos, t) {
   let lo = 0, hi = rasgos.length - 1;
   while (lo < hi) {
     const m = (lo + hi + 1) >> 1;

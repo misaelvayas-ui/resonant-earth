@@ -61,18 +61,18 @@ def rect_degradado_orientado(png, orientacion="auto"):
         sys.exit("No encontré un degradado en la barra (filas o columnas de un solo color).")
     area = lambda r: (r[2] - r[0]) * (r[3] - r[1])
     # una barra es más larga que ancha EN LA DIRECCIÓN DEL DEGRADADO: vertical = alta, horizontal = ancha.
-    # (Sin esta regla, una barra vertical también deja tramos de columnas de un solo color y ganaba el área.)
+    # (Sin esta regla, una barra vertical también deja tramos de columnas de un solo color y la orientación de mayor área elegiría mal.)
     def forma_ok(r, vertical):
         alto, ancho = r[3] - r[1], r[2] - r[0]
         return alto >= ancho if vertical else ancho >= alto
     validas = [(r, v) for r, v in ((vert, True), (hor, False)) if r is not None and forma_ok(r, v)]
     if validas:
         return max(validas, key=lambda rv: area(rv[0]))
-    return (vert, True) if vert is not None else (hor, False)       # ninguna con forma de barra: como antes
+    return (vert, True) if vert is not None else (hor, False)       # ninguna con forma de barra: se toma la que se encontró
 
 
 def rect_degradado(png):
-    """Rectángulo (x0, y0, x1, y1) del degradado de una barra PNG vertical (como siempre)."""
+    """Rectángulo (x0, y0, x1, y1) del degradado de una barra PNG vertical."""
     return rect_degradado_orientado(png, "vertical")[0]
 
 

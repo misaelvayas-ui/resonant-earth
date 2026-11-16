@@ -267,9 +267,9 @@ def renderizar_fluidsynth():
         return None
     spf = int(SEG_POR_FOTOGRAMA * FS)
     p = suavizar(np.interp(np.arange(N), (np.arange(n_f) + 0.5) * spf, 2 * c_pan - 1), 0.15)
-    # la melodía se pasa a mono y se panea por muestra: así el paneo es exacto aunque la imagen
-    # estéreo propia de cada muestra de la SoundFont cambie de una nota a otra
-    # el dron es un pad SOSTENIDO (GM 90) y su nivel no depende de la velocidad MIDI ni de la SoundFont: el RMS de su
+    # melodía: se pasa a mono y se panea por muestra, así el paneo es exacto aunque la imagen
+    # estéreo de cada muestra de la SoundFont cambie de una nota a otra
+    # dron: pad SOSTENIDO (GM 90) y su nivel no depende de la velocidad MIDI ni de la SoundFont: el RMS de su
     # mezcla mono se lleva al de un seno de amplitud dron_nivel (como el respaldo numpy), por DRON_FLUID. Así suena continuo
     # toda la pista aunque la marimba se apague en las notas ligadas
     rms_dron = float(np.sqrt(np.mean(dron_x.mean(axis=1) ** 2)))
@@ -280,7 +280,7 @@ def renderizar_fluidsynth():
     return limitar(x)                                                       # mismo limitador que el respaldo (techo 0,85)
 
 
-# --- audio 2 (respaldo): la síntesis numpy de siempre, dirigida por las mismas notas ----------
+# --- audio 2 (respaldo): síntesis numpy dirigida por las mismas notas ------------------------
 def sintetizar_numpy():
     spf = int(SEG_POR_FOTOGRAMA * FS)
     t_f = (np.arange(n_f) + 0.5) * spf
@@ -333,8 +333,3 @@ print(f"Modo: {modo} | ataques {len(mel)} (sin ligar {ataques_sin_ligar}) | nota
       f"{min(m[2] for m in mel)}-{max(m[2] for m in mel)} | dron {nota_dron} | cruce de la referencia: {cruce}")
 print("Nota base por fotograma:", voz.astype(int).tolist())
 reproducir(estereo)
-
-# EJERCICIOS
-# 1. Cambia SEG_POR_FOTOGRAMA a 0.25 y 1.0: ¿qué tempo se entiende mejor?
-# 2. Apaga las mejoras (ligar false, suavizado 0, densidad false, humanizar false) y compara el sonido.
-# 3. Invierte el paneo y pide a alguien que señale con la mano dónde está la "tormenta".

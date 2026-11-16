@@ -2,7 +2,7 @@
 Escritura de video que funciona igual en Linux, macOS y Windows.
 
 En Linux, OpenCV escribe 'mp4v' con su FFMPEG interno. En macOS el OpenCV de pip no trae FFMPEG y 'mp4v' no abre
-(antes fallaba en silencio). Aquí se prueba cada método con un video diminuto que se vuelve a leer, se elige el
+(sin avisar del fallo). Aquí se prueba cada método con un video diminuto que se vuelve a leer, se elige el
 primero que funciona y se recuerda. Si ninguno funciona, se aborta con un mensaje claro.
 
 Uso:  out = abrir_escritor(ruta, fps, (ancho, alto)); out.write(frame_bgr); out.release()
@@ -77,12 +77,7 @@ def _sirve(metodo):
             return False
         if not os.path.exists(ruta) or os.path.getsize(ruta) == 0:
             return False
-        cap = cv2.VideoCapture(ruta)
-        n = 0
-        while cap.read()[0]:
-            n += 1
-        cap.release()
-        return n >= 5
+        return contar_fotogramas(ruta) >= 5
 
 
 def metodo_video():

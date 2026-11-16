@@ -7,6 +7,7 @@
 import json
 import os
 import sys
+import mido
 import numpy as np
 from rutas import sal
 import matplotlib
@@ -20,8 +21,11 @@ for _n in ("rasgos.json", "control.json", "rocola.wav", "rocola.mid"):
         sys.exit(f"Falta {sal(_n)}: ejecuta antes 05 y 06 (en ese orden).")
 fs, x = wavfile.read(sal("rocola.wav"))
 x = x.astype(float) / 32768
-ctl = json.load(open(sal("control.json")))
-r = json.load(open(sal("rasgos.json")))["rasgos"]
+with open(sal("control.json")) as fh:
+    ctl = json.load(fh)
+with open(sal("rasgos.json")) as fh:
+    doc = json.load(fh)
+r = doc["rasgos"]
 spf = int(ctl["seg_por_fotograma"] * fs)
 n_f = len(ctl["midi"])
 
@@ -55,13 +59,11 @@ nota_ok = np.where(con)[0]
 print(f"Tono medido en {len(nota_ok)} fotogramas con ataque de {n_f} (los {n_f - len(nota_ok)} ligados se excluyen)")
 
 # notas exactas: el .mid debe contener justo los ataques que control.json declara (arpegios, ligaduras, re-golpes)
-import mido
-atq_mid, esp_mid = [], []
+atq_mid = []
 for m in mido.merge_tracks(mido.MidiFile(sal("rocola.mid")).tracks):
     if m.type == "note_on" and m.velocity > 0 and m.channel == 0:
         atq_mid.append(m.note)
-esp_mid = ctl["notas_ataque"]
-notas_exactas = atq_mid == esp_mid and len(atq_mid) == ctl["ataques"]
+notas_exactas = atq_mid == ctl["notas_ataque"] and len(atq_mid) == ctl["ataques"]
 
 # 2) balance L/R en dB por fotograma, medido en el ATAQUE (20-100 ms): la marimba decae y después solo
 #    queda el dron, que es central. Un fotograma con la nota ligada (sin golpe nuevo) no informa del
@@ -72,16 +74,15 @@ for i in range(n_f):
     L, R = seg[:, 0], seg[:, 1]
     bal.append(20 * np.log10((np.sqrt(np.mean(R ** 2)) + 1e-9) / (np.sqrt(np.mean(L ** 2)) + 1e-9)))
 bal = np.array(bal)
-con = np.array(ctl.get("ataque_en_fotograma", [True] * n_f))
 bal_a, idx_a = bal[con], np.arange(n_f)[con]
 # el paneo solo se mide donde 06 lo aplica: con area < 0,01 (AREA_CENTRO de 06) el sonido va al centro por diseño;
-# por eso ya no se exige empezar a la izquierda: basta que el balance suba hacia la derecha (> 6 dB, Spearman > 0,9)
+# por eso solo se exige que el balance suba hacia la derecha (> 6 dB, Spearman > 0,9)
 rangos = lambda a_, b_: np.corrcoef(np.argsort(np.argsort(a_)), np.argsort(np.argsort(b_)))[0, 1]    # Spearman: la curva pan -> dB no es lineal
 con_zona = np.array([rr.get("area", 0.0) >= 0.01 for rr in r])
 bal_p, idx_p = bal[con & con_zona], np.arange(n_f)[con & con_zona]
 
 err_cents = 1200 * np.abs(np.log2(pico_hz[con] / esperado[con]))
-sintetico = os.path.basename(json.load(open(sal("rasgos.json"))).get("fuente", "")) == "04_video_sintetico.mp4"
+sintetico = os.path.basename(doc.get("fuente", "")) == "04_video_sintetico.mp4"
 checks = {
     "tono de la nota base (fotogramas con ataque) = esperado (±50 cents)": bool(np.all(err_cents < 50)),
     "notas de rocola.mid = notas esperadas de control.json": bool(notas_exactas),

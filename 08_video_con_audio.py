@@ -96,15 +96,28 @@ def alto_video(ruta):
                          "-show_entries", "stream=height", "-of", "csv=p=0", ruta]).strip().strip(","))
 
 
-def filtros_texto(video, factor, carpeta):
-    """Lista de filtros drawtext ('media = X' por intervalo) o [] si no aplica."""
+def rasgos_del_video(video):
+    """rasgos.json si existe y es de este video; si no, dice por qué no hay texto superpuesto y devuelve None."""
     if not os.path.exists(sal("rasgos.json")):
         print("rasgos.json no existe: sin texto superpuesto.")
-        return []
+        return None
     with open(sal("rasgos.json")) as fh:
         d = json.load(fh)
     if os.path.basename(d.get("fuente", "")) != os.path.basename(video):
         print(f"rasgos.json es de '{d.get('fuente')}', no de '{video}': sin texto superpuesto.")
+        return None
+    return d
+
+
+def rotulo(r):
+    """Texto de un fotograma: su fecha o, sin fecha, 'media = X'."""
+    return str(r["fecha"]) if "fecha" in r else f"media = {r['media']:.3f}".replace(".", ",")
+
+
+def filtros_texto(video, factor, carpeta):
+    """Lista de filtros drawtext ('media = X' por intervalo) o [] si no aplica."""
+    d = rasgos_del_video(video)
+    if d is None:
         return []
     fuente = fuente_tipografica()
     if fuente is None:
@@ -122,7 +135,7 @@ def filtros_texto(video, factor, carpeta):
         ruta_txt = os.path.join(carpeta, nombre_txt)
         con_fecha = "fecha" in r
         with open(ruta_txt, "w") as fh:
-            fh.write(str(r["fecha"]) if con_fecha else f"media = {r['media']:.3f}".replace(".", ","))
+            fh.write(rotulo(r))
         pos = f"x={2 * margen}:y={2 * margen}" if con_fecha else "x=w-tw-12:y=h-th-12"
         tam = "fontsize=h*0.06" if con_fecha else "fontsize=20"   # año: ~6 % de la altura
         filtros.append(
@@ -141,13 +154,8 @@ def tiene_drawtext():
 def texto_por_imagenes(video, factor, carpeta, dur_total):
     """Respaldo sin drawtext: cada rótulo es un PNG (Pillow) y ffmpeg los superpone con 'overlay'.
     Devuelve (entradas extra de ffmpeg, posición 'x:y' del overlay) o (None, None) si no aplica."""
-    if not os.path.exists(sal("rasgos.json")):
-        print("rasgos.json no existe: sin texto superpuesto.")
-        return None, None
-    with open(sal("rasgos.json")) as fh:
-        d = json.load(fh)
-    if os.path.basename(d.get("fuente", "")) != os.path.basename(video):
-        print(f"rasgos.json es de '{d.get('fuente')}', no de '{video}': sin texto superpuesto.")
+    d = rasgos_del_video(video)
+    if d is None:
         return None, None
     fuente = fuente_tipografica()
     try:
@@ -164,7 +172,7 @@ def texto_por_imagenes(video, factor, carpeta, dur_total):
     tam = max(10, round(alto * 0.06)) if con_fecha else 20
     borde = margen if con_fecha else 6
     letra = ImageFont.truetype(fuente, tam)
-    textos = [str(r["fecha"]) if "fecha" in r else f"media = {r['media']:.3f}".replace(".", ",") for r in R]
+    textos = [rotulo(r) for r in R]
     cajas = [letra.getbbox(t) for t in textos]
     ancho = max(c[2] for c in cajas) + 2 * borde
     alto_r = max(c[3] for c in cajas) + 2 * borde
@@ -216,8 +224,8 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmp:
         f_aplicado = factor if estirar else 1.0
-        # al estirar se conserva la cadencia del original (fps=...): con ffmpeg >= 7, setpts la reducía y el
-        # retardo de los 2 B-frames (sin lista de edición) pasaba de 0,1 s a 0,2 s en el ejemplo sintético
+        # al estirar se conserva la cadencia del original (fps=...): con ffmpeg >= 7, setpts la reduce y el
+        # retardo de los 2 B-frames (sin lista de edición) pasa de 0,1 s a 0,2 s en el ejemplo sintético
         base = [f"setpts=PTS*{factor:.6f}", f"fps={cadencia(video)}"] if estirar else []
         extra, pos = [], None
         if tiene_drawtext():
@@ -237,7 +245,7 @@ def main():
                *extra, opcion_grafo(), "grafo.txt", "-map", "[v]",
                "-map", "1:a:0", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
                "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
-               # sin listas de edición: VLC las maneja mal y el audio se entrecortaba al inicio
+               # sin listas de edición: VLC las maneja mal y el audio se entrecorta al inicio
                "-use_editlist", "0", os.path.abspath(salida)]
         ejecutar(cmd, cwd=tmp)
 

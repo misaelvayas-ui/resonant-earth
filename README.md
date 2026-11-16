@@ -1,10 +1,10 @@
-# Rocola de la Tierra
+# Resonant Earth: la rocola de la Tierra
 
 **English version: [README_EN.md](README_EN.md)**
 
 Convierte una visualización científica en video en sonido: lee los colores de cada fotograma, los traduce a valores con la barra de colores y los toca como una melodía estéreo.
 
-Prototipo para NASA Space Apps (reto 9), probado con el video **NASA SVS 5207 — Anomalías de temperatura global 1880–2023 (GISTEMP)**.
+Prototipo del equipo Resonant Earth para NASA Space Apps 2026 (reto 9, «The Earth Information Jukebox»). Datos de la NASA: **SVS 5207 — Anomalías de temperatura global 1880–2023 (GISTEMP)** y **SVS 3912 — Corrientes y temperatura de la superficie del mar (ECCO2), 2007–2008**. La web se llama «Escucha la Tierra».
 
 ## Guía de 5 minutos para el jurado
 
@@ -13,9 +13,9 @@ Prototipo para NASA Space Apps (reto 9), probado con el video **NASA SVS 5207 �
 3. Pulsa **Antes y después**: suenan los primeros 5 segundos (1881–1903) y enseguida los últimos (2011–2023).
 4. Pulsa **Explorar el mapa** y mueve el cursor (o las flechas): cada punto suena y dice su latitud, longitud y temperatura, calculadas en ese instante desde el color del fotograma.
 5. Cambia a **Sonido en vivo** y apaga casillas (melodía, volumen, paneo, dron) para oír qué aporta cada capa.
-6. La cifra clave: lo que leemos del video coincide con la serie oficial GISTEMP de la NASA con una **correlación de 0,99** (58 años). Se repite con un comando: `python -m herramientas.validar_gistemp`.
+6. Validación: lo que leemos del video coincide con la serie oficial GISTEMP de la NASA con una **correlación de 0,99** (58 años). Se repite con un comando: `python -m herramientas.validar_gistemp`.
 7. Límites que declaramos: nuestra lectura queda 0,09 °C por debajo de la serie oficial; la pista del mar es un índice relativo, no grados exactos; el paneo de GISTEMP lo decide una zona pequeña del mapa.
-8. Todo está probado: `python evaluar.py` (47 pruebas) y `web/pruebas/verificar.cjs` (33 comprobaciones con Playwright y axe).
+8. Todo está probado: `python evaluar.py` (47 pruebas) y `web/pruebas/verificar.cjs` (34 comprobaciones con Playwright y axe).
 
 ## Cómo respondemos al reto «The Earth Information Jukebox»
 
@@ -27,7 +27,11 @@ Prototipo para NASA Space Apps (reto 9), probado con el video **NASA SVS 5207 �
 | Equilibrio entre dato y música | Escala pentatónica, dron de referencia, arpegios; y pruebas que exigen que cada nota coincida con el dato (`evaluar.py`, 07, I1) |
 | Traducción exploratoria e interactiva | Casillas para apagar melodía, volumen, paneo o dron; gráfico navegable; «Antes y después»; «Explorar el mapa» |
 | Accesibilidad para personas ciegas o con baja visión: lector de pantalla, respuesta táctil, texto descriptivo | Todo con teclado; lectura en vivo para el lector de pantalla; descripción de cada pista; mapa explorable con flechas que dice latitud, longitud y valor; vibración al cambiar de nota (teléfonos que la permiten) |
-| Contar el porqué de las decisiones | Sección «El porqué» de la web, `docs/CAMBIOS.txt` (43 rondas con mediciones) y `docs/ESPEC_MODO_EN_VIVO.md` |
+| Contar el porqué de las decisiones | Sección «El porqué» de la web, `docs/CAMBIOS.txt` (registro de cada ronda de cambios, con sus mediciones) y `docs/ESPEC_MODO_EN_VIVO.md` |
+
+## Web
+
+La web (`web/`) es bilingüe (español e inglés: botones ES / EN en la cabecera o `?lang=en`) y tiene las dos pistas reales (GISTEMP y SST/ECCO2). Sus medios se regeneran desde el pipeline con `python -m herramientas.exportar_web` y `python -m herramientas.exportar_mapeo`. Detalles en [web/README.md](web/README.md).
 
 ## Qué se oye
 
@@ -97,7 +101,7 @@ python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
 | `07_validar.py` | comprueba tono y notas del WAV (con el video sintético, también tendencia de tono y paneo; con uno real esas quedan NO APLICA) → `salidas/validacion.png` + PASA/FALLA |
 | `08_video_con_audio.py [video] [wav] [mp4]` | une video y audio sincronizados → `salidas/demo_rocola.mp4` |
 
-`sintesis.py` es el motor de audio (osciladores, ADSR, escalas, paneo). Los ejercicios de síntesis básica (`01`–`03`) están en `archivo/`.
+`sintesis.py` es el motor de audio (osciladores, ADSR, escalas, paneo). Los ejercicios de síntesis básica (`01`–`03`) están en el tag git `practica-completa`.
 
 ## Video real (NASA SVS 5207)
 
@@ -112,8 +116,12 @@ python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
    python 05_video_a_rasgos.py config/config_eic.json
    python 06_rasgos_a_audio.py
    ```
+4. Une el video original y el audio:
+   ```bash
+   python 08_video_con_audio.py datos/2023GISTEMP_Map_SOS.mp4 salidas/rocola.wav salidas/demo_gistemp.mp4
+   ```
 
-Ojo: esto reemplaza `salidas/rasgos.json` y `salidas/rocola.wav`. Para volver al ejemplo sintético, ejecuta de nuevo 04 → 07.
+Esto reemplaza `salidas/rasgos.json` y `salidas/rocola.wav`. Para volver al ejemplo sintético, ejecuta de nuevo 04 → 07. Después de cada cambio de código o de config, `python evaluar.py` debe dar todo PASA.
 
 ## Configuración de 05
 
@@ -161,19 +169,6 @@ Para el sonido sin adornos: `ligar: false, suavizado: 0, densidad: false, octava
 
 `validos` es la fracción de píxeles reconocidos en la paleta; si baja de 0,8, revisa el recorte. Otros módulos pueden **añadir** campos (p. ej. `"evento": "huracan"`) sin romper el motor de sonido.
 
-## Uso en el hackathon
-
-Con el video ya descargado en `datos/` (ver "Video real"), en este orden:
-
-```bash
-python -m herramientas.calibrar --vmin -2 --vmax 2 --fechas datos/time.txt --salida config/config_eic.json   # 1. calibrar
-python 05_video_a_rasgos.py config/config_eic.json   # 2. video → salidas/rasgos.json
-python 06_rasgos_a_audio.py                          # 3. rasgos → salidas/rocola.wav
-python 08_video_con_audio.py datos/2023GISTEMP_Map_SOS.mp4 salidas/rocola.wav salidas/demo_gistemp.mp4   # 4. video + audio
-```
-
-Después de **cada cambio** de código o de config: `python evaluar.py` (debe dar todo PASA).
-
 ## Estructura
 
 ```
@@ -187,28 +182,23 @@ herramientas/  calibrar.py   →  python -m herramientas.calibrar (barra vertica
                exportar_paleta.py → python -m herramientas.exportar_paleta (barra de colores de cada pista para «Explorar el mapa»)
                exportar_web.py   → python -m herramientas.exportar_web (MP4 y rasgos de web/assets desde la MISMA salida que el demo; comprueba el audio)
 web/           web del proyecto: GISTEMP y SST con globo 3D y rocola accesible (ver web/README.md)
-docs/          CAMBIOS.txt (historial de cambios), AUDITORIA.md y AUDITORIA_2.md (auditorías)
-archivo/       ejercicios 01–03, verificar_01/graficar_01, PLAN.md y sus salidas (nada se borró;
-               también está en el tag git "practica-completa")
+docs/          CAMBIOS.txt (historial de cambios), ESPEC_MODO_EN_VIVO.md (reglas del modo en vivo), datos_oficiales/
 ```
 
 Variables de entorno: `ROCOLA_SALIDAS` y `ROCOLA_CONFIG` redirigen las carpetas; con `ROCOLA_SIN_AUDIO=1` no se reproduce sonido.
 
 ## Limitaciones conocidas
 
-- Segundo video, SVS 3912 (ECCO2, `config/config_sst.json`): `python 05_video_a_rasgos.py config/config_sst.json` con `ROCOLA_SALIDAS=salidas_sst`. Solo ~26 % del mapa es válido (líneas brillantes) y la media sale unos °C más alta que la real (sesgo hacia lo cálido); sirve para la forma estacional, no para el valor absoluto.
+- Segundo video, SVS 3912 (ECCO2): se procesa con `python 05_video_a_rasgos.py config/config_sst.json` y `ROCOLA_SALIDAS=salidas_sst`. Solo el 26 % del mapa es válido (las líneas brillantes) y la media sale unos °C más alta que la real, así que sirve para la forma estacional y no para el valor absoluto; la web lo indica.
 - El rango de °C de la barra se lee a ojo en `calibracion.png` (no hay OCR).
 - El mapa del video SVS 5207 es más pálido que su barra, por eso `dist_max` es 17 en ese config.
 - Cada fotograma muestreado dura 0,5 s de audio (`SEG_POR_FOTOGRAMA` en 06): con `fps_muestreo` distinto de 2, el video de 08 se estira o se comprime para igualar el audio (el ejemplo sintético, a 4, se ve a mitad de velocidad).
 - `demo_rocola.mp4`: el video empieza 0,1 s después del audio. Es la configuración que no se entrecorta en VLC.
+- Los textos en inglés de la web los escribió una IA y no los ha revisado una persona nativa; tampoco se han probado con un lector de pantalla en inglés.
+- Sin probar por el equipo: Safari (macOS e iOS), Firefox, una pestaña oculta 10 segundos y auriculares reales.
+- `web/equipo.json` tiene los aportes de cada integrante vacíos; la web no muestra nada en su lugar.
 
 El detalle de cada cambio y de cada medición está en [docs/CAMBIOS.txt](docs/CAMBIOS.txt).
-
-## Web
-
-La web del proyecto vive en `web/`, es bilingüe (español e inglés: botones ES / EN en la cabecera o `?lang=en`) y muestra solo las dos pistas reales (GISTEMP y SST/ECCO2). Para abrirla:
-`cd web && python -m http.server 8001` y entra a <http://localhost:8001>. Sus medios se regeneran desde el pipeline con
-`python -m herramientas.exportar_web` y `python -m herramientas.exportar_mapeo`. Detalles en `web/README.md`.
 
 ## Uso de IA
 

@@ -39,7 +39,7 @@ def comparar(ruta_rasgos=RASGOS, ruta_tabla=TABLA):
     """Devuelve un dict con n, r, sesgo, rmse y pendientes; los años repetidos del video se promedian."""
     with open(ruta_rasgos) as fh:
         doc = json.load(fh)
-    rasgos = doc["rasgos"] if isinstance(doc, dict) else doc
+    rasgos = doc["rasgos"]
     por_anio = {}
     for r in rasgos:
         if r.get("media") is not None and str(r.get("fecha", "")).isdigit():
