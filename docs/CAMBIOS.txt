@@ -1491,3 +1491,12 @@ La rama juan/guia-voz-ia-v2 partía de la web anterior a la versión en inglés 
 No se tocó ningún módulo de web/js/ ni nada del pipeline.
 Comprobado: node --test de la guía 29 PASA, del servicio 15 PASA, motor 13 PASA; verificar.cjs V1-V33 = 34 PASA con la guía puesta;
 en Chromium, ES → EN → ES desde la página y EN desde la guía cambian las dos, sin errores de consola.
+
+RONDA 56 - guía por voz: sin servicio de voz (Brave), un solo error de red y se escribe (rama misael/sin-red-escribir)   (2026-11-16)
+Problema: Brave expone SpeechRecognition pero sin el servicio de voz de Google, así que cada intento acaba en error "network"; «Oye Eco»
+reintentaba con esperas de hasta 30 s y parecía roto a ratos. Firefox no tiene reconocimiento y ya cae en el campo de texto.
+1. «Oye Eco»: al primer error "network" se apaga, sin reintentos (vigia.sinRed) y su línea de estado lo dice: usar Chrome o Edge, o escribir.
+   Reactivar la casilla a mano lo vuelve a intentar una vez.
+2. Esfera o tecla H: con error "network" se apaga también «Oye Eco», se abre el campo de texto y el aviso dice lo mismo. Antes decía «necesita internet».
+Comprobado: node --test guía 29 PASA; en Chromium con un reconocimiento simulado que da "network": 1 start() en 14 s (antes reintentaba), «Oye Eco»
+apagado con su aviso, y al pulsar la esfera el campo de texto abierto; sin errores de consola. Sin probar en Brave real.
