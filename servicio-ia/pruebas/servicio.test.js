@@ -2,7 +2,7 @@
    Uso:  cd servicio-ia  y luego  node --test pruebas/servicio.test.js */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ACCIONES, ESQUEMA, ErrorLLM, LUGARES, Limites, PROMPT_SISTEMA, callLLM, config, construirEntrada, limpiarSalida, manejar, registrarErrorModelo, validarEntrada } from "../src/nucleo.js";
+import { ACCIONES, ESQUEMA, ErrorLLM, LUGARES, Limites, PROMPT_SISTEMA, callLLM, callTTS, limitesVoz, config, construirEntrada, limpiarSalida, manejar, registrarErrorModelo, validarEntrada } from "../src/nucleo.js";
 
 const CLAVE = "CLAVE-DE-MENTIRA-123";
 const ENV = { GEMINI_API_KEY: CLAVE, ORIGENES_PERMITIDOS: "http://localhost:8000, https://ejemplo.github.io/", MAX_POR_MINUTO_VISITANTE: "3", MAX_POR_MINUTO_GLOBAL: "5", MAX_POR_DIA: "7" };
@@ -296,4 +296,81 @@ test("ningún archivo del servicio contiene algo con forma de clave", async () =
     assert.ok(!/AIza[0-9A-Za-z_-]{20,}/.test(texto), a + " parece contener una clave de Google");
     assert.ok(!/GEMINI_API_KEY\s*=\s*["'][^"']+["']/.test(texto), a + " asigna la clave en un archivo");
   }
+});
+
+test("voz humana (/voz): pide el audio a Gemini como dice la documentación y lo devuelve como audio/wav", async () => {
+  const WAV = Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(200, 7)]);
+  const completa = { steps: [{ type: "thought", content: [] }, { type: "model_output", content: [{ type: "audio", mime_type: "audio/wav", data: WAV.toString("base64") }] }] };
+  const vistos = [];
+  const red = (estado, cuerpo) => async (url, op) => { vistos.push({ url, op }); return new Response(typeof cuerpo === "string" ? cuerpo : JSON.stringify(cuerpo), { status: estado }); };
+  const r1 = await callTTS({ texto: "Hola, soy Eco." }, ENV, red(200, completa));
+  assert.equal(r1.mime, "audio/wav"); assert.equal(r1.base64, WAV.toString("base64"));
+  const { url, op } = vistos[0], cuerpo = JSON.parse(op.body);
+  assert.equal(url, "https://generativelanguage.googleapis.com/v1beta/interactions");
+  assert.equal(op.headers["x-goog-api-key"], CLAVE); assert.ok(!url.includes(CLAVE) && !op.body.includes(CLAVE));
+  assert.deepEqual(cuerpo, { model: "gemini-3.8-flash-tts", input: [{ type: "user_input", content: [{ type: "text", text: "Hola, soy Eco." }] }],
+    response_format: { type: "audio" }, generation_config: { speech_config: [{ voice: "Sulafat" }] } });
+  assert.deepEqual(config({}).vozModelos, ["gemini-3.8-flash-tts", "gemini-3.1-flash-tts-preview"]);
+  assert.equal(config({ GEMINI_VOZ: "Achird" }).vozNombre, "Achird"); assert.equal(config({ GEMINI_VOZ: "x\"; drop" }).vozNombre, "Sulafat");
+  assert.deepEqual(limitesVoz(config({})), { porMinutoVisitante: 4, porMinutoGlobal: 6, porDia: 60 });
+  assert.ok(config({}).vozEsperaMs <= 4000);
+
+  const pedirVoz = (cuerpoPedido, extra = {}) => new Request("https://servicio.ejemplo/voz", { method: "POST", headers: { Origin: extra.origen === undefined ? ORIGEN : extra.origen, "Content-Type": "application/json", "CF-Connecting-IP": extra.ip || "1.1.1.1" },
+    body: typeof cuerpoPedido === "string" ? cuerpoPedido : JSON.stringify(cuerpoPedido) });
+  const vozFalsa = (salida) => { const f = async (p) => { f.llamadas.push(p); if (salida instanceof Error) throw salida; return salida; }; f.llamadas = []; return f; };
+  const buena = { base64: WAV.toString("base64"), mime: "audio/wav" };
+  const cv = () => { const c = contadorFalso(); return { ...c, permitir: async (v) => c.limites.permitir(v, c.reloj.t, limitesVoz(config(ENV))) }; };
+
+  // camino normal: bytes de audio, con CORS, y no toca el contador ni el modelo de la conversación
+  let tts = vozFalsa(buena); const llm = modeloFalso(BUENA); const chat = contadorFalso();
+  let r = await manejar(pedirVoz({ texto: "  Hola,   soy <b>Eco</b>. " }), ENV, { contador: chat, contadorVoz: cv(), llm, tts });
+  assert.equal(r.status, 200); assert.equal(r.headers.get("Content-Type"), "audio/wav"); assert.equal(r.headers.get("Access-Control-Allow-Origin"), ORIGEN); assert.equal(r.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(Buffer.from(await r.arrayBuffer()), WAV);
+  assert.deepEqual(tts.llamadas, [{ texto: "Hola, soy b Eco /b ." }]);                       // limpio: sin saltos ni signos de etiqueta
+  assert.equal(llm.llamadas.length, 0); assert.equal(chat.limites.usadasHoy, 0);
+  // entradas malas y origen: no llegan al modelo de voz
+  tts = vozFalsa(buena);
+  const estadoDe = async (cuerpoPedido, extra, env = ENV, deps = {}) => { const x = await manejar(pedirVoz(cuerpoPedido, extra), env, { contador: contadorFalso(), contadorVoz: cv(), tts, ...deps }); return [x.status, (await x.json()).error]; };
+  assert.deepEqual(await estadoDe({ texto: "hola" }, { origen: "https://otra.web" }), [403, "origen"]);
+  assert.deepEqual(await estadoDe("no es json"), [400, "formato"]); assert.deepEqual(await estadoDe({ texto: "   " }), [400, "sin_texto"]); assert.deepEqual(await estadoDe({ texto: 7 }), [400, "sin_texto"]);
+  assert.deepEqual(await estadoDe({ texto: "a".repeat(601) }), [413, "texto_largo"]); assert.deepEqual(await estadoDe({ texto: "a".repeat(5000) }), [413, "cuerpo_largo"]);
+  assert.deepEqual(await estadoDe({ texto: "hola" }, {}, { ...ENV, GEMINI_API_KEY: "" }), [503, "sin_clave"]);
+  assert.deepEqual(await estadoDe({ texto: "hola" }, {}, { ...ENV, VOZ_GEMINI: "no" }), [404, "sin_voz"]);
+  assert.deepEqual(await estadoDe({ texto: "hola" }, {}, ENV, { contadorVoz: null }), [404, "sin_voz"]);
+  assert.equal(tts.llamadas.length, 0);
+  // límites propios de la voz: 4 por visitante y minuto; no gastan los de la conversación
+  const contadorVoz = cv(); tts = vozFalsa(buena);
+  const codigos = [];
+  for (let i = 0; i < 6; i++) codigos.push((await manejar(pedirVoz({ texto: "hola" }), ENV, { contador: chat, contadorVoz, tts })).status);
+  assert.deepEqual(codigos, [200, 200, 200, 200, 429, 429]); assert.equal(tts.llamadas.length, 4); assert.equal(chat.limites.usadasHoy, 0);
+  // Google dice "límite": 429, y la voz se pausa 10 minutos (no se vuelve a pedir)
+  const pausado = cv(); tts = vozFalsa(new ErrorLLM("limite"));
+  r = await manejar(pedirVoz({ texto: "hola" }), ENV, { contador: chat, contadorVoz: pausado, tts });
+  assert.equal(r.status, 429); assert.deepEqual(await r.json(), { error: "limite", motivo: "modelo" }); assert.equal(r.headers.get("Retry-After"), "600");
+  r = await manejar(pedirVoz({ texto: "hola" }, { ip: "2.2.2.2" }), ENV, { contador: chat, contadorVoz: pausado, tts });
+  assert.equal(r.status, 429); assert.equal((await r.json()).motivo, "pausa"); assert.equal(tts.llamadas.length, 1);
+  // falla o tarda: 502 o 504, sin detalles
+  for (const [error, estado, nombre] of [[new ErrorLLM("tiempo"), 504, "tiempo"], [new ErrorLLM("fallo"), 502, "modelo"], [new Error("explotó con " + CLAVE), 502, "modelo"]]) {
+    r = await manejar(pedirVoz({ texto: "hola" }), ENV, { contador: chat, contadorVoz: cv(), tts: vozFalsa(error) });
+    const t = await r.text(); assert.equal(r.status, estado); assert.deepEqual(JSON.parse(t), { error: nombre }); assert.ok(!t.includes(CLAVE));
+  }
+  r = await manejar(pedirVoz({ texto: "hola" }), ENV, { contador: chat, contadorVoz: cv(), tts: vozFalsa({ base64: "%%%no es base64%%%", mime: "audio/wav" }) });
+  assert.equal(r.status, 502);
+
+  // callTTS: errores de Google, respuesta sin audio, tiempo y modelo de respaldo
+  const avisos = [], warn = console.warn; console.warn = (...a) => avisos.push(a.join(" "));
+  try {
+    const tipo = async (fetchImpl, env = ENV) => { try { await callTTS({ texto: "mi frase secreta" }, env, fetchImpl); return "sin error"; } catch (e) { return e.tipo; } };
+    assert.equal(await tipo(red(429, { error: { code: 429, status: "RESOURCE_EXHAUSTED", message: "Quota" } })), "limite");
+    assert.equal(avisos.length, 1, "con 429 no se prueba otro modelo de voz");
+    assert.equal(await tipo(red(400, { error: { code: 400, status: "INVALID_ARGUMENT", message: "bad " + CLAVE } })), "fallo");
+    assert.ok(avisos.every((a) => !a.includes(CLAVE) && !a.includes("frase secreta")));
+    assert.equal(await tipo(red(200, { steps: [] })), "fallo"); assert.equal(await tipo(red(200, { steps: [{ type: "model_output", content: [{ type: "text", text: "hola" }] }] })), "fallo");
+    assert.equal(await tipo(red(200, "no es json")), "fallo");
+    const lenta = (u, o) => new Promise((_, no) => o.signal.addEventListener("abort", () => no(new Error("abortada"))));
+    const t0 = Date.now(); assert.equal(await tipo(lenta, { ...ENV, ESPERA_VOZ_MS: "300" }), "tiempo"); assert.ok(Date.now() - t0 < 900);
+    const orden = [];
+    const respaldo = async (u, o) => { const m = JSON.parse(o.body).model; orden.push(m); return m === "a" ? new Response("{}", { status: 503 }) : new Response(JSON.stringify(completa), { status: 200 }); };
+    assert.equal((await callTTS({ texto: "hola" }, { ...ENV, GEMINI_VOZ_MODELOS: "a,b" }, respaldo)).mime, "audio/wav"); assert.deepEqual(orden, ["a", "b"]);
+  } finally { console.warn = warn; }
 });

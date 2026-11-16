@@ -40,6 +40,13 @@ try {
   console.log(JSON.stringify(cuerpo, null, 2));
   if (r.ok && cuerpo.accion && typeof cuerpo.respuesta === "string") console.log("\nTODO BIEN: el servicio respondió con { accion, parametros, respuesta }. Ya puedes poner su dirección en web/guia-voz-config.js");
   else console.log("\nNO ESTÁ LISTO: " + (AYUDA[cuerpo.error] || "respuesta inesperada. Mira el detalle con: npx wrangler tail"));
+
+  // 3) La voz humana (opcional). Gasta UNA petición del cupo del modelo de voz. Si falla, la web usa la voz del navegador.
+  const t0 = Date.now();
+  const v = await fetch(direccion.replace(/\/+$/, "") + "/voz", { method: "POST", headers: { "Content-Type": "application/json", Origin: "http://localhost:8000" }, body: JSON.stringify({ texto: "Hola, soy Eco, la guía de Resonant Earth." }) });
+  const ms = Date.now() - t0, tipo = v.headers.get("Content-Type") || "";
+  if (v.ok && /^audio\//.test(tipo)) console.log(`\n3) Voz humana  ->  estado ${v.status}, ${tipo}, ${(await v.arrayBuffer()).byteLength} bytes en ${ms} ms.` + (ms > 3000 ? " OJO: tardó más de 3 s; la web usará casi siempre la voz del navegador." : " Bien."));
+  else console.log(`\n3) Voz humana  ->  estado ${v.status} en ${ms} ms: ${JSON.stringify(await v.json().catch(() => ({})))}. La web usará la voz del navegador. Detalle con: npx wrangler tail`);
 } catch (e) {
   console.log("No pude llegar al servicio. Revisa la dirección y tu conexión.\n  " + e.message);
   process.exit(1);

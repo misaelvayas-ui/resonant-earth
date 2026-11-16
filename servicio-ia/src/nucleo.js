@@ -85,6 +85,11 @@ LÍMITES
 
 /* Orden elegido con probar-gemini.mjs el 15-nov-2026 (gemini-3.8-flash estaba saturado). Igual que GEMINI_MODELOS en wrangler.toml. */
 export const MODELOS_POR_DEFECTO = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.6-flash"];
+/* Modelos de texto a voz (documentación consultada el 15-nov-2026: aistudio.google.com/docs/speech-generation). */
+export const MODELOS_VOZ_POR_DEFECTO = ["gemini-3.8-flash-tts", "gemini-3.1-flash-tts-preview"];
+const nonVaciaVoz = (lista) => (lista.length ? lista : [...MODELOS_VOZ_POR_DEFECTO]);
+/* Los límites de la ruta de voz, con los nombres que entiende Limites.permitir(). */
+export const limitesVoz = (cfg) => ({ porMinutoVisitante: cfg.vozPorMinutoVisitante, porMinutoGlobal: cfg.vozPorMinutoGlobal, porDia: cfg.vozPorDia });
 const nonVacia = (lista) => (lista.length ? lista : [...MODELOS_POR_DEFECTO]);
 const numero = (v, defecto) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : defecto);
 
@@ -104,6 +109,16 @@ export function config(env = {}) {
     razonamiento: ["minimal", "low", "medium", "high"].includes(env.GEMINI_THINKING) ? env.GEMINI_THINKING : "low",
     maxSalida: numero(env.MAX_TOKENS_SALIDA, 1200),                // incluye los tokens de razonamiento, no solo la respuesta
     pausaTrasLimiteS: numero(env.PAUSA_TRAS_LIMITE_S, 60),         // si el modelo dice "límite", no insistir durante este tiempo
+    // ---- voz humana (ruta /voz): texto a voz de Gemini. Tiene sus PROPIOS límites, más bajos, para no gastar cupo de más
+    vozActiva: String(env.VOZ_GEMINI || "si").toLowerCase() !== "no",
+    vozModelos: nonVaciaVoz(String(env.GEMINI_VOZ_MODELOS || MODELOS_VOZ_POR_DEFECTO.join(",")).split(",").map((m) => m.trim().replace(/^models\//, "")).filter(Boolean)),
+    vozNombre: /^[A-Za-z]{2,30}$/.test(env.GEMINI_VOZ || "") ? env.GEMINI_VOZ : "Sulafat",   // voz preparada "warm" (cálida)
+    vozMaxTexto: numero(env.VOZ_MAX_TEXTO, 600),                   // caracteres: lo mismo que mide como máximo una respuesta
+    vozEsperaMs: numero(env.ESPERA_VOZ_MS, 3500),                  // la web espera unos 3 s y, si no llega, usa la voz del navegador
+    vozPorMinutoVisitante: numero(env.VOZ_POR_MINUTO_VISITANTE, 4),
+    vozPorMinutoGlobal: numero(env.VOZ_POR_MINUTO_GLOBAL, 6),
+    vozPorDia: numero(env.VOZ_POR_DIA, 60),
+    vozPausaTrasLimiteS: numero(env.VOZ_PAUSA_TRAS_LIMITE_S, 600), // si Google dice "límite" de voz: 10 minutos sin pedir más
   };
 }
 
@@ -309,6 +324,115 @@ export async function callLLM(pedido, env, fetchImpl = fetch) {
   throw new ErrorLLM(ultimo.tipo === "limite" ? "fallo" : ultimo.tipo, ultimo.message.replace(/^LLM: \w+ ?/, ""));
 }
 
+/* ---------------------------------------------------------------- voz humana: texto a voz de Gemini
+
+   Documentación consultada el 15-nov-2026: https://aistudio.google.com/docs/speech-generation
+     La voz solo está documentada por la API de Interacciones: POST /v1beta/interactions con
+       { model, input: [{ type: "user_input", content: [{ type: "text", text }] }],
+         response_format: { type: "audio" }, generation_config: { speech_config: [{ voice }] } }
+     Modelos: gemini-3.8-flash-tts (el de más calidad), gemini-3.8-flash-lite-tts y gemini-3.1-flash-tts-preview.
+     Responde un WAV (24 kHz, mono, 16 bits) en base64, en steps[] (type "model_output") -> content[] (type "audio") -> data.
+     El idioma se detecta del propio texto: no hay parámetro de idioma. Voz por defecto: "Sulafat" (descrita como cálida).
+     Los límites gratuitos no están en la documentación: se ven por cuenta en https://aistudio.google.com/rate-limit
+   Devuelve { base64, mime } o lanza ErrorLLM. Prueba cada modelo de GEMINI_VOZ_MODELOS dentro de ESPERA_VOZ_MS. */
+export async function callTTS({ texto }, env, fetchImpl = fetch) {
+  const cfg = config(env);
+  const inicio = Date.now();
+  let ultimo = null;
+  for (let i = 0; i < cfg.vozModelos.length; i++) {
+    const restante = cfg.vozEsperaMs - (Date.now() - inicio);
+    if (restante < 250) break;
+    const control = new AbortController();
+    const reloj = setTimeout(() => control.abort(), restante);
+    try {
+      let r;
+      try {
+        r = await fetchImpl("https://generativelanguage.googleapis.com/v1beta/interactions", {
+          method: "POST",
+          signal: control.signal,
+          headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+          body: JSON.stringify({
+            model: cfg.vozModelos[i],
+            input: [{ type: "user_input", content: [{ type: "text", text: texto }] }],
+            response_format: { type: "audio" },
+            generation_config: { speech_config: [{ voice: cfg.vozNombre }] },
+          }),
+        });
+      } catch (e) {
+        if (control.signal.aborted) registrarErrorModelo(0, { status: "SIN_RESPUESTA", message: "la voz no respondió a tiempo" }, env);
+        throw new ErrorLLM(control.signal.aborted ? "tiempo" : "fallo", "sin respuesta");
+      }
+      if (!r.ok) {
+        let error = null;
+        try { error = (await r.json()).error; } catch (e) { /* el cuerpo del error no es JSON */ }
+        registrarErrorModelo(r.status, error, env);
+        const e2 = new ErrorLLM(r.status === 429 ? "limite" : "fallo", "HTTP " + r.status);
+        e2.siguiente = r.status === 404 || r.status >= 500;               // con 429 no se prueba otro modelo: sería gastar más cupo
+        throw e2;
+      }
+      let datos;
+      try { datos = await r.json(); } catch (e) { throw new ErrorLLM(control.signal.aborted ? "tiempo" : "fallo", "no es JSON"); }
+      const audios = (datos.steps || []).filter((p) => p && p.type === "model_output").flatMap((p) => p.content || [])
+        .filter((c) => c && c.type === "audio" && typeof c.data === "string" && c.data.length > 100);
+      const audio = audios[audios.length - 1];
+      if (!audio || !/^[A-Za-z0-9+/=_-]+$/.test(audio.data)) throw new ErrorLLM("fallo", "respuesta sin audio");
+      const mime = /^audio\/(wav|x-wav|l16|mpeg|ogg)\b/i.test(audio.mime_type || "") ? audio.mime_type : "audio/wav";
+      return { base64: audio.data, mime };
+    } catch (e) {
+      if (!(e instanceof ErrorLLM)) throw e;
+      ultimo = e;
+      if (!e.siguiente) throw e;
+    } finally {
+      clearTimeout(reloj);
+    }
+  }
+  throw ultimo || new ErrorLLM("tiempo", "sin presupuesto");
+}
+
+function aBytes(base64) {
+  const limpio = base64.replace(/-/g, "+").replace(/_/g, "/");
+  const binario = atob(limpio);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+  return bytes;
+}
+
+/* POST /voz  { texto }  ->  el audio (audio/wav). Mismas reglas de origen que la conversación; límites propios.
+   Cualquier fallo responde un JSON corto con el error y la web usa enseguida la voz del navegador. */
+async function manejarVoz(request, env, cfg, eco, { contadorVoz, fetchImpl, tts }) {
+  if (!cfg.vozActiva || !contadorVoz) return responder(404, { error: "sin_voz" }, eco);
+  let crudo;
+  try { crudo = await request.text(); } catch (e) { return responder(400, { error: "formato" }, eco); }
+  if (crudo.length > cfg.vozMaxTexto + 200) return responder(413, { error: "cuerpo_largo" }, eco);
+  let cuerpo;
+  try { cuerpo = JSON.parse(crudo); } catch (e) { return responder(400, { error: "formato" }, eco); }
+  if (!cuerpo || typeof cuerpo !== "object" || Array.isArray(cuerpo)) return responder(400, { error: "formato" }, eco);
+  const texto = typeof cuerpo.texto === "string" ? cuerpo.texto.replace(/[\u0000-\u001f\u007f<>]+/g, " ").replace(/\s+/g, " ").trim() : "";
+  if (!texto) return responder(400, { error: "sin_texto" }, eco);
+  if (texto.length > cfg.vozMaxTexto) return responder(413, { error: "texto_largo" }, eco);
+  if (!env.GEMINI_API_KEY) return responder(503, { error: "sin_clave" }, eco);
+
+  const visitante = request.headers.get("CF-Connecting-IP") || "desconocido";
+  const paso = await contadorVoz.permitir(visitante);
+  if (!paso.ok) return responder(429, { error: "limite", motivo: paso.motivo }, eco, { "Retry-After": String(paso.reintentar || 60) });
+  let audio;
+  try {
+    audio = await tts({ texto }, env, fetchImpl);
+  } catch (e) {
+    const tipo = e instanceof ErrorLLM ? e.tipo : "fallo";
+    if (tipo === "limite") {
+      await contadorVoz.enfriar(cfg.vozPausaTrasLimiteS);
+      return responder(429, { error: "limite", motivo: "modelo" }, eco, { "Retry-After": String(cfg.vozPausaTrasLimiteS) });
+    }
+    return responder(tipo === "tiempo" ? 504 : 502, { error: tipo === "tiempo" ? "tiempo" : "modelo" }, eco);
+  }
+  let bytes;
+  try { bytes = aBytes(audio.base64); } catch (e) { return responder(502, { error: "respuesta_invalida" }, eco); }
+  const cabeceras = { "Content-Type": audio.mime, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", Vary: "Origin",
+    "Access-Control-Allow-Origin": eco, "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type" };
+  return new Response(bytes, { status: 200, headers: cabeceras });
+}
+
 /* ---------------------------------------------------------------- la petición completa */
 
 function responder(estado, cuerpo, origen, extra = {}) {
@@ -325,7 +449,7 @@ function responder(estado, cuerpo, origen, extra = {}) {
 /* request -> Response. 'contador' tiene permitir(visitante) y enfriar(segundos) (en Cloudflare, un Durable Object).
    Nunca se registra ni se devuelve el texto de la persona, el contexto ni la clave. Del error del modelo, a la web
    no viaja ningún detalle; en el registro del servicio queda solo lo que escribe registrarErrorModelo(). */
-export async function manejar(request, env, { contador, fetchImpl = fetch, llm = callLLM } = {}) {
+export async function manejar(request, env, { contador, contadorVoz = null, fetchImpl = fetch, llm = callLLM, tts = callTTS } = {}) {
   const cfg = config(env);
   const origen = request.headers.get("Origin");
   const permitido = origenPermitido(origen, cfg);
@@ -335,6 +459,9 @@ export async function manejar(request, env, { contador, fetchImpl = fetch, llm =
   if (request.method === "GET") return responder(200, { servicio: "rocola-guia-ia", estado: "encendido" }, eco);   // para ver que está publicado
   if (request.method !== "POST") return responder(405, { error: "metodo" }, eco, { Allow: "POST, OPTIONS" });
   if (!permitido) return responder(403, { error: "origen" }, null);
+  let ruta = "/";
+  try { ruta = new URL(request.url).pathname.replace(/\/+$/, "") || "/"; } catch (e) { /* dirección rara: la ruta normal */ }
+  if (ruta.endsWith("/voz")) return manejarVoz(request, env, cfg, eco, { contadorVoz, fetchImpl, tts });
 
   let crudo;
   try { crudo = await request.text(); } catch (e) { return responder(400, { error: "formato" }, eco); }

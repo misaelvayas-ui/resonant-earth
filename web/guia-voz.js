@@ -1053,9 +1053,42 @@
     const puedeHablar = () => !!sintesis && (voces.length === 0 || vocesIdioma().length > 0);
 
     let alCallar = null;                              // termina la espera de quien aguarda a que la guía acabe de hablar
+    let audioHumano = null;                           // el audio de la voz humana que está sonando (o null)
+    function soltarAudio() {
+      if (!audioHumano) return;
+      const { audio, direccion } = audioHumano; audioHumano = null;
+      audio.onended = audio.onerror = audio.onplaying = null;
+      try { audio.pause(); } catch (e) { /* ya parado */ }
+      try { ventana.URL.revokeObjectURL(direccion); } catch (e) { /* nada que soltar */ }
+    }
+    /* Reproduce el audio de la voz humana. Da true si terminó, false si la callaron y null si no pudo sonar
+       (entonces quien llama usa la voz del navegador). */
+    function sonar(blob) {
+      const turno = ++guia.turno;
+      if (sintesis) sintesis.cancel();
+      if (alCallar) { const fin = alCallar; alCallar = null; fin(false); }
+      soltarAudio();
+      return new Promise((listo) => {
+        let audio, direccion;
+        try { direccion = ventana.URL.createObjectURL(blob); audio = new ventana.Audio(direccion); } catch (e) { listo(null); return; }
+        audioHumano = { audio, direccion };
+        let empezo = false;
+        const acabar = (resultado) => { if (alCallar === cierre) alCallar = null; if (audioHumano && audioHumano.audio === audio) soltarAudio(); if (turno === guia.turno) { guia.hablando = false; nivelar(); } listo(resultado); };
+        const cierre = (completo) => acabar(completo);
+        alCallar = cierre;
+        audio.playbackRate = Math.min(1.4, Math.max(0.6, Number(ui.velocidad.value) || 1));
+        audio.onplaying = () => { empezo = true; if (turno === guia.turno) { guia.hablando = true; nivelar(); } };
+        audio.onended = () => acabar(true);
+        audio.onerror = () => acabar(empezo ? true : null);
+        let promesa;
+        try { promesa = audio.play(); } catch (e) { acabar(null); return; }
+        if (promesa && promesa.catch) promesa.catch(() => { if (!empezo) acabar(null); });   // el navegador no dejó sonar: voz del navegador
+      });
+    }
     function callar() {
       guia.turno++; guia.turnoVoz++;
       if (sintesis) sintesis.cancel();
+      soltarAudio();
       guia.hablando = false;
       if (alCallar) { const fin = alCallar; alCallar = null; fin(false); }
       nivelar();
@@ -1094,7 +1127,7 @@
     /* UNA sola salida por respuesta, y siempre el subtítulo a la vista.
        Con lector: texto en la región viva (y solo si la página no lo anuncia ya). Sin lector: la voz de la guía.
        seguir: al terminar de hablar, vuelve a escuchar unos segundos (solo si la respuesta salió por voz). */
-    async function responder(texto, { paginaAnuncia = false, paginaHabla = false, lento = false, seguir = true, lugar = null } = {}) {
+    async function responder(texto, { paginaAnuncia = false, paginaHabla = false, lento = false, seguir = true, lugar = null, deIA = false } = {}) {
       if (!texto) return;
       guia.ultima = texto;
       ui.respuesta.textContent = texto;               // el subtítulo: toda respuesta se ve también como texto
@@ -1112,7 +1145,18 @@
       const mio = ++guia.turnoVoz;
       await esperar(120);                             // tras la acción: que nadie la cancele
       if (mio !== guia.turnoVoz) return;
-      const completo = await decir(texto, { lento });
+      // respuestas de la IA: voz humana de Gemini si está encendida y llega a tiempo (~3 s); si no, la voz del navegador
+      let completo = null;
+      if (deIA && ia && ia.voz) {
+        guia.pensando = true; pintarEstado();
+        let audio = null;
+        try { audio = await ia.voz(prepararParaVoz(texto, guia.idioma) || texto); } catch (e) { audio = null; }
+        guia.pensando = false; pintarEstado();
+        if (mio !== guia.turnoVoz) return;
+        if (audio) completo = await sonar(audio);
+        if (mio !== guia.turnoVoz) return;
+      }
+      if (completo === null) completo = await decir(texto, { lento });
       if (completo && seguir && mio === guia.turnoVoz) seguirEscuchando();
     }
 
@@ -1212,6 +1256,12 @@
       };
       try { mio.start(); } catch (e) { pintarEscucha(false); if (!auto) responder(u().sinMicro, { seguir: false }); }
     }
+    /* Cierra el micrófono sin atender lo que se haya oído (Esc, al escribir, al pulsar un atajo o al empezar el recorrido). */
+    function cerrarMicro() {
+      if (!guia.escuchando && !rec) return;
+      try { if (rec) rec.abort(); } catch (e) { /* ya cerrado */ }
+      if (guia.escuchando) pintarEscucha(false);
+    }
     /* Tras una respuesta dicha por voz, la guía vuelve a escuchar UNA vez. Nunca es lo primero que pasa: siempre
        viene después de algo que hizo la persona (pulsar la esfera, la tecla H, un botón o escribir). */
     function seguirEscuchando() {
@@ -1307,6 +1357,7 @@
     }
     async function recorrer() {
       const mio = ++guia.recorrido, sigue = () => mio === guia.recorrido;
+      cerrarMicro();                                  // que el micrófono no oiga a la guía contar el recorrido
       guia.enRecorrido = true;
       ui.detener.hidden = false;
       if (ia) ia.marcar(false);
@@ -1403,9 +1454,10 @@
       const texto = ui.campo.value.trim();
       if (!texto) return;
       ui.campo.value = "";
+      cerrarMicro();                                  // escribió: ya no hace falta seguir escuchando
       atender(texto);
     });
-    for (const chip of panel.querySelectorAll(".gv-chip")) chip.addEventListener("click", () => atender(chip.textContent));
+    for (const chip of panel.querySelectorAll(".gv-chip")) chip.addEventListener("click", () => { cerrarMicro(); atender(chip.textContent); });
     ui.idioma.addEventListener("change", () => fijarIdioma(ui.idioma.value));
     ui.lector.addEventListener("change", () => fijarLector(ui.lector.checked));
     ui.tecla.addEventListener("change", () => guardar({ tecla: ui.tecla.checked }));
@@ -1423,8 +1475,8 @@
       const d = e.target, etiqueta = d.tagName;
       const escribe = etiqueta === "TEXTAREA" || etiqueta === "SELECT" || d.isContentEditable ||
         (etiqueta === "INPUT" && !["range", "checkbox"].includes(d.type));
-      if (e.key === "Escape" && guia.escuchando) { try { rec.abort(); } catch (x) { /* ya cerrado */ } pintarEscucha(false); return; }
-      if (e.key === "Escape" && guia.enRecorrido) { detenerRecorrido(); return; }
+      if (e.key === "Escape" && guia.enRecorrido) { cerrarMicro(); detenerRecorrido(); return; }   // primero el recorrido: Esc siempre lo detiene
+      if (e.key === "Escape" && guia.escuchando) { cerrarMicro(); return; }
       if (e.key === "Escape" && !ui.tarjeta.hidden && panel.contains(d)) { callar(); cerrarTarjeta(); return; }
       if (escribe || !ui.tecla.checked) return;
       if (e.key === "h" || e.key === "H") { e.preventDefault(); pulsarEsfera(); }

@@ -26,6 +26,9 @@
   const LUGARES = ["pistas", "reproductor", "reproducir", "cambiar", "volumen", "avance", "grafico", "lectura", "descripcion", "leyenda",
     "como_funciona", "por_que", "accesibilidad", "equipo"];
   const ESPERA_MS = 9000;             // más que esto y se usan los comandos de siempre (el servicio prueba hasta ~8 s con sus modelos)
+  const ESPERA_VOZ_MS = 3000;         // la voz humana: si no llega en esto, habla la voz del navegador
+  const PAUSA_VOZ_MS = 5 * 60000;     // tras un fallo de la voz humana, no se pide durante 5 minutos (tras un "límite", 30)
+  const MAX_VOZ = 600;                // caracteres que acepta la ruta de voz
   const PAUSA_MS = 60000;             // tras un "límite" o dos fallos seguidos, no se insiste durante un minuto
   const MAX_FRASE = 300;              // el servicio no acepta frases más largas
   const MAX_CONTEXTO = 8500;          // caracteres del contexto ya serializado (el servicio corta en 9000)
@@ -33,9 +36,11 @@
   /* Lo que se ve de la IA, en los dos idiomas de la guía. Poco texto: el aviso, la etiqueta y una casilla que lo explica todo. */
   const TEXTOS = {
     es: { aviso: AVISO, etiqueta: "Respuesta generada por IA", firma: "Respuesta generada por IA. ",
-      casilla: "Conversar con IA. Lo que dices y lo que suena se envía a un servicio de IA de Google. No digas datos personales; la IA puede equivocarse." },
+      casilla: "Conversar con IA. Lo que dices y lo que suena se envía a un servicio de IA de Google. No digas datos personales; la IA puede equivocarse.",
+      vozHumana: "Voz humana de Gemini para las respuestas de la IA. Si tarda o falla, sigo con la voz del navegador." },
     en: { aviso: "Your phrases are sent to an AI service.", etiqueta: "AI-generated answer", firma: "AI-generated answer. ",
-      casilla: "Talk with AI. What you say and what is playing are sent to a Google AI service. Do not share personal data; the AI can make mistakes." },
+      casilla: "Talk with AI. What you say and what is playing are sent to a Google AI service. Do not share personal data; the AI can make mistakes.",
+      vozHumana: "Human-sounding Gemini voice for AI answers. If it is slow or fails, I keep using the browser voice." },
   };
 
   /* Comandos cortos y claros: se hacen al instante, sin IA (no esperan ni gastan cupo). "pausa" debe pausar ya. */
@@ -172,13 +177,30 @@
     }
   }
 
+  /* Pide al servicio el audio de una frase (ruta /voz). Devuelve un Blob de audio o lanza un error (con .limite si fue un 429). */
+  async function pedirVoz(url, texto, { fetchImpl, espera = ESPERA_VOZ_MS, Abortar = AbortController } = {}) {
+    const control = new Abortar();
+    const reloj = setTimeout(() => control.abort(), espera);
+    try {
+      const r = await fetchImpl(url.replace(/\/+$/, "") + "/voz", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ texto }),
+        signal: control.signal, credentials: "omit", cache: "no-store", referrerPolicy: "no-referrer" });
+      if (!r.ok) { const e = new Error("voz " + r.status); e.limite = r.status === 429; throw e; }
+      if (!/^audio\//i.test((r.headers && r.headers.get && r.headers.get("Content-Type")) || "")) throw new Error("voz sin audio");
+      const audio = await r.blob();                                        // el reloj sigue corriendo mientras baja el audio
+      if (!audio || !audio.size) throw new Error("voz vacía");
+      return audio;
+    } finally {
+      clearTimeout(reloj);
+    }
+  }
+
   /* Conecta la IA con la guía. Devuelve null si no hay servicio configurado (todo queda como antes). */
   function conectar({ A, doc, ventana, panel, herramientas, preferencias, idioma = () => "es" }) {
     const T = () => TEXTOS[idioma() === "en" ? "en" : "es"];
     const url = direccionValida(ventana.GUIA_VOZ_CONFIG && ventana.GUIA_VOZ_CONFIG.servicioIA);
     if (!url || typeof ventana.fetch !== "function" || typeof ventana.AbortController !== "function") return null;
     const { interpretarComando, ejecutar, normalizar, buscarFecha, resumenSerie } = herramientas;
-    const estado = { fallos: 0, pausaHasta: 0, conversacion: [], avisado: false };
+    const estado = { fallos: 0, pausaHasta: 0, conversacion: [], avisado: false, vozPausaHasta: 0 };
 
     /* ---------- lo que se ve: aviso, etiqueta y la casilla para apagarlo ---------- */
     const etiqueta = doc.createElement("p");
@@ -194,10 +216,18 @@
     casilla.innerHTML = '<input type="checkbox" id="gv-ia"> <span></span>';
     const grupo = panel.querySelector("#gv-grupo-escucha");                 // junto a las demás opciones de conversación
     if (grupo) grupo.append(casilla); else panel.querySelector("#gv-lector").closest("label").before(casilla);
+    // interruptor de la voz humana (apagada por defecto: gasta cupo del modelo de voz y cada respuesta espera hasta 3 s)
+    const casillaVoz = doc.createElement("label");
+    casillaVoz.className = "gv-casilla";
+    casillaVoz.innerHTML = '<input type="checkbox" id="gv-voz-ia"> <span></span>';
+    casilla.after(casillaVoz);
+    const interruptorVoz = casillaVoz.querySelector("input");
+    interruptorVoz.checked = preferencias.leer().vozIA === true;
+    interruptorVoz.addEventListener("change", () => { preferencias.guardar({ vozIA: interruptorVoz.checked }); estado.vozPausaHasta = 0; });
     const interruptor = casilla.querySelector("input");
     interruptor.checked = preferencias.leer().ia !== false;                 // encendida, salvo que la persona la haya apagado
-    const pintar = () => { aviso.hidden = !interruptor.checked; if (!interruptor.checked) etiqueta.hidden = true; };
-    const traducir = () => { const t = T(); aviso.textContent = t.aviso; etiqueta.textContent = t.etiqueta; casilla.querySelector("span").textContent = t.casilla; };
+    const pintar = () => { aviso.hidden = !interruptor.checked; if (!interruptor.checked) etiqueta.hidden = true; interruptorVoz.disabled = !interruptor.checked; };
+    const traducir = () => { const t = T(); aviso.textContent = t.aviso; etiqueta.textContent = t.etiqueta; casilla.querySelector("span").textContent = t.casilla; casillaVoz.querySelector("span").textContent = t.vozHumana; };
     interruptor.addEventListener("change", () => { preferencias.guardar({ ia: interruptor.checked }); pintar(); });
     traducir();
     pintar();
@@ -237,8 +267,19 @@
       return literal ? { ...r, deIA: false } : { ...r, texto: firmar(v.respuesta), deIA: true };
     }
 
-    return { atender, traducir, marcar: (esIA) => { etiqueta.hidden = !esIA || !interruptor.checked; }, encendida: () => interruptor.checked, estado };
+    /* El audio de una respuesta con la voz humana, o null = "dilo con la voz del navegador" (apagada, en pausa, sin red,
+       texto largo, tardó más de 3 s, error o sin cupo). Nunca lanza. */
+    async function voz(texto) {
+      texto = String(texto || "").replace(/\s+/g, " ").trim();
+      if (!interruptor.checked || !interruptorVoz.checked || !texto || texto.length > MAX_VOZ) return null;
+      if (ventana.navigator && ventana.navigator.onLine === false) return null;
+      if (Date.now() < estado.vozPausaHasta || typeof ventana.Audio !== "function" || !ventana.URL || !ventana.URL.createObjectURL) return null;
+      try { return await pedirVoz(url, texto, { fetchImpl: ventana.fetch.bind(ventana), Abortar: ventana.AbortController }); }
+      catch (e) { estado.vozPausaHasta = Date.now() + (e.limite ? 6 : 1) * PAUSA_VOZ_MS; return null; }
+    }
+
+    return { atender, voz, traducir, marcar: (esIA) => { etiqueta.hidden = !esIA || !interruptor.checked; }, encendida: () => interruptor.checked, estado };
   }
 
-  return { ACCIONES, LUGARES, AVISO, TEXTOS, ESPERA_MS, MAX_CONTEXTO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar, conectar };
+  return { ACCIONES, LUGARES, AVISO, TEXTOS, ESPERA_MS, MAX_CONTEXTO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar, pedirVoz, ESPERA_VOZ_MS, conectar };
 });

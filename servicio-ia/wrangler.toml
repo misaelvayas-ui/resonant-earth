@@ -32,6 +32,19 @@ MAX_CONTEXTO = "9000"
 ESPERA_MODELO_MS = "8000"
 ESPERA_INTENTO_MS = "3500"
 
+# Voz humana (ruta /voz): texto a voz de Gemini para las respuestas de la IA. "no" la apaga del todo.
+VOZ_GEMINI = "si"
+# Modelos de voz, en orden. Nombres en https://aistudio.google.com/docs/speech-generation
+GEMINI_VOZ_MODELOS = "gemini-3.8-flash-tts,gemini-3.1-flash-tts-preview"
+# Voz preparada. "Sulafat" está descrita como cálida. Otras: Achird (amable), Vindemiatrix (suave), Kore (firme).
+GEMINI_VOZ = "Sulafat"
+# Límites propios de la voz. Ponlos POR DEBAJO de los del modelo de voz en https://aistudio.google.com/rate-limit
+VOZ_POR_MINUTO_VISITANTE = "4"
+VOZ_POR_MINUTO_GLOBAL = "6"
+VOZ_POR_DIA = "60"
+# Lo máximo que el servicio espera a la voz. La web espera unos 3 s y, si no llega, usa la voz del navegador.
+ESPERA_VOZ_MS = "3500"
+
 # El contador de los límites (un Durable Object con SQLite; funciona en el plan gratuito).
 [[durable_objects.bindings]]
 name = "CONTADOR"

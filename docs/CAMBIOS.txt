@@ -1162,3 +1162,26 @@ NO probado: una llamada real a Gemini con la acción nueva (que el modelo señal
 reales, teléfonos.
 HAY QUE VOLVER A PUBLICAR EL SERVICIO (npx wrangler deploy): cambiaron el esquema y las instrucciones del modelo. Mientras
 no se publique, todo funciona igual, pero la IA no señalará.
+
+RONDA 38 - guía por voz, fase 4: voz humana de Gemini como opción   (2026-11-15)
+Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit 69f69d0 (fase 3).
+Tocados: servicio-ia/src/nucleo.js, servicio-ia/src/index.js, servicio-ia/wrangler.toml, servicio-ia/probar.mjs,
+servicio-ia/pruebas/servicio.test.js, servicio-ia/LEEME.md, web/guia-voz.js, web/guia-voz-ia.js, web/pruebas/guia-voz-ia.test.js,
+web/README.md.
+9. Servicio: ruta POST /voz { texto } -> audio/wav, con un modelo de texto a voz de Gemini (gemini-3.8-flash-tts y, de
+   respaldo, gemini-3.1-flash-tts-preview; voz "Sulafat", cálida; documentación consultada el 15-nov-2026). Mismas reglas de
+   origen; límites propios y más bajos, en otra instancia del contador (4 por visitante y minuto, 6 por minuto, 60 por día,
+   600 caracteres); con 429 de Google se pausa 10 minutos. Registro igual de corto: sin clave ni frase.
+   Web: interruptor «Voz humana de Gemini» en las opciones, apagado por defecto. Solo para respuestas de la IA. Si el audio
+   tarda más de ~3 s, falla o no hay cupo, habla enseguida la voz del navegador y no se vuelve a pedir en 5 minutos (30 si
+   fue por cupo). Con lector de pantalla no se pide.
+Verificado: node --test (web 28, servicio 15: forma de la petición de voz, límites propios, 429 con pausa, errores sin detalles
+ni clave). Navegador con micrófono, voz, servicio y voz humana de mentira: 171 de 171 comprobaciones pasan en una corrida
+completa (axe 0 violaciones, sin voces dobles con lector). De paso se corrigió un fallo real que destaparon estas pruebas:
+si el micrófono estaba abierto al empezar el recorrido, no se cerraba y Esc cerraba el micrófono en vez de detener el
+recorrido; ahora el recorrido, lo escrito y los atajos cierran el micrófono, y Esc detiene primero el recorrido.
+verificar.cjs: pasa todo menos V11, que ya fallaba antes de esta ronda y no es de la guía.
+NO PROBADO CON GEMINI DE VERDAD: ninguna llamada real a los modelos de voz (ni si existen en la cuenta, ni cuánto tardan,
+ni sus límites). La voz solo está documentada por la API de Interacciones, que el 15-nov-2026 no respondía para texto. Para
+comprobarlo: publicar y correr node probar.mjs <dirección> (paso 3).
+HAY QUE VOLVER A PUBLICAR EL SERVICIO (npx wrangler deploy) para que exista la ruta /voz y para que la IA pueda señalar.

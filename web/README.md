@@ -131,14 +131,16 @@ La opción del lector de pantalla dice: «Uso un lector de pantalla (NVDA, JAWS,
 - Mientras espera a la IA, la esfera pasa a «pensando» y, si pasan 1,5 s, la guía dice «Un momento.» («One moment.») una sola vez; con lector de pantalla no habla, basta el texto.
 - Mientras la IA está encendida se ve el aviso «Tus frases se envían a un servicio de IA» y cada respuesta de la IA lleva la etiqueta «Respuesta generada por IA» (en inglés, sus equivalentes).
 
+**Voz humana de Gemini (opcional, apagada por defecto).** En «Ayuda y opciones» hay un interruptor «Voz humana de Gemini para las respuestas de la IA». Encendido, cada respuesta de la IA se manda (solo la frase, ya preparada para hablar) a la ruta `/voz` del servicio, que devuelve un audio con una voz cálida de Gemini en el idioma de la frase. Si el audio no llega en unos **3 segundos**, da error o se acabó el cupo, la guía habla **enseguida con la voz del navegador** y deja de pedir la voz humana 5 minutos (30 si fue por cupo). Las respuestas que no son de la IA, el recorrido y el saludo siempre usan la voz del navegador, para no gastar cupo. Con lector de pantalla no se pide ninguna voz. Viene apagada porque gasta cupo del modelo de voz y porque, si ese modelo va lento, cada respuesta esperaría hasta 3 s. **No está probada con Gemini de verdad** (ver `servicio-ia/LEEME.md`).
+
 **Pruebas de la guía**
 
 ```bash
-node --test web/pruebas/guia-voz.test.js web/pruebas/guia-voz-ia.test.js   # 23 pruebas: intérprete (112 frases en español, 55 en inglés), voz, recorrido, contexto de la IA
-cd servicio-ia && node --test pruebas/servicio.test.js                      # 12 pruebas del servicio, con un modelo de mentira
+node --test web/pruebas/guia-voz.test.js web/pruebas/guia-voz-ia.test.js   # 28 pruebas: intérprete (112 frases en español, 55 en inglés), voz, recorrido, contexto de la IA
+cd servicio-ia && node --test pruebas/servicio.test.js                      # 15 pruebas del servicio, con un modelo de mentira
 ```
 
-En navegador (Chrome sin ventana, con micrófono, voz y servicio de IA **de mentira**; el guion de prueba no está en el repositorio), 128 comprobaciones, todas pasan:
+En navegador (Chrome sin ventana, con micrófono, voz y servicio de IA **de mentira**; el guion de prueba no está en el repositorio), 171 comprobaciones, todas pasan:
 
 - axe con 0 violaciones en escritorio (1440 px) y móvil (390 px), en español y en inglés: cerrada, escuchando y con todo desplegado. Sin desborde horizontal.
 - Voz primero: al cargar no se abre el micrófono; `H` abre, saluda y escucha; la barra espaciadora no hace nada; tarjeta mínima; la ayuda solo aparece al pedirla.
@@ -150,7 +152,9 @@ En navegador (Chrome sin ventana, con micrófono, voz y servicio de IA **de ment
 - Recorrido completo (cada paso señala su lugar; el puntero se mueve y hace clic de verdad en la tarjeta de la pista y en «Cambiar de pista») y cuatro maneras de detenerlo; movimiento reducido; navegador sin voz o sin reconocimiento (aparecen el campo y las frases sugeridas).
 - IA de mentira: idioma y textos de la web en el contexto (unos 6000 de 9000 caracteres), reformular, 7 respuestas manipuladas o caídas descartadas sin avisos, y HTML como texto.
 
-`pruebas/verificar.cjs` (V1 a V14) sigue pasando con la guía puesta.
+- Voz humana (de mentira): apagada por defecto; encendida suena el audio y calla la voz del navegador; si tarda, a los ~3 s habla el navegador; con 429 o error el respaldo es inmediato y no insiste; con lector no se pide.
+
+`pruebas/verificar.cjs`: pasa todo menos V11 (tras «Pausar», la amplitud no baja a tiempo), que ya fallaba antes de la ronda 38 con el código anterior y no es de la guía.
 
 **No probado:** micrófono real, las voces reales de cada navegador (la elección de voz se probó con listas de nombres de Windows, Edge, Chrome y macOS), lectores de pantalla reales, Firefox, Safari, teléfonos reales, ni una llamada real a Gemini.
 

@@ -4,7 +4,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { interpretarComando, normalizar, resumenSerie } = require("../guia-voz.js");
-const { ACCIONES, LUGARES, TEXTOS, ESPERA_MS, MAX_CONTEXTO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar } = require("../guia-voz-ia.js");
+const { ACCIONES, LUGARES, TEXTOS, ESPERA_MS, MAX_CONTEXTO, armarContexto, validarRespuesta, aAccionLocal, esComandoDirecto, direccionValida, preguntar, pedirVoz, ESPERA_VOZ_MS } = require("../guia-voz-ia.js");
 
 const CTX = { pistas: [{ numero: 1 }, { numero: 2 }, { numero: 3 }], duracion_segundos: 30 };
 
@@ -181,4 +181,26 @@ test("lo que se ve de la IA está en los dos idiomas", () => {
   assert.equal(Object.keys(TEXTOS.es).sort().join(), Object.keys(TEXTOS.en).sort().join());
   assert.equal(TEXTOS.es.aviso, "Tus frases se envían a un servicio de IA."); assert.match(TEXTOS.en.aviso, /sent to an AI service/);
   assert.match(TEXTOS.es.etiqueta, /generada por IA/); assert.match(TEXTOS.en.etiqueta, /AI-generated/);
+});
+
+test("voz humana: pide el audio a la ruta /voz y falla limpio (sin red, límite, tarda, o no es audio)", async () => {
+  assert.equal(ESPERA_VOZ_MS, 3000);
+  const vistos = [];
+  const audio = (tipo = "audio/wav", bytes = 300) => async (url, op) => { vistos.push({ url, op }); return { ok: true, status: 200, headers: { get: () => tipo }, blob: async () => ({ size: bytes, type: tipo }) }; };
+  const b = await pedirVoz("https://s.dev/", "Hola, soy Eco.", { fetchImpl: audio() });
+  assert.equal(b.size, 300);
+  assert.equal(vistos[0].url, "https://s.dev/voz"); assert.equal(vistos[0].op.method, "POST"); assert.equal(vistos[0].op.credentials, "omit");
+  assert.deepEqual(JSON.parse(vistos[0].op.body), { texto: "Hola, soy Eco." });               // solo la frase: ni contexto ni conversación
+  assert.deepEqual(Object.keys(vistos[0].op.headers), ["Content-Type"]);                       // ninguna cabecera con clave
+  const falla = async (fetchImpl, espera) => { try { await pedirVoz("https://s.dev", "hola", { fetchImpl, espera }); return "sin error"; } catch (e) { return e.limite ? "limite" : "error"; } };
+  assert.equal(await falla(async () => ({ ok: false, status: 429 })), "limite");
+  assert.equal(await falla(async () => ({ ok: false, status: 504 })), "error");
+  assert.equal(await falla(async () => { throw new TypeError("Failed to fetch"); }), "error");
+  assert.equal(await falla(audio("application/json")), "error");                               // no es audio
+  assert.equal(await falla(audio("audio/wav", 0)), "error");                                   // audio vacío
+  const t0 = Date.now();
+  const lenta = (url, op) => new Promise((_, rechazar) => op.signal.addEventListener("abort", () => rechazar(new Error("abortada"))));
+  assert.equal(await falla(lenta, 80), "error");
+  assert.ok(Date.now() - t0 < 1000, "el tiempo de espera corta la petición");
+  assert.ok(TEXTOS.es.vozHumana && TEXTOS.en.vozHumana);
 });

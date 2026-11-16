@@ -209,6 +209,20 @@ node probar-gemini.mjs
 
 Pide la clave con entrada oculta (nunca por argumento, no se imprime ni se guarda) y dice cuántos caracteres recibió (solo el número). Luego lista los modelos de tu cuenta (nombre y métodos), elige hasta 6 de las familias Flash y Flash-Lite que admiten `generateContent` (sin imagen, voz, embeddings ni live) y prueba con cada uno «Di hola» y la tarea real del servicio, con tope de 15 s. Imprime una tabla modelo / prueba / HTTP / ms / resultado y, al final, prueba `callLLM()` completo. Gasta unas 13 peticiones del cupo gratuito.
 
+## Voz humana (ruta `/voz`), opcional
+
+`POST /voz` con `{ "texto": "…" }` devuelve un audio (`audio/wav`) con la frase dicha por un modelo de texto a voz de Gemini. La web lo usa solo para las respuestas de la IA y solo si la persona enciende «Voz humana de Gemini» en las opciones de la guía.
+
+- **Documentación consultada el 15-nov-2026** (<https://aistudio.google.com/docs/speech-generation>): modelos `gemini-3.8-flash-tts` (el de más calidad), `gemini-3.8-flash-lite-tts` y `gemini-3.1-flash-tts-preview`. La voz solo está documentada por la **API de Interacciones** (`POST /v1beta/interactions` con `response_format: { type: "audio" }` y `generation_config.speech_config: [{ voice }]`); responde un WAV de 24 kHz en base64. El idioma se detecta del texto: no hay parámetro de idioma.
+- **Voz:** `GEMINI_VOZ = "Sulafat"` (descrita como cálida). Otras: `Achird` (amable), `Vindemiatrix` (suave), `Kore` (firme).
+- **Modelos:** `GEMINI_VOZ_MODELOS = "gemini-3.8-flash-tts,gemini-3.1-flash-tts-preview"`. Pasa al segundo con 404 o 5xx; con 429 no prueba otro, para no gastar más cupo.
+- **Límites propios, aparte de los de la conversación** (otra instancia del contador): `VOZ_POR_MINUTO_VISITANTE = 4`, `VOZ_POR_MINUTO_GLOBAL = 6`, `VOZ_POR_DIA = 60`, frases de hasta 600 caracteres. La documentación no da los límites gratuitos de los modelos de voz: míralos en <https://aistudio.google.com/rate-limit> y deja estos por debajo. Si Google responde 429, la voz se pausa 10 minutos.
+- **Tiempo:** `ESPERA_VOZ_MS = 3500`. La web espera 3 s; si no llega, habla con la voz del navegador.
+- **Apagarla del todo:** `VOZ_GEMINI = "no"` y publicar.
+- **Probarla:** `node probar.mjs https://TU-SERVICIO.workers.dev` ahora hace un tercer paso que pide una frase a `/voz` y dice el estado, el tamaño y cuánto tardó.
+
+**Riesgo conocido, sin probar.** No se hizo ninguna llamada real a los modelos de voz. Usan la API de Interacciones, la misma que el 15-nov-2026 no respondía en 40 s para el texto. Si pasa lo mismo, el paso 3 de `probar.mjs` dará 504 y la web seguirá con la voz del navegador sin que nadie note más que una espera; en ese caso deja el interruptor apagado (así viene) o pon `VOZ_GEMINI = "no"`.
+
 ## Qué protege al servicio
 
 | Protección | Valor inicial | Dónde se cambia |
@@ -258,7 +272,7 @@ Dos cosas que conviene saber:
 | `src/nucleo.js` | toda la lógica: instrucciones del modelo, límites, validación y `callLLM()` |
 | `src/index.js` | lo propio de Cloudflare: el Worker y el contador de los límites |
 | `wrangler.toml` | nombre, orígenes permitidos, modelo y límites (sin secretos) |
-| `probar.mjs` | prueba el servicio publicado con una frase de ejemplo |
+| `probar.mjs` | prueba el servicio publicado con una frase de ejemplo y, al final, la voz humana |
 | `probar-gemini.mjs` | mide qué modelos de Gemini responden ahora (tabla modelo / HTTP / ms) para elegir el orden de `GEMINI_MODELOS` |
 | `pruebas/servicio.test.js` | pruebas con un modelo de mentira: `node --test pruebas/servicio.test.js` |
 
