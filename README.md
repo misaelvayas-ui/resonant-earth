@@ -187,7 +187,7 @@ herramientas/  calibrar.py   →  python -m herramientas.calibrar (barra vertica
                exportar_paleta.py → python -m herramientas.exportar_paleta (barra de colores de cada pista para «Explorar el mapa»)
                exportar_web.py   → python -m herramientas.exportar_web (MP4 y rasgos de web/assets desde la MISMA salida que el demo; comprueba el audio)
 web/           web del proyecto: GISTEMP y SST con globo 3D y rocola accesible (ver web/README.md)
-docs/          CAMBIOS.txt (historial de cambios), AUDITORIA.md y AUDITORIA_2.md (auditorías)
+docs/          CAMBIOS.txt (historial de cambios), ESPEC_MODO_EN_VIVO.md (reglas del modo en vivo), datos_oficiales/
 ```
 
 Variables de entorno: `ROCOLA_SALIDAS` y `ROCOLA_CONFIG` redirigen las carpetas; con `ROCOLA_SIN_AUDIO=1` no se reproduce sonido.
@@ -199,6 +199,8 @@ Variables de entorno: `ROCOLA_SALIDAS` y `ROCOLA_CONFIG` redirigen las carpetas;
 - El mapa del video SVS 5207 es más pálido que su barra, por eso `dist_max` es 17 en ese config.
 - Cada fotograma muestreado dura 0,5 s de audio (`SEG_POR_FOTOGRAMA` en 06): con `fps_muestreo` distinto de 2, el video de 08 se estira o se comprime para igualar el audio (el ejemplo sintético, a 4, se ve a mitad de velocidad).
 - `demo_rocola.mp4`: el video empieza 0,1 s después del audio. Es la configuración que no se entrecorta en VLC.
+- Sin probar: Safari (macOS e iOS) y Firefox, la web con un lector de pantalla real, y el sonido en vivo con la pestaña oculta o con auriculares. Los textos en inglés no los ha revisado una persona nativa.
+- `web/equipo.json` tiene los aportes de cada integrante vacíos; la web no muestra nada en su lugar.
 
 El detalle de cada cambio y de cada medición está en [docs/CAMBIOS.txt](docs/CAMBIOS.txt).
 

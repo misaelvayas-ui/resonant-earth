@@ -1,8 +1,8 @@
 # Especificación del modo en vivo (Web Audio) = `06_rasgos_a_audio.py`
 
-Para quien integra `audio.js` en `web/`. El modo en vivo debe sonar como el audio que genera el pipeline (`06_rasgos_a_audio.py`), con las mismas notas, el mismo dron y el mismo paneo. Aquí está el mapeo real rasgo → sonido, cada regla con su archivo:línea, listo para pasar a JavaScript.
+El modo en vivo (`web/js/mapeo.js` y `web/js/vivo.js`) debe sonar como el audio que genera el pipeline (`06_rasgos_a_audio.py`): las mismas notas, el mismo dron y el mismo paneo. Este documento recoge cada regla del mapeo rasgo → sonido con su fuente en el código.
 
-**Regla de oro: el JS no inventa ningún número.** Todo parámetro sale de `web/assets/<id>_mapeo.json` (lo genera `python -m herramientas.exportar_mapeo`). Para comprobar el JS, `web/assets/<id>_esperado.json` trae, por fotograma, las notas, el dron, el pan y la ganancia que debe dar.
+El JS no inventa ningún número. Todo parámetro sale de `web/assets/<id>_mapeo.json` (lo genera `python -m herramientas.exportar_mapeo`). Para comprobar el JS, `web/assets/<id>_esperado.json` trae, por fotograma, las notas, el dron, el pan y la ganancia que debe dar.
 
 Pistas: `gistemp_1880_2023` (60 fotogramas) y `sst_ecco2_2007_2008` (61 fotogramas).
 
@@ -60,7 +60,7 @@ hz       = 440 * 2 ** ((dron - 69) / 12)
 |---|---|
 | El dron es la nota que la **melodía** toca con el valor `referencia`, una octava abajo, **constante** en toda la pista (no depende de ningún rasgo) | `06:94-98` |
 | `dron_octava` (por defecto 0) lo desplaza más octavas | `06:98`, `06:38` |
-| **Dron continuo (ronda 29):** suena de forma ininterrumpida desde el tick 0 hasta el final, canal 2, y su nivel es **constante**: el RMS de un seno de amplitud `dron_nivel × factor_fluidsynth` = 0,048 × 0,35 (RMS 0,012, −38,5 dB), unos **~7 dB por debajo de la melodía** en el WAV. Nunca debe ser una nota golpeada que decae (antes, GM 89 se apagaba en ~6 s y en las notas ligadas la mezcla quedaba muda) | `06:32`, `06:272-278`, `06:204-205` |
+| **Dron continuo:** suena sin interrupción desde el tick 0 hasta el final, en el canal 2, con nivel **constante**: el RMS de un seno de amplitud `dron_nivel × factor_fluidsynth` = 0,048 × 0,35 (RMS 0,012, −38,5 dB), unos **7 dB por debajo de la melodía** en el WAV. No puede ser una nota golpeada que decae: el programa GM 89 se apaga en unos 6 s y en las notas ligadas la mezcla quedaba muda | `06:32`, `06:272-278`, `06:204-205` |
 | Instrumento: programa GM **90** (Pad 2 warm), que no decae (el 89 sí); en Web Audio basta un seno o un pad sostenido a ese nivel | `06:39`, `06:123` |
 | La velocidad MIDI del dron (`round(45 * dron_nivel / 0.08)` = 27) solo queda en el `.mid`: con FluidSynth se renormaliza el RMS, así que no decide el volumen | `06:121` |
 
@@ -84,11 +84,11 @@ velocidad[i] = redondearPar(127 * ganancia[i])                // velocidad MIDI 
 | Regla | Fuente |
 |---|---|
 | `area` → velocidad MIDI del golpe de la melodía: −6 dB (el área mínima de la pista) a 0 dB (el área máxima) | `06:102-105` |
-| `area` se normaliza **entre su mínimo y su máximo** (ronda 28; antes, por el máximo: SST solo recorría 0,8 dB) | `06:102-105` |
+| `area` se normaliza **entre su mínimo y su máximo**; normalizada por el máximo, SST solo recorría 0,8 dB | `06:102-105` |
 | En el respaldo numpy, la ganancia es la misma curva interpolada linealmente entre centros de fotograma y suavizada 80 ms | `06:294` |
 | Un evento fuerte (sección 2.5) sube la velocidad a `max(v, 100)` | `06:154,160-161` |
 
-Valores por pista: GISTEMP `area_min` 0,0 y `area_max` 0,5708; SST `area_min` 0,4282 y `area_max` 0,4939. Las dos recorren ahora de 0,501 (−6 dB) a 1,0 (0 dB), es decir, velocidades MIDI de 64 a 127. (Con la regla anterior SST solo iba de 0,912 a 1,0.)
+Valores por pista: GISTEMP `area_min` 0,0 y `area_max` 0,5708; SST `area_min` 0,4282 y `area_max` 0,4939. Las dos recorren de 0,501 (−6 dB) a 1,0 (0 dB), es decir, velocidades MIDI de 64 a 127.
 
 ### 2.4 Paneo
 
@@ -110,7 +110,7 @@ pan[i] = 2 * cPan - 1                                      // -1 (izquierda) .. 
 | Suavizado: media móvil de 3 fotogramas | `06:114` |
 | Normalización con percentiles 5 y 95 de la serie suavizada (interpolación lineal como `numpy.percentile`) | `06:115-116` |
 | **Rama estrecha**: si el recorrido p95 − p5 es menor que 0,1, no se estira; se mide contra el punto medio con ancho 0,1 | `06:116-117` |
-| **Sin zona caliente (ronda 28):** con `area < area_centro` (0,01) el centroide no significa nada y `cPan = 0,5` (pan 0); `area` es la cruda (no la normalizada), y la interpolación y el suavizado de 0,15 s siguientes no cambian | `06:31`, `06:118-119` |
+| **Sin zona caliente:** con `area < area_centro` (0,01) el centroide no significa nada y `cPan = 0,5` (pan 0); `area` es la cruda (no la normalizada), y la interpolación y el suavizado de 0,15 s siguientes no cambian | `06:31`, `06:118-119` |
 | `pan = 2 * cPan - 1`; el MIDI guarda `CC10 = round(64 + 63 * pan)` por fotograma | `06:120`, `06:200`, `06:325` |
 | En el WAV: el pan por fotograma se interpola linealmente entre los **centros** de fotograma (`(i + 0.5) * 0.5 s`) y se suaviza con un polo de 0,15 s | `06:269` |
 | Ley de potencia constante: `th = (pan + 1) * π/4`, `L = cos(th)`, `R = sin(th)` (en Web Audio, `StereoPannerNode` usa la misma ley) | `sin:105-108` |
@@ -135,16 +135,16 @@ fuerte[i] = i > 0 && Math.abs(media[i] - media[i-1]) > umbral_evento
 |---|---|
 | Umbrales de densidad `[u1, u2]`: `densidad_umbrales` del config; si faltan, `vmin_sonido + 0.5*rango` y `vmin_sonido + 13/18*rango` | `06:131` |
 | Notas por fotograma: 1 si `mediaS < u1`; 2 si `u1 ≤ mediaS ≤ u2`; 4 si `> u2` | `06:134-135` |
-| Arpegio por la escala desde la nota del fotograma: **ascendente** si caben las `k` notas (`idx + k ≤ 16`); si no (lo más alto de la escala), **descendente** desde la nota base. La primera nota es siempre la base (ronda 27; antes se repetía la nota más alta y el ligado se comía golpes) | `06:142-145` |
+| Arpegio por la escala desde la nota del fotograma: **ascendente** si caben las `k` notas (`idx + k ≤ 16`); si no (lo más alto de la escala), **descendente** desde la nota base. La primera nota es siempre la base; si se repitiera la nota más alta, el ligado se comería golpes | `06:142-145` |
 | Cada nota dura el 95 % de su tramo | `06:147-150` |
 | `umbral_evento`: del config; si falta, `(vmax_sonido − vmin_sonido) / 12` (GISTEMP y SST: 0,15) | `06:91-92`, `06:39` |
 | Evento fuerte = ataque aunque la nota no cambie, con velocidad ≥ 100 (solo la primera nota del fotograma) | `06:153-161` |
 | **Ligar**: si la nota es igual a la del ataque anterior y no es evento fuerte, no se vuelve a atacar; la nota se extiende | `06:162-170`, `06:38` |
-| **Re-golpe**: una nota ligada se vuelve a tocar suave (`velocidad × 0,7`; antes 0,4, que dejaba la marimba casi muda) en **cada** fotograma (`regolpe_ligado` 1; antes cada 2, ronda 30) | `06:163-167`, `06:39` |
+| **Re-golpe**: una nota ligada se vuelve a tocar suave (`velocidad × 0,7`; con 0,4 la marimba casi no se oía) en **cada** fotograma (`regolpe_ligado` 1) | `06:163-167`, `06:39` |
 
 Valores por pista: GISTEMP `densidad_umbrales` [0,3; 0,7] (45 fotogramas con 1 nota, 8 con 2, 7 con 4; 19 eventos fuertes). SST usa los de defecto [21,96; 22,18] (25 con 1 nota, 22 con 2, 14 con 4; 7 eventos fuertes).
 
-### 2.6 Tono con otro rasgo (`rasgo_tono`, ronda 31)
+### 2.6 Tono con otro rasgo (`rasgo_tono`)
 
 Una pista puede pedir que la nota salga de otro rasgo en vez de `media`. El caso previsto es el mar con `"rasgo_tono": "dif_hemisferios"` (media del hemisferio norte menos la del sur, que 05 calcula con `"hemisferios": true`).
 
@@ -193,17 +193,18 @@ Hoy ninguna pista del catálogo lo usa. Ejemplo para el mar (decisión pendiente
 
 Valores del config citados: `config_eic.json:26-28` (referencia, vmin/vmax_sonido), `:36` (paneo); `config_sst.json:29-32` (paneo, referencia, vmin/vmax_sonido).
 
-## 5. Diferencias con el `audio.js` actual (según la descripción del equipo; el archivo aún no está en el repo)
+## 5. Decisiones de diseño de la implementación
 
-| # | `audio.js` actual | Lo correcto (06) |
-|---|---|---|
-| 1 | Panea con `centroide_x` | Eje según la pista: `paneo` = `"y"` en GISTEMP y SST (`centroide_y`); ver §2.4 |
-| 2 | Pan = `centroide_x` normalizado directamente | Media móvil de 3 → percentiles 5-95 → rama amplia o estrecha (§2.4) |
-| 3 | Normaliza la media con `vmin`/`vmax` (−2…+2) | Con `vmin_sonido`/`vmax_sonido` (GISTEMP −0,6…1,2; SST 21,47…22,45) y media suavizada de 3 fotogramas |
-| 4 | Otra escala | Pentatónica mayor de 16 notas desde Do3 (48), más 1 octava = MIDI 60 a 96, con redondeo al par (§2.1) |
-| 5 | Dron fijo en 174,61 Hz (Fa3, MIDI 53) | Dron calculado: la nota de la referencia − 12 (+ octava): **60 = 261,63 Hz en GISTEMP, 67 = 392,00 Hz en SST** (§2.2) |
-| 6 | (por confirmar) volumen | Velocidad/ganancia desde `(area − area_min)/(area_max − area_min)` entre −6 y 0 dB (§2.3), no `area` cruda |
-| 7 | (por confirmar) densidad y eventos | 1/2/4 notas por fotograma y ataque fuerte con `umbral_evento` (§2.5) |
+1. **El video es el reloj.** En vivo, el `<video>` sigue reproduciéndose con su audio a ganancia 0 y el motor programa los sonidos según `currentTime`. Reproducir, pausar, buscar y el final salen de los mismos eventos que ya usa la web.
+2. **Cálculo y síntesis separados.** `web/js/mapeo.js` es puro (sin DOM ni Web Audio) y es lo que prueba `web/pruebas/motor.test.mjs` contra `_esperado.json`. `web/js/vivo.js` solo convierte ese resultado en nodos.
+3. **Timbre del respaldo numpy:** voz sostenida «suave», golpe triangular y dron seno. Web Audio no tiene SoundFont (§6).
+4. **Dron a unos 7 dB bajo la melodía**, con amplitud calculada al cargar la pista (`nivelDron`). El limitador `0,85·tanh(1,5·x)` de `sintesis.limitar` dejaba el dron a 3,7 dB; por eso `vivo.js` usa un limitador de rodilla (lineal hasta 0,8, compresión hacia 0,95) y centra el dron con un `StereoPannerNode` en 0, como `paneo(dron, 0.0)` en 06. Medido sin conexión con `vivo.renderizar()` (prueba V28): 6,97 dB en GISTEMP y 6,96 dB en SST, como potencia total de los dos canales.
+5. **Casillas de rasgos:** apagar tono, volumen o paneo deja ese rasgo fijo (nota de la referencia, 0 dB, centro); apagar el dron lo silencia. Con las tres de la melodía apagadas solo suena el dron y el planificador no programa golpes. El nivel del dron no cambia al marcar casillas.
+6. **El modo se recuerda por pista durante la sesión**, en memoria y sin `localStorage`. Al cargar la página, todas las pistas están en «Pista original».
+7. **Gesto del usuario:** el `AudioContext` se crea y se reanuda dentro de un gesto, de forma síncrona y antes de cualquier `await` (Safari e iOS no lo permiten de otro modo).
+8. **Sin selector de velocidad:** el motor solo responde a `ratechange`, que vuelve a sincronizar sin cambiar las notas.
+9. **Planificador:** `play` arranca el planificador y `playing` solo lo arranca si no está en marcha (si no, los golpes se programan dos veces). Al terminar la pista, la puerta de salida se cierra con una rampa lineal de 50 ms. `vivo.js` escucha los eventos del `<video>` directamente, porque `pause` y `ended` no se tratan igual.
+10. **Pruebas:** `evaluar.py` lanza la prueba de Node si encuentra `node` 18 o más (prueba L1); si no, queda OMITIDA. Safari de macOS y de iOS, Firefox, una pestaña oculta 10 s, los auriculares y un lector de pantalla real están en la lista manual del PR #15 y siguen sin probarse.
 
 ## 6. Reglas difíciles de replicar en Web Audio
 

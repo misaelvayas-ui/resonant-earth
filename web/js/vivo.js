@@ -1,12 +1,12 @@
 /* Sonido en vivo: genera en el navegador el audio de una pista a partir de sus rasgos y de su <id>_mapeo.json,
-   con las mismas notas, dron, volumen y paneo que 06_rasgos_a_audio.py (docs/ESPEC_MODO_EN_VIVO.md, docs/PLAN_MODO_EN_VIVO.md).
+   con las mismas notas, dron, volumen y paneo que 06_rasgos_a_audio.py (docs/ESPEC_MODO_EN_VIVO.md).
    El <video> es el reloj; este módulo solo crea los nodos y sigue lo que haga el video. El cálculo está en mapeo.js. */
 "use strict";
 
 import * as audio from "./audio.js";
 import { calcularSerie, aislar, eventos, nivelDron, valorEn, primerEvento, NIVEL_VOZ, NIVEL_GOLPE, VEL_REF, GOLPE_A, GOLPE_D } from "./mapeo.js";
 
-// Constantes de timbre y de tiempo (el resto sale del mapeo; ver plan 3.6)
+// Constantes de timbre y de tiempo (el resto sale del mapeo)
 const ARMONICOS = [1, 0.35, 0.15];            // forma «suave»: seno + 2.º y 3.er armónico, ÷ 1,5
 const TAU_PUERTA = 0.015;                     // s: entrada y salida del sonido sin clic
 const FUNDIDO_FINAL = 0.05;                   // s: fundido al terminar la pista (06:279)
