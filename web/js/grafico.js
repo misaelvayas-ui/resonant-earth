@@ -3,6 +3,7 @@
 
 import { cargarPistas, cargarRasgos } from "./datos.js";
 import { frase } from "./lectura.js";
+import { t, loc, num, fechaLoc } from "./idioma.js";
 
 const NS = "http://www.w3.org/2000/svg";
 const AN = 600, AL = 140, MARGEN = 12;
@@ -31,7 +32,7 @@ export function dibujarGraficoPista(contenedor, pista, doc, alElegir) {
   serie = null; linea = punto = seleccion = null; ariaVivo = null;
   const R = (doc ? doc.rasgos : []).map((r, i) => ({ r, i })).filter((x) => x.r.media != null);
   if (R.length < 2) {
-    contenedor.textContent = "Sin datos para el gráfico";
+    contenedor.textContent = t("grafico.sinDatos");
     return;
   }
   const svg = el("svg", { viewBox: `0 0 ${AN} ${AL}`, preserveAspectRatio: "none", "aria-hidden": "true", focusable: "false" }, contenedor);
@@ -50,13 +51,13 @@ export function dibujarGraficoPista(contenedor, pista, doc, alElegir) {
   punto = el("ellipse", { class: "cursor-punto", cx: 0, cy: puntos[0][1], rx: 4 * AN / (contenedor.clientWidth || AN), ry: 4 }, svg);
   serie = { puntos, dur, fraccion: 0 };
   if (doc.referencia != null) {
-    const t = document.createElement("span");
-    t.className = "dato";
-    t.textContent = pista.grafico.etiqueta_ref;
-    t.style.cssText = "display:block;margin-top:4px";
-    contenedor.appendChild(t);
+    const et = document.createElement("span");
+    et.className = "dato";
+    et.textContent = loc(pista.grafico, "etiqueta_ref");
+    et.style.cssText = "display:block;margin-top:4px";
+    contenedor.appendChild(et);
   }
-  document.getElementById("resumen-grafico").textContent = pista.grafico.resumen;
+  document.getElementById("resumen-grafico").textContent = loc(pista.grafico, "resumen");
   hacerInteractivo(contenedor, svg, pista, doc, R, alElegir);
   moverCursor(0);
 }
@@ -93,7 +94,7 @@ function hacerInteractivo(contenedor, svg, pista, doc, R, alElegir) {
   };
   contenedor.setAttribute("role", "slider");
   contenedor.setAttribute("tabindex", "0");
-  contenedor.setAttribute("aria-label", "Gráfico de la pista. Flechas izquierda y derecha eligen un momento; Enter salta hasta él");
+  contenedor.setAttribute("aria-label", t("grafico.aria"));
   contenedor.setAttribute("aria-describedby", "resumen-grafico");
   contenedor.setAttribute("aria-valuemin", "0");
   contenedor.setAttribute("aria-valuemax", String(R.length - 1));
@@ -146,7 +147,11 @@ export function moverCursor(fraccion) {
   punto.setAttribute("cx", x); punto.setAttribute("cy", y);
 }
 
+let miniArgs = null;
+export function refrescarMini() { if (miniArgs) iniciarMiniGrafico(...miniArgs); }
+
 export async function iniciarMiniGrafico(contenedor, parrafo) {
+  miniArgs = [contenedor, parrafo];
   try {
     const pistas = await cargarPistas();
     const doc = await cargarRasgos(pistas[0]);
@@ -157,8 +162,7 @@ export async function iniciarMiniGrafico(contenedor, parrafo) {
     const y = escala(valores);
     const pts = R.map((r, i) => [(i / (R.length - 1)) * w, y(r.media, h, m)]);
     const primero = R[0], ultimo = R[R.length - 1];
-    const f = (n) => (n < 0 ? "−" : "+") + Math.abs(n).toFixed(2).replace(".", ",");
-    const texto = `Leído del mapa: de ${f(primero.media)} °C en ${primero.fecha} a ${f(ultimo.media)} °C en ${ultimo.fecha}, frente al promedio de 1951–1980`;
+    const texto = t("grafico.mini", { a: num(primero.media, 2, true), fa: fechaLoc(primero.fecha), b: num(ultimo.media, 2, true), fb: fechaLoc(ultimo.fecha) });
     contenedor.textContent = "";
     const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, role: "img", "aria-label": texto }, contenedor);
     if (doc.referencia != null) {
@@ -171,6 +175,6 @@ export async function iniciarMiniGrafico(contenedor, parrafo) {
     parrafo.textContent = texto;
   } catch (e) {
     contenedor.textContent = "";
-    parrafo.textContent = "Anomalía de temperatura, 1881–2023";
+    parrafo.textContent = t("grafico.miniDefecto");
   }
 }

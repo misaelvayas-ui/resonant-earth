@@ -1,24 +1,13 @@
 /* Lectura en vivo: qué rasgo está en pantalla y una frase que lo cuenta (para ver y para el lector de pantalla). */
 "use strict";
 
-const MENOS = "−";
+import { t, loc, num, fechaLoc } from "./idioma.js";
+
 let el = null;
 let ultimo = { id: null, i: -1 };       // lo que muestra el panel
 let anunciado = { id: null, i: -1 };    // lo último que se envió al lector de pantalla
 let ultimoAnuncio = 0;
 let espera = 0;                         // ms mínimos hasta el próximo anuncio
-
-function coma(n, dec) {
-  return Math.abs(n).toFixed(dec).replace(".", ",");
-}
-function conSigno(n, dec) {
-  const t = coma(n, dec);
-  if (Number(t.replace(",", ".")) === 0) return t;
-  return (n < 0 ? MENOS : "+") + t;
-}
-function sinSigno(n, dec) {
-  return (n < 0 && Number(coma(n, dec).replace(",", ".")) !== 0 ? MENOS : "") + coma(n, dec);
-}
 
 /* Índice del último rasgo con t_video <= t (rasgos ordenados por t_video): búsqueda binaria. */
 export function indiceEn(rasgos, t) {
@@ -31,24 +20,24 @@ export function indiceEn(rasgos, t) {
 }
 
 function etiquetaFecha(r, i) {
-  return r.fecha != null ? String(r.fecha) : `Momento ${i + 1}`;
+  return r.fecha != null ? fechaLoc(r.fecha) : t("lectura.momento", { n: i + 1 });
 }
 
 /* corta=true: la versión breve para el lector de pantalla (plantilla_viva), que se pronuncia en ~2 s */
 export function frase(pista, doc, i, corta = false) {
   const r = doc.rasgos[i];
   const fecha = etiquetaFecha(r, i);
-  if (r.media == null) return `${fecha}: sin dato en este momento.`;
+  if (r.media == null) return t("lectura.sinDato", { fecha });
   const dec = pista.lectura.decimales;
   const ref = doc.referencia ?? 0;
   const mapa = {
     fecha,
-    valor: sinSigno(r.media, dec),
-    valor_signo: conSigno(r.media, dec),
-    dif_ref_signo: conSigno(r.media - ref, dec),
+    valor: num(r.media, dec),
+    valor_signo: num(r.media, dec, true),
+    dif_ref_signo: num(r.media - ref, dec, true),
     area: String(Math.round((r.area ?? 0) * 100)),
   };
-  const plantilla = (corta && pista.lectura.plantilla_viva) || pista.lectura.plantilla;
+  const plantilla = (corta && loc(pista.lectura, "plantilla_viva")) || loc(pista.lectura, "plantilla");
   return plantilla.replace(/\{(\w+)\}/g, (m, k) => (k in mapa ? mapa[k] : m));
 }
 
@@ -75,17 +64,17 @@ function vaciarFechas(texto) {
 
 export function limpiar() {
   ultimo = anunciado = { id: null, i: -1 };
-  if (el) vaciarFechas("Sin lectura todavía.");
+  if (el) vaciarFechas(t("lectura.sin"));
 }
 
 export function sinLectura() {
   ultimo = anunciado = { id: null, i: -1 };
-  if (el) vaciarFechas("Sin lectura disponible.");
+  if (el) vaciarFechas(t("lectura.noDisp"));
 }
 
-export function actualizar(pista, doc, t, sonando, forzar = false) {
+export function actualizar(pista, doc, seg, sonando, forzar = false) {
   if (!el || !pista || !doc) return;
-  const i = indiceEn(doc.rasgos, t);
+  const i = indiceEn(doc.rasgos, seg);
   if (ultimo.id !== pista.id || ultimo.i !== i) {
     ultimo = { id: pista.id, i };
     const fecha = etiquetaFecha(doc.rasgos[i], i);
@@ -95,4 +84,17 @@ export function actualizar(pista, doc, t, sonando, forzar = false) {
   }
   if (!el.casilla.checked || (anunciado.id === pista.id && anunciado.i === i)) return;
   if (forzar || performance.now() - ultimoAnuncio >= espera) anunciar(pista, doc, i, sonando);
+}
+
+/* Al cambiar de idioma: reescribe el panel (y la fecha sobre el video) sin anunciar nada al lector de pantalla */
+export function refrescar(pista, doc, seg) {
+  if (!el) return;
+  ultimo = { id: null, i: -1 };
+  if (!pista || !doc) { vaciarFechas(t("lectura.sin")); return; }
+  const i = indiceEn(doc.rasgos, seg);
+  ultimo = { id: pista.id, i };
+  const fecha = etiquetaFecha(doc.rasgos[i], i);
+  el.fecha.textContent = fecha;
+  el.texto.textContent = frase(pista, doc, i);
+  if (el.fechaVideo) { el.fechaVideo.textContent = fecha; el.fechaVideo.hidden = false; }
 }

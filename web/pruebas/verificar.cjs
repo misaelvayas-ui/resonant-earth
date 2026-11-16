@@ -1,4 +1,4 @@
-/* Pruebas de la web con Playwright y axe-core (V1 a V32).
+/* Pruebas de la web con Playwright y axe-core (V1 a V33).
    Uso:  NODE_PATH=<carpeta con node_modules> node web/pruebas/verificar.cjs <url> <carpeta de capturas>
    Imprime [PASA], [FALLA] u [OMITIDA] por comprobación y sale con código 1 si hay alguna [FALLA].
 
@@ -588,12 +588,68 @@ async function desplazarTodo(page) {
     `media de ${frio31.n} puntos hacia 1898: ${frio31.media.toFixed(2)} °C; de ${calor31.n} puntos en 2023: ${calor31.media.toFixed(2)} °C; pista en pausa: ${!calor31.sonando}; suena la voz: ${calor31.e.suena}; texto «${calor31.texto}»; `
     + `flecha derecha mueve la mira (${x31.toFixed(3)} -> ${trasFlecha31.x.toFixed(3)}) y no la pista; Esc: foco en ${fin31.foco}; axe ${axe31.violations.length} ${axe31.violations.map((v) => v.id).join(",")}`);
 
+  // V33: idioma: selector ES/EN con teclado, <html lang>, ?lang=, recuerda la elección, nada sin traducir y axe en inglés (1440 y 390 px)
+  const id33 = await nuevaPagina(browser, {});
+  const pg33 = id33.page;
+  await pg33.goto(url, { waitUntil: "load" });
+  await esperar(1500);
+  const ini33 = await pg33.evaluate(() => ({ lang: document.documentElement.lang, botones: [...document.querySelectorAll("[data-lang]")].map((b) => `${b.dataset.lang}:${b.getAttribute("aria-pressed")}:${b.getAttribute("aria-label")}`), guardado: localStorage.getItem("idioma") }));
+  await pg33.focus("[data-lang=en]");
+  await pg33.keyboard.press("Enter");
+  await esperar(500);
+  await pg33.click("button.pista >> nth=1");
+  await pg33.waitForFunction(() => window.__web.rocola.pistaActual().id === "sst-ecco2-2007-2008" && window.__web.audio.estado().duracion > 0, null, { timeout: 15000 });
+  await esperar(600);
+  const en33 = await pg33.evaluate(() => ({
+    lang: document.documentElement.lang, titulo: document.title, h1: document.querySelector("h1").textContent.replace(/\s+/g, " ").trim(),
+    pressed: document.querySelector("[data-lang=en]").getAttribute("aria-pressed"), guardado: localStorage.getItem("idioma"),
+    reloj: document.getElementById("tiempo").textContent, pista: document.getElementById("titulo-pista").textContent,
+    lectura: document.getElementById("ahora-texto").textContent, boton: document.getElementById("btn-reproducir").textContent,
+    ayuda: document.getElementById("modo-ayuda").textContent, sin: window.__web.idioma.sinTraducir(), og: document.querySelector('meta[property="og:locale"]').content,
+    desc: document.querySelector('meta[name="description"]').content,
+  }));
+  await pg33.reload({ waitUntil: "load" });
+  await esperar(1200);
+  const recuerda33 = await pg33.evaluate(() => document.documentElement.lang);
+  await pg33.goto(url + "?lang=es", { waitUntil: "load" });
+  await esperar(800);
+  const url_es33 = await pg33.evaluate(() => document.documentElement.lang);
+  const url_en33 = await nuevaPagina(browser, {});
+  await url_en33.page.goto(url + "?lang=en", { waitUntil: "load" });
+  await esperar(800);
+  const urlEn33 = await url_en33.page.evaluate(() => ({ lang: document.documentElement.lang, guardado: localStorage.getItem("idioma"), h1: document.querySelector("h1").textContent.replace(/\s+/g, " ").trim() }));
+  await pg33.goto(url + "?lang=en", { waitUntil: "load" });
+  await esperar(1200);
+  await pg33.click("button.pista >> nth=0");
+  await pg33.waitForFunction(() => window.__web.audio.estado().duracion > 0, null, { timeout: 15000 });
+  await pg33.evaluate(() => window.__web.audio.pausar());
+  await pg33.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await esperar(1500);
+  const axeEn = await new AxeBuilder({ page: pg33 }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  const mvEn = await nuevaPagina(browser, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await mvEn.page.goto(url + "?lang=en", { waitUntil: "load" });
+  await esperar(2000);
+  const axeEnM = await new AxeBuilder({ page: mvEn.page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  const movilEn = await mvEn.page.evaluate(() => ({ ancho: document.documentElement.scrollWidth, ventana: window.innerWidth, selector: !!document.querySelector(".idioma [data-lang=en]") && document.querySelector(".idioma").getBoundingClientRect().width > 0 }));
+  await captura(pg33, { path: path.join(carpeta, "en_1440.png") });
+  await captura(mvEn.page, { path: path.join(carpeta, "en_390.png") });
+  comprobar("V33", ini33.lang === "es" && ini33.botones.join() === "es:true:Español,en:false:English" && ini33.guardado === null
+    && en33.lang === "en" && en33.pressed === "true" && en33.guardado === "en" && /^Listen to the Earth/.test(en33.titulo) && en33.h1 === "Listen to the Earth" && en33.og === "en_US"
+    && /1881–2023/.test(en33.desc) && /^0:0\d\.\d \/ 0:30\.5$/.test(en33.reloj) && /^Ocean currents and temperature/.test(en33.pista) && /^Mar 2007: index/.test(en33.lectura) && /^(Play|Pause)$/.test(en33.boton)
+    && /^Original track/.test(en33.ayuda) && en33.sin.length === 0
+    && recuerda33 === "en" && url_es33 === "es" && urlEn33.lang === "en" && urlEn33.guardado === null && urlEn33.h1 === "Listen to the Earth"
+    && axeEn.violations.length === 0 && axeEnM.violations.length === 0 && movilEn.ancho <= movilEn.ventana && movilEn.selector
+    && id33.registro.consola.length === 0 && mvEn.registro.consola.length === 0,
+    `inicio ${ini33.lang} ${ini33.botones.join(" ")}; en inglés: lang ${en33.lang}, «${en33.titulo}», reloj «${en33.reloj}», pista «${en33.pista}», lectura «${en33.lectura.slice(0, 30)}», og ${en33.og}; sin traducir: ${en33.sin.length} ${en33.sin.slice(0, 3).join(" | ")}; `
+    + `recuerda tras recargar: ${recuerda33}; ?lang=es: ${url_es33}; ?lang=en: ${urlEn33.lang} (guardado ${urlEn33.guardado}); axe en 1440 ${axeEn.violations.length} ${resumen(axeEn)}, en 390 ${axeEnM.violations.length} ${resumen(axeEnM)}; 390 px: ancho ${movilEn.ancho}/${movilEn.ventana}, selector visible ${movilEn.selector}; consola ${id33.registro.consola.concat(mvEn.registro.consola).join(" / ")}`);
+  await id33.ctx.close(); await url_en33.ctx.close(); await mvEn.ctx.close();
+
   // V32: contenido de entrega (sin navegador): nada de textos de relleno y la cifra de pruebas al día
   const raiz = path.join(__dirname, "..");
   const equipo = fs.readFileSync(path.join(raiz, "equipo.json"), "utf8");
   const relleno = (equipo.match(/\(editar\)|Nombre Apellido/g) || []).length;
   const html = fs.readFileSync(path.join(raiz, "index.html"), "utf8");
-  const cifra = Number((html.match(/data-valor="(\d+)">\d+<\/span><span class="cifra-texto">pruebas/) || [])[1]);
+  const cifra = Number((html.match(/data-valor="(\d+)">\d+<\/span><span[^>]*class="cifra-texto">pruebas/) || [])[1]);
   const evaluar = fs.readFileSync(path.join(raiz, "..", "evaluar.py"), "utf8");
   const nPruebas = (evaluar.slice(evaluar.indexOf("EVALUACIONES = [")).match(/^    \("[A-Z]\d+",/gm) || []).length;
   comprobar("V32", relleno === 0 && cifra === nPruebas && /og:image/.test(html),

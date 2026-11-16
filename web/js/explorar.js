@@ -4,6 +4,7 @@
 "use strict";
 
 import * as audio from "./audio.js";
+import { t, num } from "./idioma.js";
 
 const ANCHO = 256, ALTO = 128;          // el fotograma se reduce: basta para un mapa y suaviza costas y rejillas
 const PASO = 0.025, PASO_LARGO = 0.1;   // fracción del mapa que mueve cada flecha (con Mayús, el largo)
@@ -11,7 +12,6 @@ const DIST_MAX = 70;                    // distancia RGB máxima a la barra para
 const TONO_MAX = 12;                    // diferencia de matiz máxima, en grados (modo matiz)
 const NIVEL = 0.22;                     // amplitud de la voz de exploración
 const SOSTENER = 2.5;                   // segundos que suena un punto antes de empezar a apagarse
-const MENOS = "−";
 
 let el = null;                          // { boton, zona, mira, texto, video }
 let lienzo = null, pincel = null;
@@ -92,24 +92,20 @@ function leerPunto() {
 function lugar() {
   const lat = Math.round((90 - pos.y * 180) / 5) * 5;
   const lon = Math.round((pos.x * 360 - 180) / 5) * 5;
-  const la = lat === 0 ? "ecuador" : `${Math.abs(lat)}° ${lat > 0 ? "norte" : "sur"}`;
-  const lo = Math.abs(lon) === 180 ? "180°" : lon === 0 ? "0°" : `${Math.abs(lon)}° ${lon > 0 ? "este" : "oeste"}`;
+  const rumbo = (v, mas, menos) => `${Math.abs(v)}° ${t(v > 0 ? mas : menos)}`;
+  const la = lat === 0 ? t("explorar.ecuador") : rumbo(lat, "explorar.norte", "explorar.sur");
+  const lo = Math.abs(lon) === 180 ? "180°" : lon === 0 ? "0°" : rumbo(lon, "explorar.este", "explorar.oeste");
   return `${la}, ${lo}`;
-}
-
-function numero(v, dec, signo) {
-  const t = Math.abs(v).toFixed(dec).replace(".", ",");
-  if (Number(t.replace(",", ".")) === 0) return t;
-  return (v < 0 ? MENOS : signo ? "+" : "") + t;
 }
 
 function frase(valor) {
   const fecha = (document.getElementById("ahora-fecha").textContent || "").trim();
   const cuando = fecha ? `, ${fecha}` : "";
-  if (valor == null) return `${lugar()}${cuando}: sin dato aquí (tierra, borde o un color fuera de la barra).`;
-  if (paleta.modo_color === "matiz") return `${lugar()}${cuando}: unos ${numero(valor, 0, false)} ${paleta.unidad}, según el color.`;
-  const como = Math.abs(valor) < 0.2 ? "cerca del promedio" : valor > 0 ? "más caliente que el promedio" : "más frío que el promedio";
-  return `${lugar()}${cuando}: ${numero(valor, 1, true)} ${paleta.unidad}, ${como}.`;
+  const base = { lugar: lugar(), cuando, unidad: paleta.unidad };
+  if (valor == null) return t("explorar.sinDato", base);
+  if (paleta.modo_color === "matiz") return t("explorar.matiz", { ...base, valor: num(valor, 0) });
+  const como = Math.abs(valor) < 0.2 ? t("explorar.cerca") : valor > 0 ? t("explorar.caliente") : t("explorar.frio");
+  return t("explorar.valor", { ...base, valor: num(valor, 1, true), como });
 }
 
 function notaDe(valor) {
@@ -148,7 +144,7 @@ function actualizar(inmediato) {
   const p = leerPunto();
   if (p.sinImagen) {
     callar();
-    ultimo = { valor: null, nota: null, texto: "Todavía no hay imagen. Reproduce la pista un momento y vuelve a explorar." };
+    ultimo = { valor: null, nota: null, texto: t("explorar.sinImagen") };
     el.texto.textContent = ultimo.texto;
     return;
   }
@@ -224,7 +220,7 @@ function entrar() {
   audio.desbloquear();                   // primero y sin await: es un gesto del usuario
   audio.pausar();
   activo = true;
-  el.boton.textContent = "Dejar de explorar";
+  el.boton.textContent = t("explorar.dejar");
   el.zona.hidden = false;
   el.zona.focus({ preventScroll: true });
   el.zona.scrollIntoView({ block: "center", behavior: "instant" });
@@ -236,7 +232,7 @@ export function salir() {
   if (!activo) return;
   activo = false;
   callar();
-  el.boton.textContent = "Explorar el mapa";
+  el.boton.textContent = t("explorar.boton");
   el.zona.hidden = true;
   el.texto.textContent = "";
   if (alSalir) alSalir();
@@ -246,3 +242,10 @@ export function salir() {
 export const estado = () => ({ activo, x: pos.x, y: pos.y, valor: ultimo.valor, nota: ultimo.nota, texto: ultimo.texto,
   suena: !!(nivelVoz && ultimo.nota != null), disponible: !!paleta });
 export function mover(x, y) { pos = { x, y }; actualizar(true); }
+
+/* Al cambiar de idioma: el texto del botón y, si se está explorando, la frase del punto actual */
+export function refrescarIdioma() {
+  if (!el) return;
+  el.boton.textContent = activo ? t("explorar.dejar") : t("explorar.boton");
+  if (activo && paleta) actualizar(true);
+}

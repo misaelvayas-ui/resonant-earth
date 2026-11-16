@@ -1,4 +1,4 @@
-REGISTRO DE CAMBIOS - rocola_practica
+REGISTRO DE CAMBIOS - resonant-earth
 (antes CAMBIOS_01.txt; aquí se acumulan todas las rondas, la más reciente al final)
 
 ======================================================================
@@ -1096,3 +1096,19 @@ RONDA 42 - primer fallo del CI: coma final de ffprobe (rama mejoras/ronda-38)   
 Primera ejecución de .github/workflows/pruebas.yml: Ubuntu 46 PASA + K1 con FluidSynth y la web V1-V31 en verde; macos-latest (arm64) 45 PASA, 1 FALLA: D1 con
 "ValueError: could not convert string to float: '4.093832,'". El ffprobe de ese equipo termina cada línea del CSV con una coma. Se quita la coma al leer en D1 (evaluar.py), en duracion() y
 alto_video() de 08 y en duracion() de exportar_web (duracion_real y cadencia ya lo hacían). Aquí: evaluar.py 46 PASA, 0 FALLA, 1 OMITIDA.
+
+RONDA 43 - web en inglés (rama misael/aporte-pr9)   (2026-11-16)
+Pedido: la web bilingüe, rehecha sobre la web actual (no se trae nada de la web vieja del PR #9; solo se tomó como base el inglés de sus textos).
+1. web/js/idioma.js (nuevo): idioma («es» por defecto; ?lang=en o ?lang=es; si no, el recordado en localStorage con try/catch), <html lang>, og:locale
+   y el selector ES/EN de la cabecera (dos botones con aria-pressed y aria-label «Español» / «English»; a 390 px quedan junto al botón Menú).
+   Los textos fijos de index.html llevan data-t (texto) o data-t-attr (aria-label, title, meta content): el español se queda en la página y el inglés
+   está en js/textos_en.js, con el español como clave. Los textos que escribe el código están en js/textos.js (es y en) y se piden con t("clave", {datos}).
+2. pistas.json: campos «_en» (titulo, fuente, resumen, descripcion, descripcion_accesible, leyenda; lectura.plantilla y plantilla_viva; grafico.etiqueta_ref
+   y resumen). Se corrigió lo que cambió desde el PR #9: 1881–2023, 344 días, paneo relativo («further north than usual»), índice relativo en el mar.
+3. rocola.js, lectura.js, grafico.js, explorar.js, datos.js y principal.js: ya no tienen frases en español dentro; usan t() y loc(). Al cambiar de idioma se
+   reescribe todo (tarjetas, estado, lectura, gráfico, ayuda y casillas, Explorar) sin anunciar nada al lector de pantalla. En inglés la coma decimal pasa
+   a punto y «mar 2007» a «Mar 2007».
+4. equipo.json no se tocó: si un integrante lleva «carrera_en» o «aporte_en» se usan en inglés; si no, se ve el español.
+5. Prueba V33 (verificar.cjs): selector con teclado, <html lang>, ?lang=, recuerdo tras recargar, ningún texto fijo sin traducir y axe sin violaciones en inglés a 1440 y 390 px.
+Comprobado: node --test 13 PASA; verificar.cjs V1-V33 todo PASA; evaluar.py 47 PASA.
+Pendiente de revisión humana: la calidad del inglés (lo escribió una IA), el texto de las carreras del equipo y probar con un lector de pantalla real en inglés.

@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Escucha la Tierra | Resonant Earth</title>
-  <meta name="description" content="Resonant Earth convierte visualizaciones de la NASA en sonido: la temperatura del planeta desde 1881 y la del mar en 2007–2008. NASA Space Apps Challenge 2026, Quito.">
-  <link rel="canonical" href="https://misaelvayas-ui.github.io/rocola_practica/">
+  <title data-t>Escucha la Tierra | Resonant Earth</title>
+  <meta data-t-attr="content" name="description" content="Resonant Earth convierte visualizaciones de la NASA en sonido: la temperatura del planeta (1881–2023) y la del mar (2007–2008). NASA Space Apps Challenge 2026, Quito.">
+  <link rel="canonical" href="https://misaelvayas-ui.github.io/resonant-earth/">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="es_EC">
-  <meta property="og:title" content="Escucha la Tierra | Resonant Earth">
-  <meta property="og:description" content="Convertimos visualizaciones de la NASA en música: 143 años de temperatura del planeta en 30 segundos.">
-  <meta property="og:url" content="https://misaelvayas-ui.github.io/rocola_practica/">
-  <meta property="og:image" content="https://misaelvayas-ui.github.io/rocola_practica/assets/compartir.jpg">
+  <meta data-t-attr="content" property="og:title" content="Escucha la Tierra | Resonant Earth">
+  <meta data-t-attr="content" property="og:description" content="Convertimos visualizaciones de la NASA en música: 143 años de temperatura del planeta en 30 segundos.">
+  <meta property="og:url" content="https://misaelvayas-ui.github.io/resonant-earth/">
+  <meta property="og:image" content="https://misaelvayas-ui.github.io/resonant-earth/assets/compartir.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Portada de Escucha la Tierra: el globo terrestre y el título del proyecto.">
+  <meta data-t-attr="content" property="og:image:alt" content="Portada de Escucha la Tierra: el globo terrestre y el título del proyecto.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#000000">
   <link rel="icon" type="image/png" sizes="64x64" href="assets/icono-64.png">
@@ -28,7 +28,7 @@
   <script type="module" src="js/principal.js"></script>
 </head>
 <body>
-  <a class="saltar" href="#rocola">Saltar a la rocola</a>
+  <a data-t class="saltar" href="#rocola">Saltar a la rocola</a>
 
   <header class="barra">
     <a class="marca" href="#inicio">
@@ -36,22 +36,26 @@
         <circle cx="12" cy="12" r="10.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
         <path d="M3.5 12c1.6-5 3.2-5 4.8 0s3.2 5 4.8 0 3.2-5 4.8 0 1.2 3 2.6 3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
-      <span>Resonant Earth</span>
+      <span data-t>Resonant Earth</span>
     </a>
-    <button id="btn-menu" class="boton boton-contorno boton-menu" type="button" aria-expanded="false" aria-controls="menu-principal">Menú</button>
-    <nav id="menu-principal" aria-label="Secciones">
+    <button data-t id="btn-menu" class="boton boton-contorno boton-menu" type="button" aria-expanded="false" aria-controls="menu-principal">Menú</button>
+    <nav data-t-attr="aria-label" id="menu-principal" aria-label="Secciones">
       <ul>
-        <li><a href="#rocola">La rocola</a></li>
-        <li><a href="#como-funciona">Cómo funciona</a></li>
-        <li><a href="#porque">El porqué</a></li>
-        <li><a href="#accesibilidad">Accesibilidad</a></li>
-        <li><a href="#equipo">Equipo</a></li>
-        <li class="solo-menu"><a href="https://github.com/misaelvayas-ui/rocola_practica">Repositorio</a></li>
+        <li><a data-t href="#rocola">La rocola</a></li>
+        <li><a data-t href="#como-funciona">Cómo funciona</a></li>
+        <li><a data-t href="#porque">El porqué</a></li>
+        <li><a data-t href="#accesibilidad">Accesibilidad</a></li>
+        <li><a data-t href="#equipo">Equipo</a></li>
+        <li class="solo-menu"><a data-t href="https://github.com/misaelvayas-ui/resonant-earth">Repositorio</a></li>
       </ul>
     </nav>
     <div class="barra-acciones">
-      <a class="boton boton-contorno boton-repo" href="https://github.com/misaelvayas-ui/rocola_practica">Repositorio</a>
-      <a class="boton boton-contorno boton-rocola" href="#rocola">Abrir la rocola</a>
+      <div class="idioma" role="group" aria-label="Idioma / Language">
+        <button type="button" class="boton boton-contorno" data-lang="es" lang="es" aria-label="Español" aria-pressed="true">ES</button>
+        <button type="button" class="boton boton-contorno" data-lang="en" lang="en" aria-label="English" aria-pressed="false">EN</button>
+      </div>
+      <a data-t class="boton boton-contorno boton-repo" href="https://github.com/misaelvayas-ui/resonant-earth">Repositorio</a>
+      <a data-t class="boton boton-contorno boton-rocola" href="#rocola">Abrir la rocola</a>
     </div>
   </header>
 
@@ -63,37 +67,37 @@
         <div class="heroe-velo"></div>
       </div>
       <div class="heroe-contenido">
-        <h1 id="t-inicio" class="heroe-titulo"><span class="linea">Escucha</span> <span class="linea">la Tierra</span></h1>
+        <h1 id="t-inicio" class="heroe-titulo"><span data-t class="linea">Escucha</span> <span data-t class="linea">la Tierra</span></h1>
         <div class="heroe-cierre">
-          <p class="heroe-sub">Convertimos visualizaciones de la NASA en música. El color de cada mapa decide qué nota suena, qué tan fuerte y de qué lado. Escucha la temperatura del planeta desde 1881 y la del mar a lo largo de 344 días.</p>
-          <p class="heroe-reto">NASA Space Apps Challenge 2026, Quito. Reto: La rocola de la Tierra.</p>
+          <p data-t class="heroe-sub">Convertimos visualizaciones de la NASA en música. El color de cada mapa decide qué nota suena, qué tan fuerte y de qué lado. Escucha la temperatura del planeta desde 1881 y la del mar a lo largo de 344 días.</p>
+          <p data-t class="heroe-reto">NASA Space Apps Challenge 2026, Quito. Reto: La rocola de la Tierra.</p>
           <div class="heroe-acciones">
-            <a class="boton boton-lleno" href="#rocola">Abrir la rocola</a>
-            <a class="boton boton-contorno" href="#como-funciona">Cómo funciona</a>
+            <a data-t class="boton boton-lleno" href="#rocola">Abrir la rocola</a>
+            <a data-t class="boton boton-contorno" href="#como-funciona">Cómo funciona</a>
           </div>
         </div>
         <section class="escucha" aria-labelledby="t-escucha">
-          <h2 id="t-escucha" class="escucha-titulo">Qué vas a oír</h2>
+          <h2 data-t id="t-escucha" class="escucha-titulo">Qué vas a oír</h2>
           <dl class="escucha-lista">
-            <div><dt>Tono</dt><dd>Más agudo cuando el mapa está más caliente.</dd></div>
-            <div><dt>Volumen</dt><dd>Más fuerte cuando la zona caliente crece.</dd></div>
-            <div><dt>Lado</dt><dd>A la derecha si el calor está más al norte de lo habitual en esa pista; a la izquierda si está más al sur.</dd></div>
-            <div><dt>Nota grave fija</dt><dd>El promedio de referencia, para oír cuánto se aleja el dato.</dd></div>
+            <div><dt data-t>Tono</dt><dd data-t>Más agudo cuando el mapa está más caliente.</dd></div>
+            <div><dt data-t>Volumen</dt><dd data-t>Más fuerte cuando la zona caliente crece.</dd></div>
+            <div><dt data-t>Lado</dt><dd data-t>A la derecha si el calor está más al norte de lo habitual en esa pista; a la izquierda si está más al sur.</dd></div>
+            <div><dt data-t>Nota grave fija</dt><dd data-t>El promedio de referencia, para oír cuánto se aleja el dato.</dd></div>
           </dl>
         </section>
-        <ul class="cifras" aria-label="Cifras del proyecto">
-          <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="143">143</span><span class="cifra-texto">años de temperatura del planeta en una pista de 30 segundos</span></li>
-          <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="344">344</span><span class="cifra-texto">días de océano en una pista de 30,5 segundos</span></li>
-          <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="47">47</span><span class="cifra-texto">pruebas automáticas vigilan el camino del dato al sonido</span></li>
+        <ul data-t-attr="aria-label" class="cifras" aria-label="Cifras del proyecto">
+          <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="143">143</span><span data-t class="cifra-texto">años de temperatura del planeta en una pista de 30 segundos</span></li>
+          <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="344">344</span><span data-t class="cifra-texto">días de océano en una pista de 30,5 segundos</span></li>
+          <li class="cifra-ficha vidrio vidrio--globo"><span class="cifra" data-valor="47">47</span><span data-t class="cifra-texto">pruebas automáticas vigilan el camino del dato al sonido</span></li>
         </ul>
         <div class="heroe-tarjetas">
           <article id="tarjeta-temperatura" class="vidrio vidrio--globo" data-brillo data-inclinar>
-            <h2>Temperatura del planeta</h2>
+            <h2 data-t>Temperatura del planeta</h2>
             <div id="mini-grafico"></div>
             <p id="mini-grafico-texto">Anomalía de temperatura, 1881–2023</p>
           </article>
           <article id="tarjeta-sonando" class="vidrio vidrio--globo" data-brillo data-inclinar>
-            <h2>Sonando ahora</h2>
+            <h2 data-t>Sonando ahora</h2>
             <p id="sonando-titulo">Nada suena todavía</p>
             <canvas id="mini-espectro" width="240" height="48" aria-hidden="true"></canvas>
             <button id="btn-muestra" class="boton boton-contorno" type="button">Escuchar una muestra</button>
@@ -104,15 +108,15 @@
 
     <section id="rocola" class="seccion" aria-labelledby="t-rocola" tabindex="-1">
       <div class="contenedor">
-        <h2 id="t-rocola" class="revelar">La rocola</h2>
-        <p class="entrada revelar">Dos visualizaciones de la NASA, dos maneras de sonar. La temperatura del planeta sube durante 143 años; la del mar respira con las estaciones.</p>
-        <div id="lista-pistas" class="pistas revelar" role="group" aria-label="Elige una pista"><p class="nota">Cargando las pistas…</p></div>
+        <h2 data-t id="t-rocola" class="revelar">La rocola</h2>
+        <p data-t class="entrada revelar">Dos visualizaciones de la NASA, dos maneras de sonar. La temperatura del planeta sube durante 143 años; la del mar respira con las estaciones.</p>
+        <div data-t-attr="aria-label" id="lista-pistas" class="pistas revelar" role="group" aria-label="Elige una pista"><p class="nota">Cargando las pistas…</p></div>
         <div class="rocola-rejilla revelar">
           <div id="escenario" class="escenario">
             <div class="marco">
               <video id="medio" playsinline preload="none"></video>
               <div id="fecha-video" class="fecha-video" aria-hidden="true" hidden></div>
-              <div id="zona-explorar" class="zona-explorar" role="application" tabindex="0" aria-label="Mapa explorable. Mueve el cursor o usa las flechas para oír cada punto; con Mayúsculas se avanza más; Escape para salir." aria-describedby="explorar-texto" hidden>
+              <div data-t-attr="aria-label" id="zona-explorar" class="zona-explorar" role="application" tabindex="0" aria-label="Mapa explorable. Mueve el cursor o usa las flechas para oír cada punto; con Mayúsculas se avanza más; Escape para salir." aria-describedby="explorar-texto" hidden>
                 <span id="mira" class="mira" aria-hidden="true"></span>
               </div>
               <canvas id="visualizador" aria-hidden="true"></canvas>
@@ -123,29 +127,29 @@
               <p id="fuente-pista" class="fuente"></p>
               <p id="descripcion-pista"></p>
             </div>
-            <div class="controles" role="group" aria-label="Controles de la rocola">
+            <div data-t-attr="aria-label" class="controles" role="group" aria-label="Controles de la rocola">
               <button id="btn-reproducir" class="boton boton-lleno" type="button" disabled>Reproducir</button>
-              <button id="btn-cambiar" class="boton boton-contorno" type="button" disabled>Cambiar de pista</button>
-              <button id="btn-explorar" class="boton boton-contorno" type="button" disabled title="Oye el valor de cada punto del mapa, en tiempo real">Explorar el mapa</button>
-              <button id="btn-comparar" class="boton boton-contorno" type="button" disabled title="Suena el principio de la pista y, enseguida, el final">Antes y después</button>
-              <span class="grupo-volumen"><label class="volumen" for="volumen">Volumen</label><input id="volumen" type="range" min="0" max="100" step="1" value="80" aria-valuetext="80 %"></span>
+              <button data-t id="btn-cambiar" class="boton boton-contorno" type="button" disabled>Cambiar de pista</button>
+              <button data-t-attr="title" id="btn-explorar" class="boton boton-contorno" type="button" disabled title="Oye el valor de cada punto del mapa, en tiempo real">Explorar el mapa</button>
+              <button data-t data-t-attr="title" id="btn-comparar" class="boton boton-contorno" type="button" disabled title="Suena el principio de la pista y, enseguida, el final">Antes y después</button>
+              <span class="grupo-volumen"><label data-t class="volumen" for="volumen">Volumen</label><input id="volumen" type="range" min="0" max="100" step="1" value="80" aria-valuetext="80 %"></span>
               <span id="tiempo" class="dato">0:00 / 0:00</span>
             </div>
             <fieldset id="modo-sonido" class="grupo-sonido" aria-describedby="modo-ayuda" disabled>
-              <legend>Sonido</legend>
-              <label><input type="radio" name="modo-sonido" value="original" checked> Pista original</label>
-              <label><input type="radio" name="modo-sonido" value="vivo"> Sonido en vivo</label>
+              <legend data-t>Sonido</legend>
+              <label><input type="radio" name="modo-sonido" value="original" checked> <span data-t>Pista original</span></label>
+              <label><input type="radio" name="modo-sonido" value="vivo"> <span data-t>Sonido en vivo</span></label>
             </fieldset>
             <p id="modo-ayuda" class="nota">Elige una pista para activar el sonido en vivo.</p>
             <fieldset id="rasgos-vivo" class="grupo-sonido" aria-describedby="rasgos-ayuda" disabled>
-              <legend>Qué rasgos suenan (solo en vivo)</legend>
-              <label><input type="checkbox" id="rasgo-tono" checked> Melodía (tono)</label>
-              <label><input type="checkbox" id="rasgo-volumen" checked> Volumen</label>
-              <label><input type="checkbox" id="rasgo-paneo" checked> Paneo</label>
-              <label><input type="checkbox" id="rasgo-dron" checked> Dron</label>
+              <legend data-t>Qué rasgos suenan (solo en vivo)</legend>
+              <label><input type="checkbox" id="rasgo-tono" checked> <span data-t>Melodía (tono)</span></label>
+              <label><input type="checkbox" id="rasgo-volumen" checked> <span data-t>Volumen</span></label>
+              <label><input type="checkbox" id="rasgo-paneo" checked> <span data-t>Paneo</span></label>
+              <label><input type="checkbox" id="rasgo-dron" checked> <span data-t>Dron</span></label>
             </fieldset>
-            <p id="rasgos-ayuda" class="nota">Desmarca un rasgo para dejarlo fijo y oír mejor los demás; el dron desmarcado se silencia.</p>
-            <label class="oculto-visual" for="avance">Avance de la pista</label>
+            <p data-t id="rasgos-ayuda" class="nota">Desmarca un rasgo para dejarlo fijo y oír mejor los demás; el dron desmarcado se silencia.</p>
+            <label data-t class="oculto-visual" for="avance">Avance de la pista</label>
             <input id="avance" type="range" min="0" max="30" step="1" value="0" disabled>
             <figure class="grafico-pista">
               <div id="grafico-pista"></div>
@@ -155,18 +159,18 @@
           </div>
           <aside class="lateral">
             <section class="vidrio ahora" aria-labelledby="t-ahora">
-              <h3 id="t-ahora">Ahora</h3>
+              <h3 data-t id="t-ahora">Ahora</h3>
               <p id="ahora-fecha" class="dato-grande">&nbsp;</p>
               <p id="ahora-texto">Sin lectura todavía.</p>
               <div id="lectura-viva" class="oculto-visual" aria-live="polite" aria-atomic="true"></div>
-              <label class="casilla"><input id="anunciar" type="checkbox" checked> Anunciar con el lector de pantalla mientras suena</label>
+              <label class="casilla"><input id="anunciar" type="checkbox" checked> <span data-t>Anunciar con el lector de pantalla mientras suena</span></label>
             </section>
             <section class="vidrio" aria-labelledby="t-accesible">
-              <h3 id="t-accesible">Qué se ve y qué se oye</h3>
+              <h3 data-t id="t-accesible">Qué se ve y qué se oye</h3>
               <p id="descripcion-accesible">Elige una pista para leer su descripción.</p>
             </section>
             <section class="vidrio" aria-labelledby="t-leyenda">
-              <h3 id="t-leyenda">Colores del mapa</h3>
+              <h3 data-t id="t-leyenda">Colores del mapa</h3>
               <p id="leyenda-pista">Elige una pista para ver qué significan los colores.</p>
             </section>
           </aside>
@@ -176,41 +180,41 @@
 
     <section id="como-funciona" class="seccion" aria-labelledby="t-como">
       <div class="contenedor">
-        <h2 id="t-como" class="revelar">Cómo funciona</h2>
-        <p class="entrada revelar">Cuatro pasos, todos con código abierto en Python.</p>
+        <h2 data-t id="t-como" class="revelar">Cómo funciona</h2>
+        <p data-t class="entrada revelar">Cuatro pasos, todos con código abierto en Python.</p>
         <div class="pipeline revelar">
           <svg class="pipeline-linea pipeline-linea--h" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="linea-pipeline" pathLength="1" d="M0,30 C100,0 200,60 300,30 S500,0 600,30 S800,60 900,30 S1100,0 1200,30"/></svg>
           <svg class="pipeline-linea pipeline-linea--v" viewBox="0 0 2 100" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="linea-pipeline" pathLength="1" d="M1,0 L1,100"/></svg>
           <ol class="pasos">
-            <li class="paso"><span class="paso-nodo"></span><h3>Fotogramas</h3><p>Tomamos el video de la NASA y leemos un fotograma cada cierto tiempo.</p><p class="paso-dato">60 fotogramas de GISTEMP y 61 de ECCO2</p></li>
-            <li class="paso"><span class="paso-nodo"></span><h3>Rasgos</h3><p>En cada fotograma medimos tres cosas con la barra de color del propio mapa: el valor medio, cuánta superficie supera un umbral y dónde está esa superficie.</p><p class="paso-dato">2023: media +1,06 °C, 57 % del mapa más de 1 °C sobre el promedio</p></li>
-            <li class="paso"><span class="paso-nodo"></span><h3>Mapeo musical</h3><p>El valor medio elige la nota, la superficie decide el volumen y la posición, comparada con lo habitual en esa pista, decide de qué lado suena. Una nota grave fija marca la referencia.</p><p class="paso-dato">Do, Re, Mi, Sol y La en tres octavas</p></li>
-            <li class="paso"><span class="paso-nodo"></span><h3>Audio</h3><p>Sale una pista de marimba. Después medimos el audio y comprobamos que cada nota es la que dictan los datos.</p><p class="paso-dato">89 golpes en GISTEMP y 125 en ECCO2</p></li>
+            <li class="paso"><span class="paso-nodo"></span><h3 data-t>Fotogramas</h3><p data-t>Tomamos el video de la NASA y leemos un fotograma cada cierto tiempo.</p><p data-t class="paso-dato">60 fotogramas de GISTEMP y 61 de ECCO2</p></li>
+            <li class="paso"><span class="paso-nodo"></span><h3 data-t>Rasgos</h3><p data-t>En cada fotograma medimos tres cosas con la barra de color del propio mapa: el valor medio, cuánta superficie supera un umbral y dónde está esa superficie.</p><p data-t class="paso-dato">2023: media +1,06 °C, 57 % del mapa más de 1 °C sobre el promedio</p></li>
+            <li class="paso"><span class="paso-nodo"></span><h3 data-t>Mapeo musical</h3><p data-t>El valor medio elige la nota, la superficie decide el volumen y la posición, comparada con lo habitual en esa pista, decide de qué lado suena. Una nota grave fija marca la referencia.</p><p data-t class="paso-dato">Do, Re, Mi, Sol y La en tres octavas</p></li>
+            <li class="paso"><span class="paso-nodo"></span><h3 data-t>Audio</h3><p data-t>Sale una pista de marimba. Después medimos el audio y comprobamos que cada nota es la que dictan los datos.</p><p data-t class="paso-dato">89 golpes en GISTEMP y 125 en ECCO2</p></li>
           </ol>
         </div>
-        <p class="entrada revelar">En la rocola puedes elegir <strong>Sonido en vivo</strong>: el navegador aplica el mismo mapeo a los datos y genera el audio al momento. Con las casillas se oye cada rasgo por separado: la melodía, el volumen, el paneo o la nota grave fija.</p>
+        <p data-t class="entrada revelar">En la rocola puedes elegir <strong>Sonido en vivo</strong>: el navegador aplica el mismo mapeo a los datos y genera el audio al momento. Con las casillas se oye cada rasgo por separado: la melodía, el volumen, el paneo o la nota grave fija.</p>
       </div>
     </section>
 
     <section id="porque" class="seccion" aria-labelledby="t-porque">
       <div class="contenedor">
-        <h2 id="t-porque" class="revelar">El porqué</h2>
+        <h2 data-t id="t-porque" class="revelar">El porqué</h2>
         <div class="porque-rejilla">
           <div class="porque-bloque revelar">
-            <h3>Por qué escuchar el clima</h3>
-            <p>En nuestra medición del mapa de GISTEMP, la anomalía media pasa de −0,24 °C en 1881 a +1,06 °C en 2023. Dicho así es un número. Oído, es una melodía que durante un siglo se queda abajo y en los últimos cuarenta años no deja de subir.</p>
-            <p>Comparada con la <a href="https://data.giss.nasa.gov/gistemp/">serie oficial GISTEMP de la NASA</a>, nuestra lectura coincide con una correlación de 0,99 en 58 años y queda, en promedio, 0,09 °C por debajo: la serie oficial va de −0,09 °C en 1881 a +1,17 °C en 2023. Cualquiera puede repetir la cuenta con un comando del repositorio.</p>
-            <p>El sonido llega a quien no puede ver el mapa y también a quien ya lo vio demasiadas veces.</p>
+            <h3 data-t>Por qué escuchar el clima</h3>
+            <p data-t>En nuestra medición del mapa de GISTEMP, la anomalía media pasa de −0,24 °C en 1881 a +1,06 °C en 2023. Dicho así es un número. Oído, es una melodía que durante un siglo se queda abajo y en los últimos cuarenta años no deja de subir.</p>
+            <p data-t>Comparada con la <a href="https://data.giss.nasa.gov/gistemp/">serie oficial GISTEMP de la NASA</a>, nuestra lectura coincide con una correlación de 0,99 en 58 años y queda, en promedio, 0,09 °C por debajo: la serie oficial va de −0,09 °C en 1881 a +1,17 °C en 2023. Cualquiera puede repetir la cuenta con un comando del repositorio.</p>
+            <p data-t>El sonido llega a quien no puede ver el mapa y también a quien ya lo vio demasiadas veces.</p>
           </div>
           <div class="porque-bloque revelar">
-            <h3>Decisiones artísticas</h3>
+            <h3 data-t>Decisiones artísticas</h3>
             <ul>
-              <li>Escala pentatónica: cinco notas que nunca chocan entre sí, así ningún dato suena a error.</li>
-              <li>Una nota grave continua marca el promedio de referencia. La distancia entre esa nota y la melodía es la anomalía.</li>
-              <li>Más calor, más notas: uno, dos o cuatro golpes por medio segundo.</li>
-              <li>Fidelidad antes que adorno: suavizamos tres fotogramas para que suene a música, pero una prueba mide el audio final y exige que cada nota coincida con el dato.</li>
+              <li data-t>Escala pentatónica: cinco notas que nunca chocan entre sí, así ningún dato suena a error.</li>
+              <li data-t>Una nota grave continua marca el promedio de referencia. La distancia entre esa nota y la melodía es la anomalía.</li>
+              <li data-t>Más calor, más notas: uno, dos o cuatro golpes por medio segundo.</li>
+              <li data-t>Fidelidad antes que adorno: suavizamos tres fotogramas para que suene a música, pero una prueba mide el audio final y exige que cada nota coincida con el dato.</li>
             </ul>
-            <p class="nota">Límite conocido: en la pista del mar la temperatura es un índice relativo, medido en las líneas de corriente, no grados exactos del océano.</p>
+            <p data-t class="nota">Límite conocido: en la pista del mar la temperatura es un índice relativo, medido en las líneas de corriente, no grados exactos del océano.</p>
           </div>
         </div>
       </div>
@@ -219,27 +223,27 @@
     <section id="accesibilidad" class="seccion" aria-labelledby="t-acc">
       <div class="contenedor acc-rejilla">
         <div>
-          <h2 id="t-acc" class="revelar">Accesibilidad</h2>
-          <p class="entrada revelar">La rocola nació para oír lo que no se ve. Se puede usar sin ratón y sin pantalla.</p>
+          <h2 data-t id="t-acc" class="revelar">Accesibilidad</h2>
+          <p data-t class="entrada revelar">La rocola nació para oír lo que no se ve. Se puede usar sin ratón y sin pantalla.</p>
         </div>
         <ul class="accesibilidad-lista revelar">
-          <li>Una frase en texto dice qué pasa en cada momento, generada desde los datos.</li>
-          <li>El lector de pantalla la anuncia mientras suena, y se puede apagar.</li>
-          <li>Todo se usa con teclado y el foco siempre se ve.</li>
-          <li>En Sonido en vivo puedes dejar un solo rasgo para aprender a reconocerlo: melodía, volumen, lado o nota grave.</li>
-          <li>Atajos, fuera de un campo de texto: <kbd>Espacio</kbd> reproduce o pausa; <kbd>←</kbd> y <kbd>→</kbd> retroceden o adelantan 5 s. En el gráfico, <kbd>←</kbd> y <kbd>→</kbd> eligen un momento y <kbd>Enter</kbd> salta hasta él (o haz clic).</li>
-          <li><strong>Explorar el mapa:</strong> pausa la pista, mueve el cursor o las flechas sobre el mapa y oye el valor de cada punto, con su latitud, longitud y temperatura en texto. El sonido se calcula en ese instante a partir del color del fotograma. En teléfonos que vibran, se siente un toque al cambiar de nota.</li>
-          <li>Cada pista explica qué se ve y qué se oye, y qué significan los colores.</li>
-          <li>Contraste AA o mejor en todo el texto.</li>
-          <li>Si pides menos movimiento al sistema, la página deja de moverse.</li>
+          <li data-t>Una frase en texto dice qué pasa en cada momento, generada desde los datos.</li>
+          <li data-t>El lector de pantalla la anuncia mientras suena, y se puede apagar.</li>
+          <li data-t>Todo se usa con teclado y el foco siempre se ve.</li>
+          <li data-t>En Sonido en vivo puedes dejar un solo rasgo para aprender a reconocerlo: melodía, volumen, lado o nota grave.</li>
+          <li data-t>Atajos, fuera de un campo de texto: <kbd>Espacio</kbd> reproduce o pausa; <kbd>←</kbd> y <kbd>→</kbd> retroceden o adelantan 5 s. En el gráfico, <kbd>←</kbd> y <kbd>→</kbd> eligen un momento y <kbd>Enter</kbd> salta hasta él (o haz clic).</li>
+          <li data-t><strong>Explorar el mapa:</strong> pausa la pista, mueve el cursor o las flechas sobre el mapa y oye el valor de cada punto, con su latitud, longitud y temperatura en texto. El sonido se calcula en ese instante a partir del color del fotograma. En teléfonos que vibran, se siente un toque al cambiar de nota.</li>
+          <li data-t>Cada pista explica qué se ve y qué se oye, y qué significan los colores.</li>
+          <li data-t>Contraste AA o mejor en todo el texto.</li>
+          <li data-t>Si pides menos movimiento al sistema, la página deja de moverse.</li>
         </ul>
       </div>
     </section>
 
     <section id="equipo" class="seccion" aria-labelledby="t-equipo">
       <div class="contenedor">
-        <h2 id="t-equipo" class="revelar">Equipo</h2>
-        <p class="entrada revelar">Estudiantes de la Universidad de Las Américas (UDLA), Quito.</p>
+        <h2 data-t id="t-equipo" class="revelar">Equipo</h2>
+        <p data-t class="entrada revelar">Estudiantes de la Universidad de Las Américas (UDLA), Quito.</p>
         <ul id="lista-equipo" class="equipo revelar"></ul>
       </div>
     </section>
@@ -247,9 +251,9 @@
 
   <footer class="pie">
     <div class="contenedor pie-rejilla">
-      <p>Resonant Earth. Código con licencia MIT. <a href="https://github.com/misaelvayas-ui/rocola_practica">Repositorio en GitHub</a></p>
-      <p>Visualizaciones: <a href="https://svs.gsfc.nasa.gov/5207/">SVS 5207</a>, «Global Temperature Anomalies from 1880 to 2023», NASA's Scientific Visualization Studio, con datos de Robert B. Schmunk (NASA/GSFC GISS); y <a href="https://svs.gsfc.nasa.gov/3912/">SVS 3912</a>, «Global Sea Surface Currents and Temperature» (modelo ECCO2), NASA/Goddard Space Flight Center Scientific Visualization Studio. Serie de comparación: GISTEMP v4, NASA GISS. Texturas del globo: Blue Marble y Black Marble, NASA Earth Observatory.</p>
-      <p>Proyecto estudiantil para el NASA Space Apps Challenge 2026. No es un sitio oficial de la NASA. Hecho con ayuda de IA (Claude).</p>
+      <p data-t>Resonant Earth. Código con licencia MIT. <a href="https://github.com/misaelvayas-ui/resonant-earth">Repositorio en GitHub</a></p>
+      <p data-t>Visualizaciones: <a href="https://svs.gsfc.nasa.gov/5207/">SVS 5207</a>, «Global Temperature Anomalies from 1880 to 2023», NASA's Scientific Visualization Studio, con datos de Robert B. Schmunk (NASA/GSFC GISS); y <a href="https://svs.gsfc.nasa.gov/3912/">SVS 3912</a>, «Global Sea Surface Currents and Temperature» (modelo ECCO2), NASA/Goddard Space Flight Center Scientific Visualization Studio. Serie de comparación: GISTEMP v4, NASA GISS. Texturas del globo: Blue Marble y Black Marble, NASA Earth Observatory.</p>
+      <p data-t>Proyecto estudiantil para el NASA Space Apps Challenge 2026. No es un sitio oficial de la NASA. Hecho con ayuda de IA (Claude).</p>
     </div>
   </footer>
 </body>
