@@ -1,4 +1,4 @@
-# PLAN — reorganización y `evaluar.py` (rocola_practica)
+# PLAN — reorganización y `evaluar.py` (resonant-earth)
 
 Para el modelo ejecutor. No refactorizar funciones: solo rutas, 3 parámetros y archivos nuevos.
 Ya verificado (CAMBIOS.txt, rondas 1–4): no volver a auditar 01, 04–08 ni `sintesis.py`.

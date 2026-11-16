@@ -39,7 +39,7 @@ No se cambió ningún archivo del proyecto. Todo lo generado quedó fuera del re
 | `web/pruebas/verificar.cjs` (Playwright con Chromium 159 sin pantalla + axe, con webm) | Tal cual: **se corta** en una captura de pantalla (línea 184) y no llega a V2 ni a V14–V23. Con una copia que tolera esa captura: **22 PASA, 1 FALLA (V11)**. axe: 0 violaciones. |
 | Lighthouse (local, Chrome sin tarjeta gráfica) | Móvil: rendimiento **41**, accesibilidad 100, buenas prácticas 100, SEO 100. Escritorio: rendimiento **72**, resto 100. Peso inicial 1.371 KiB. |
 | Peso y sonido de los videos de la web | GISTEMP 4,2 MB (−16,6 LUFS); mar **10,1 MB** (−15,9 LUFS). Volumen parejo entre pistas. |
-| Web publicada (`misaelvayas-ui.github.io/rocola_practica`) | Responde, pero es de antes de la ronda 35 (última modificación 14-nov 22:23 GMT). |
+| Web publicada (`misaelvayas-ui.github.io/resonant-earth`) | Responde, pero es de antes de la ronda 35 (última modificación 14-nov 22:23 GMT). |
 | Búsqueda de claves secretas en todas las ramas | Ninguna encontrada (patrones de clave de Google y `sk-`). |
 
 No se pudo medir: escucha humana, lector de pantalla real, teléfono real, FluidSynth (timbre real), el camino real del mar (no descargué SVS 3912), Windows y Linux, y Lighthouse en un equipo con tarjeta gráfica (las cifras de rendimiento de arriba salen peores de lo real porque el 3D se dibujó por software).

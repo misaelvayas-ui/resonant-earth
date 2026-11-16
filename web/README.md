@@ -70,7 +70,7 @@ Los textos de cada pista están en `pistas.json`. La frase de la lectura en vivo
 
 ## Publicar
 
-- **GitHub Pages:** en el repositorio, Settings → Pages → Source «GitHub Actions». Luego Actions → «Publicar la web» → Run workflow. Queda en <https://misaelvayas-ui.github.io/rocola_practica/>. El flujo solo corre a mano.
+- **GitHub Pages:** en el repositorio, Settings → Pages → Source «GitHub Actions». Luego Actions → «Publicar la web» → Run workflow. Queda en <https://misaelvayas-ui.github.io/resonant-earth/>. El flujo solo corre a mano.
 - **Vercel:** importa el repositorio, Root Directory `web`, sin comando de compilación.
 
 ## Pruebas

@@ -6,7 +6,7 @@ Prototipo para NASA Space Apps (reto 9), probado con el video **NASA SVS 5207 �
 
 ## Guía de 5 minutos para el jurado
 
-1. Abre la web: <https://misaelvayas-ui.github.io/rocola_practica/> (o, sin internet, `cd web && python -m http.server 8001` y <http://localhost:8001>).
+1. Abre la web: <https://misaelvayas-ui.github.io/resonant-earth/> (o, sin internet, `cd web && python -m http.server 8001` y <http://localhost:8001>).
 2. Pulsa **Temperatura del planeta** y escucha 30 segundos con auriculares. La melodía se queda abajo un siglo y sube en los últimos cuarenta años. La nota grave fija es el promedio de 1951–1980.
 3. Pulsa **Antes y después**: suenan los primeros 5 segundos (1881–1903) y enseguida los últimos (2011–2023).
 4. Pulsa **Explorar el mapa** y mueve el cursor (o las flechas): cada punto suena y dice su latitud, longitud y temperatura, calculadas en ese instante desde el color del fotograma.
