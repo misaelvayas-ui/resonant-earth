@@ -1122,3 +1122,329 @@ RONDA 44 - limpieza final de código y documentación (rama misael/limpieza-fina
 Sin cambios de comportamiento: 05 y 06 de las dos pistas y exportar_mapeo reproducen byte a byte (12 cmp iguales) rasgos.json, control.json, rocola.mid, rocola.wav y los _mapeo/_esperado.json de web/assets.
 Comprobado: evaluar.py 47 PASA, 0 FALLA, 0 OMITIDA; node --test 13 PASA; verificar.cjs V1-V33 = 34 PASA.
 No se quitaron las comprobaciones «Ejecuta desde la raíz» de herramientas/: siguen siendo alcanzables con «python herramientas/x.py».
+
+RONDA 45 - guía por voz con IA sobre la web nueva (rama juan/guia-voz-ia-v2)   (2026-11-15)
+Revisado por Juan. Antes: commit 3e20b29 (master, con la web nueva del PR #10).
+Esta ronda reemplaza a las rondas "32" y "33" de las ramas juan/guia-voz y juan/guia-voz-ia (hechas sobre la web anterior, sin
+fusionar): mismo trabajo, renumerado después de la ronda 32 de master (al integrarse en master pasó a ser la 45) y conectado a la web nueva.
+Archivos traídos de juan/guia-voz-ia: web/guia-voz.js, guia-voz-ia.js, guia-voz-config.js, guia-voz.css,
+web/pruebas/guia-voz.test.js, guia-voz-ia.test.js y la carpeta servicio-ia/ (Cloudflare Worker + Gemini, con LEEME.md).
+Archivo reescrito: web/guia-voz-adaptador.js. Tocados: web/index.html (solo las líneas <script> de la guía), web/README.md y
+este archivo. NO se tocó ningún módulo de web/js/, ni estilos.css, ni pistas.json, ni nada de Python.
+NINGUNA CLAVE en el repositorio ni en la web: la clave de Gemini va solo como secreto del servicio.
+1. Qué es: un panel con el botón "Hablar con la guía" (o la tecla H) y un campo para escribir. Entiende órdenes en español
+   (reproducir, pausar, cambiar de pista, "año 1990", "noviembre de 2007", "segundo diez", avanzar, volumen, "qué pasa
+   ahora", leyenda, "dónde estoy", ayuda). Pregunta "¿usas un lector de pantalla?": con "sí" no usa su voz y escribe en una
+   región aria-live; con "no" habla con la voz del navegador. Una respuesta, un solo camino.
+2. Adaptador nuevo: usa window.__web (audio.estado, reproducir, buscar, fijarVolumen; rocola.elegir, pistaActual), el botón
+   #btn-reproducir para pausar (así la página escribe "En pausa") y los textos que la página ya pinta (#ahora-texto,
+   #leyenda-pista, "Qué vas a oír"). Fechas y serie: los lee de pistas.json y de los _rasgos.json.
+3. guia-voz.js: paginaAnuncia(que) distingue elegir y pausar (la página siempre lo escribe en #estado-rocola) de saltar
+   (solo si la casilla de la lectura en vivo está marcada); "reproduce" sin pista elegida pone la primera; el panel se
+   coloca donde dice el adaptador (antes de la sección de la rocola).
+4. IA (opcional, apagada): web/guia-voz-config.js trae la dirección vacía. Con el servicio publicado, las frases libres van a
+   servicio-ia/, que consulta Gemini y devuelve { accion, parametros, respuesta }; la web lo valida contra trece acciones
+   permitidas y, si algo falla (sin red, 429, error, más de 6 s, respuesta rara), responde el intérprete sin mostrar errores.
+Verificado (Windows 11, Node 24, Chrome sin ventana, axe-core 4.10.2; micrófono, voz y servicio de IA de mentira):
+  - web/pruebas/verificar.cjs con la guía puesta: V1 a V14 PASA (axe 0 violaciones a 1440 y 390 px, sin desborde).
+    Se corrió con el Chrome instalado (trae H.264), no con el Chromium de Playwright y los webm.
+  - node --test: guia-voz.test.js y guia-voz-ia.test.js, 15 pruebas pasan; servicio-ia, 12 pruebas pasan.
+  - navegador, 53 comprobaciones, todas pasan: axe 0 violaciones en escritorio y móvil (pregunta, panel con IA y escuchando);
+    18 comandos de punta a punta; con lector, 13 comandos, 0 frases por voz y la guía y la página nunca dicen lo mismo a la
+    vez (casilla de la lectura marcada y sin marcar); sin IA configurada no sale ninguna petición; con IA, 9 respuestas
+    manipuladas o caídas descartadas sin avisos, HTML como texto y corte a los 6 s.
+NO probado: micrófono real, lectores de pantalla reales, Firefox, Safari, teléfonos, ni una llamada real a Gemini.
+
+RONDA 46 - guía por voz: esfera "Háblame", frases sugeridas, explicación con datos calculados y recorrido guiado   (2026-11-15)
+Revisado por Juan. Antes: commit 849c93b (ronda 45, misma rama juan/guia-voz-ia-v2).
+Tocados: web/guia-voz.js, guia-voz.css (reescrito), guia-voz-ia.js, guia-voz-adaptador.js (detalle(i)), las dos pruebas de
+web/pruebas/, servicio-ia/src/nucleo.js (solo las instrucciones del modelo), servicio-ia/LEEME.md, web/README.md y este archivo.
+NO se tocó ningún módulo de web/js/, ni index.html, ni estilos.css. Sigue sin haber ninguna clave en el repositorio.
+1. Un solo botón: una esfera luminosa fija abajo a la derecha, "Háblame". Es un <button> (Tab, Enter, Espacio; nombre
+   "Háblame"; enlace "Saltar a la guía por voz"). Gira despacio en reposo, palpita cuando escucha y brilla cuando responde.
+   Colores y tipografías de la web. Con prefers-reduced-motion no se mueve: el estado se ve en el anillo y el texto. En móvil
+   mide 72 px. Encima se abre una tarjeta donde toda respuesta se ve como texto; Esc la cierra.
+2. Tres frases sugeridas en la tarjeta: "¿Qué estoy escuchando?", "¿Por qué sube el tono?" y "Llévame al año más cálido",
+   más el botón "Dame un recorrido". Las cuatro funcionan sin IA.
+3. Datos ya calculados: resumenSerie() saca de cada serie el máximo, el mínimo, el mayor cambio entre dos momentos seguidos
+   y la tendencia. GISTEMP: máximo 2023 (+1,06), mínimo 1911 (-0,61), de -0,24 en 1881 a +1,06 en 2023 (sube). Mar: máximo
+   mar 2007 (22,44), mínimo nov 2007 (21,48), sube y baja. Coinciden con el resumen de pistas.json. Los comandos usan esas
+   cifras y viajan a la IA en contexto.calculado con la orden de no calcular otras.
+4. "Explícame lo que oigo" / "¿Qué estoy escuchando?": con IA lo redacta el modelo solo con el contexto; sin IA (o si
+   falla) responde el intérprete con la lectura de la página y las cifras calculadas. "Llévame al año más cálido" nunca va
+   al modelo: salta al máximo de la pista (carga la primera si no hay ninguna). En el mar se dice "índice", no grados.
+5. "Dame un recorrido": guion FIJO (guionRecorrido), ejecutado por la página con acciones de la lista permitida (elegir y
+   saltar_tiempo): presenta la web, pone GISTEMP, salta unos segundos antes de 2023 y lo explica, cambia al mar y cierra.
+   Se detiene con el botón "Detener el recorrido", Esc, "pausa", "silencio" o "detén el recorrido"; otra frase lo corta.
+6. Si el modelo pide algo fuera de la lista, la web lo descarta y responde el intérprete (ya era así; ahora hay prueba con
+   las frases nuevas). Sin IA configurada no sale ninguna petición.
+7. Detalles: la voz dice "menos" y "más" en lugar de los signos; "dónde estoy" sin pista elegida ya no dice "cargando".
+Verificado (Windows 11, Node 24, Chrome sin ventana, axe-core 4.10.2; micrófono, voz y servicio de IA de mentira):
+  - node --test web/pruebas/guia-voz.test.js web/pruebas/guia-voz-ia.test.js: 18 pruebas pasan (98 frases del intérprete,
+    resumenSerie contra los _rasgos.json reales, toda cifra dicha está en los datos, recorrido de 30 a 50 s estimados).
+  - servicio-ia: 12 pruebas pasan.
+  - navegador: 89 comprobaciones, todas pasan (las 53 de la ronda 45 más 36 nuevas): axe 0 violaciones en escritorio y
+    móvil, esfera con teclado y sus estados, movimiento reducido, frases sugeridas, recorrido completo y cinco maneras de
+    detenerlo, lector de pantalla sin voces dobles (también en el recorrido), IA de mentira con contexto calculado, acción
+    fuera de la lista y 429.
+  - web/pruebas/verificar.cjs con la guía puesta: V1 a V14 PASA (con el Chrome instalado, no con el Chromium de Playwright).
+NO probado: micrófono real, la voz real del navegador (los 40 s del recorrido son una estimación), lectores de pantalla
+reales, Firefox, Safari, teléfonos, ni una llamada real a Gemini.
+Detalle conocido: a 1440 px y con la página arriba del todo, la esfera tapa una esquina del botón "Cómo funciona" del inicio.
+
+RONDA 47 - guía por voz: voz primero, español e inglés, voz serena y guía general de la web   (2026-11-15)
+Revisado por Juan. Antes: commit 1d010ab (ronda 46, misma rama juan/guia-voz-ia-v2).
+Tocados: web/guia-voz.js, guia-voz.css, guia-voz-ia.js, guia-voz-adaptador.js, las dos pruebas de web/pruebas/,
+servicio-ia/src/nucleo.js (instrucciones del modelo y límite del contexto), servicio-ia/wrangler.toml, servicio-ia/pruebas,
+servicio-ia/LEEME.md, web/README.md y este archivo. NO se tocó ningún módulo de web/js/, ni index.html, ni estilos.css.
+Sigue sin haber ninguna clave en el repositorio.
+1. Dos idiomas, SOLO en la guía (la web no se traduce). Idioma inicial según el navegador; selector "Español / English" en
+   "Ayuda y opciones"; también "habla en inglés" / "español". interpretarEN devuelve los mismos tipos de acción que
+   interpretarES. Textos de la tarjeta, respuestas fijas y recorrido en los dos idiomas. Reconocimiento es-EC/es-ES o en-US.
+   Lo que la guía dice en inglés sobre la página (títulos, lectura de "Ahora", leyenda) está en el adaptador, con los
+   mismos datos. El idioma viaja a la IA (contexto.idioma) y el modelo responde en ese idioma.
+2. Voz serena: elegirVozDe() escoge una voz masculina según el idioma (inglés: británicas primero, George, Ryan, Google UK
+   English Male, Daniel; español: Pablo, Raúl, Jorge u otra), velocidad 0,95 y tono 0,85. Se conservan el selector de voz y
+   la velocidad. Arreglo: la voz ya no parte "1.06" en dos frases.
+3. Tecla H para hablar (se puede apagar). No hay atajo con la barra espaciadora.
+4. Voz primero: al abrirla saluda en una frase y escucha. Tarjeta mínima: subtítulo con lo último que dijo (siempre
+   visible), botón "Escribir" (despliega el campo y las frases sugeridas) y "Ayuda y opciones" plegado con todo lo demás.
+   Fuera de la vista: "Entendí", las frases sugeridas y la lista de comandos (las frases aparecen solas si el navegador no
+   tiene voz o reconocimiento). Tras cada respuesta por voz vuelve a escuchar una vez, hasta 6 s, con indicador visible; se
+   apaga en opciones; el micrófono nunca se abre sin una acción previa. "No entendí", "repite", "más simple", "otra vez":
+   con IA reformula la última respuesta en palabras más simples; sin IA la repite más despacio. La ayuda con ejemplos solo
+   sale cuando se pide.
+5. Guía general de la web: el contexto de la IA lleva los textos fijos de la página (qué es, cómo funciona, por qué,
+   accesibilidad, equipo, pistas, créditos; unos 3000 caracteres, leídos de la propia página). El modelo responde solo con
+   eso. Sin IA hay cinco textos cortos fijos. El límite del contexto sube de 6000 a 9000 (cliente 8500).
+6. wrangler.toml: ORIGENES_PERMITIDOS con https://misaelvayas-ui.github.io (antes TU-USUARIO).
+Decisiones a saber: se quitó la pregunta inicial "¿usas un lector de pantalla?" (la guía habla por defecto; el modo sin
+voz se activa en opciones o diciendo "uso lector de pantalla", y con él no se abre el micrófono solo); la tarjeta conserva
+un botón pequeño de cerrar y, con IA, el aviso de que las frases se envían; el subtítulo muestra la respuesta completa.
+Verificado (Windows 11, Node 24, Chrome sin ventana, axe-core 4.10.2; micrófono, voz y servicio de IA de mentira):
+  - node --test de la web: 23 pruebas pasan (112 frases en español, 55 en inglés, voz, recorrido, contexto de la IA).
+  - servicio-ia: 12 pruebas pasan.
+  - navegador: 128 comprobaciones, todas pasan: axe 0 violaciones en escritorio y móvil, español e inglés; voz primero;
+    escucha de seguimiento; comandos sin IA y ninguna petición fuera; inglés completo; lector de pantalla sin voces dobles
+    (0 frases por voz en 14 comandos y en el recorrido); recorrido y cuatro paradas; sin voz o sin reconocimiento; IA de
+    mentira con idioma, textos de la web, reformular y 7 respuestas manipuladas o caídas.
+  - web/pruebas/verificar.cjs con la guía puesta: V1 a V14 PASA (con el Chrome instalado).
+NO probado: micrófono real, voces reales de cada navegador, lectores de pantalla reales, Firefox, Safari, teléfonos, ni una
+llamada real a Gemini.
+Para Misael: la web tiene unos 146 textos solo en español (95 en index.html, 20 en pistas.json, 11 en equipo.json y unos
+20 en web/js/). En equipo.json siguen dos nombres de ejemplo y los cinco "Aporte al proyecto (editar)".
+HAY QUE VOLVER A PUBLICAR EL SERVICIO (npx wrangler deploy): cambiaron las instrucciones del modelo y el límite del contexto.
+
+RONDA 48 - servicio de IA: causa del 502 con Gemini y registro del error real   (2026-11-15)
+Revisado por Juan. Antes: commit c3cd0c8 (ronda 47, misma rama).
+Problema: el servicio publicado (rocola-guia-ia.resonant-earth.workers.dev) respondía 200 en la ruta de estado y
+502 {"error":"modelo"} con la frase de prueba, sin dejar ver por qué.
+Tocados: servicio-ia/src/nucleo.js, servicio-ia/wrangler.toml, servicio-ia/pruebas/servicio.test.js, servicio-ia/LEEME.md.
+1. Causa encontrada en la documentación oficial (aistudio.google.com/docs/thinking, consultada el 15-nov-2026):
+   gemini-3.8-flash admite thinking_level low, medium y high, pero NO "minimal", y callLLM enviaba "minimal". Ahora envía
+   "low" (variable GEMINI_THINKING). Además max_output_tokens incluye los tokens de razonamiento: sube de 400 a 1200
+   (variable MAX_TOKENS_SALIDA) para que la respuesta no quede en estado "incomplete".
+2. Revisado contra la documentación y sin cambios: la dirección (POST .../v1beta/interactions), las cabeceras
+   (x-goog-api-key y Api-Revision: 2026-05-20), el cuerpo (model, system_instruction como texto, input, response_format con
+   type/mime_type/schema, store) y el nombre del modelo (gemini-3.8-flash, estable).
+3. Registro: cuando Google no responde bien, callLLM deja con console.warn SOLO el código HTTP, el código o estado del
+   error y su mensaje cortado a 300 caracteres y sin la clave. También si el estado no es "completed". Nunca la frase de la
+   persona ni el contexto. A la web sigue sin viajar ningún detalle. Se ve con: npx wrangler tail.
+Verificado: servicio-ia, 12 pruebas pasan (incluyen la forma de la petición, lo que se registra y que no se registran
+la clave, la frase ni el contexto). Las pruebas de la web no cambian (23 pasan).
+NO probado: una llamada real a Gemini (sin clave en esta máquina). Que el 502 desaparezca hay que confirmarlo
+volviendo a publicar y repitiendo la prueba; si sigue, la línea del registro dirá el motivo exacto.
+Para volver a publicar: en servicio-ia/, npx wrangler deploy.
+
+RONDA 49 - servicio de IA: Gemini saturado; generateContent con modelos de respaldo, espera de 9 s y «un momento"   (2026-11-15)
+Revisado por Juan. Antes: commits fdbee7b (ronda 48) y f1e2154 (probar-gemini.mjs).
+Problema: el servicio publicado respondía 504 "tiempo" aunque se subiera la espera a 25 s. Con probar-gemini.mjs y una clave
+válida: la API de Interacciones no respondía nada en 40 s; generateContent respondía en ~5 s con 503 UNAVAILABLE («This model
+is currently experiencing high demand») para gemini-3.8-flash. O sea: el modelo estaba saturado y Interacciones se colgaba.
+Tocados: servicio-ia/src/nucleo.js, servicio-ia/wrangler.toml, servicio-ia/probar-gemini.mjs, servicio-ia/pruebas/servicio.test.js,
+servicio-ia/LEEME.md, web/guia-voz-ia.js, web/guia-voz.js, web/pruebas/guia-voz-ia.test.js, web/README.md.
+1. probar-gemini.mjs ampliado: clave con entrada oculta (nunca por argumento; solo se imprime cuántos caracteres recibió), lista
+   los modelos (GET /v1beta/models: nombre y métodos), elige hasta 6 de Flash y Flash-Lite que admiten generateContent (sin
+   imagen, voz, embeddings, live ni versiones con fecha), prueba «Di hola» y la tarea real con cada uno (tope 15 s) e imprime la
+   tabla modelo / prueba / HTTP / ms / resultado; al final prueba callLLM() completo. Nunca imprime la clave.
+2. callLLM usa generateContent (POST /v1beta/models/<modelo>:generateContent; systemInstruction, contents, generationConfig con
+   responseMimeType application/json, responseJsonSchema, maxOutputTokens y thinkingConfig.thinkingLevel LOW; documentación
+   consultada el 15-nov-2026). Ya no usa Interacciones ni la cabecera Api-Revision. A los modelos anteriores a Gemini 3 no se
+   les manda thinkingLevel. Lista de respaldo en GEMINI_MODELOS (wrangler.toml, separada por comas; por defecto solo
+   gemini-3.8-flash): pasa al siguiente modelo con 503, 429, otro 5xx, 404 o sin respuesta en ESPERA_INTENTO_MS (3,5 s); 400 y
+   403 no se reintentan. Presupuesto total ESPERA_MODELO_MS = 8000 (el valor de 25 s se quitó); al último modelo le queda el resto.
+   Si todos fallan: el error de siempre (la web cae a comandos). El registro sigue siendo solo código HTTP, estado/código y
+   mensaje (≤300, sin clave); se añade una línea "estado=SIN_RESPUESTA" cuando un modelo no responde a tiempo.
+3. Web: ESPERA_MS sube de 6 a 9 s (guia-voz-ia.js). Mientras espera, la esfera pasa a «pensando» y, a los 1,5 s, la guía dice
+   «Un momento.» / «One moment.» una vez (con lector de pantalla no habla).
+Verificado: servicio-ia 13 pruebas; web 24 pruebas; navegador (espera.js, 13/13): esfera «pensando», «un momento» una vez en
+español e inglés, no lo dice si la respuesta es rápida, ni con lector de pantalla; probar-gemini.mjs con una red de mentira
+(tabla, redacción de la clave, tope por prueba).
+NO probado: llamadas reales a Gemini ni qué modelos de respaldo existen en tu cuenta (eso lo dice probar-gemini.mjs con tu clave).
+Para volver a publicar: en servicio-ia/, npx wrangler deploy.
+
+RONDA 50 - guía por voz, fase 1: pulido   (2026-11-15)
+Revisado por Juan. Antes: commit 490ded2 (ronda 49).
+Tocados: web/guia-voz.js, web/guia-voz.css, web/guia-voz-ia.js, web/guia-voz-config.js, web/pruebas/guia-voz-ia.test.js,
+web/README.md, servicio-ia/src/nucleo.js, servicio-ia/wrangler.toml, servicio-ia/pruebas/servicio.test.js, servicio-ia/LEEME.md.
+0. La web apunta al servicio publicado (guia-voz-config.js) y los modelos son gemini-3.5-flash-lite, gemini-3.5-flash y
+   gemini-3.6-flash, en wrangler.toml y como valor por defecto del código (commit 10e393b).
+1. Escuchar tras responder: la espera inicial sube a 10 s. Si la persona empieza a hablar (inicio de voz o resultados
+   parciales), el temporizador se detiene y se oculta, y no se corta hasta 2,5 s de silencio tras su última palabra (máximo
+   30 s). También al pulsar la esfera. El reconocimiento pasa a modo continuo con resultados parciales; los trozos se juntan
+   sin repetir (algunos navegadores mandan en cada trozo todo lo anterior).
+2. Menos texto: panel con cabecera (avatar, «Eco · Guía por voz», cerrar), subtítulo, línea de estado, «Escribir» y «Ayuda
+   y opciones» plegado en grupos cortos (4 ejemplos, idioma, voz y velocidad, lector de pantalla, escuchar de nuevo y tecla
+   H, y una línea sobre el micrófono). Se quitaron la lista larga de comandos y la nota larga de la IA (queda en la casilla).
+   La casilla de la tecla H se conserva: WCAG 2.1.4 pide poder apagar los atajos de una sola tecla.
+3. Textos revisados en español e inglés, sin jerga. Lector de pantalla: «Uso un lector de pantalla (NVDA, JAWS, VoiceOver,
+   TalkBack). La guía responderá solo por escrito, para que no se mezclen dos voces.»
+4. Apartado propio: la guía se llama Eco y usa violeta (la web usa azul), con su borde, su brillo y la esfera como avatar.
+   Las frases rápidas son «atajos» secundarios: una lista de enlaces discretos con flecha, no botones de la web.
+Verificado: node --test (web 24, servicio 13); navegador con micrófono, voz y servicio de mentira: 133 comprobaciones
+(axe 0 violaciones en escritorio y móvil, español e inglés; sin voces dobles con lector de pantalla; temporizador que se
+oculta al hablar, no corta pasados los 10 s y responde tras 2,5 s de silencio). En la corrida completa falló 1 por tiempos
+y pasó al repetir su sección sola (26 de 26). verificar.cjs: pasa todo menos V11 (tras Pausar, la amplitud no baja a
+tiempo), que ya fallaba antes de esta ronda con el código anterior; no es de la guía.
+NO probado: micrófono real (el modo continuo del reconocimiento se probó con un micrófono de mentira), voces reales,
+lectores de pantalla reales, Firefox, Safari, teléfonos.
+No hace falta volver a publicar el servicio por esta fase si ya se publicó con la lista de modelos nueva.
+
+RONDA 50 - guía por voz, fase 2: voz natural   (2026-11-15)
+Revisado por Juan. Antes: commit a704f88 (fase 1).
+Tocados: web/guia-voz.js, web/pruebas/guia-voz.test.js, web/README.md.
+5. elegirVozDe() ya no busca voces masculinas por nombre: ordena por naturalidad (calidadVoz: «Natural», «Online» o «Neural»
+   = 3; Google = 2; locales = 1; voces de adorno = 0) y, a igual naturalidad, por país (es: Ecuador, México, España, EE. UU.;
+   en: EE. UU., Reino Unido). Velocidad 1 y tono 1. El selector muestra «La más natural: (nombre)» y la lista ordenada.
+   prepararParaVoz() arregla el texto antes de hablar: grados, menos y más, por ciento, rangos de años con «a», meses
+   abreviados enteros, sin símbolos ni emojis, paréntesis y rayas como pausas. «Más despacio» pasa a ser velocidad × 0,8 = 0,8.
+Verificado: node --test web (25); navegador 133 comprobaciones (voz elegida, velocidad 1 y tono 1 en español e inglés, axe
+0 violaciones, sin voces dobles con lector); 5 expectativas del guion de prueba eran de la voz anterior y se actualizaron.
+NO probado: cómo suenan las voces reales de cada navegador (la elección se probó con listas de nombres de Edge, Chrome,
+Windows y macOS). Límite conocido: en inglés, «may 2008» se lee como el mes de mayo.
+No hace falta volver a publicar el servicio por esta fase.
+
+RONDA 50 - guía por voz, fase 3: la guía señala y pulsa   (2026-11-15)
+Revisado por Juan. Antes: commit 7c2a82b (fase 2).
+Tocados: web/guia-voz.js, web/guia-voz.css, web/guia-voz-adaptador.js, web/guia-voz-ia.js, web/pruebas/*.test.js, web/README.md,
+servicio-ia/src/nucleo.js, servicio-ia/pruebas/servicio.test.js, servicio-ia/LEEME.md. No se tocó ningún módulo de web/js/.
+6. Señalar: lista fija de 14 lugares (LUGARES). El adaptador dice dónde está cada uno (lugar(nombre)). Al explicar algo, la
+   página se desplaza hasta el lugar y lo rodea un anillo de luz que se quita solo (4,5 s). Comandos nuevos: «dónde está…»,
+   «señala…», "where is…", "point to…". Con menos movimiento: resalte sin animación. Con lector de pantalla: el foco va al
+   lugar y se anuncia por texto.
+7. Recorrido: 6 pasos; cada uno señala su lugar y un puntero visible pulsa de verdad la tarjeta de la pista, el botón de
+   reproducir (solo si no suena ya), la línea de tiempo (el salto lo hace el reproductor) y «Cambiar de pista». Se detiene
+   en cualquier momento y dura de 40 a 60 s.
+8. IA: acción nueva "senalar" con parametros.lugar (enum de la lista fija) en el esquema, las instrucciones y la validación
+   del servicio, y en el cliente. Un lugar fuera de la lista descarta la respuesta entera, en los dos lados.
+Verificado: node --test (web 27, servicio 14: lista de lugares igual en la guía, el cliente y el servicio; 15 valores manipulados
+descartados en cada lado). Navegador con micrófono, voz y servicio de mentira: todas las secciones pasan (unas 180
+comprobaciones): axe 0 violaciones también con el anillo a la vista, sin voces dobles con lector, el anillo rodea el lugar
+correcto y se quita solo, el recorrido señala 5 lugares y hace clic de verdad en la tarjeta de la pista y en «Cambiar de
+pista». Tres comprobaciones fallaron por tiempos del guion de prueba y pasaron al corregir sus esperas. verificar.cjs: pasa
+todo menos V11, que ya fallaba antes de esta ronda y no es de la guía.
+NO probado: una llamada real a Gemini con la acción nueva (que el modelo señale bien se verá al usarlo), lectores de pantalla
+reales, teléfonos.
+HAY QUE VOLVER A PUBLICAR EL SERVICIO (npx wrangler deploy): cambiaron el esquema y las instrucciones del modelo. Mientras
+no se publique, todo funciona igual, pero la IA no señalará.
+
+RONDA 50 - guía por voz, fase 4: voz humana de Gemini como opción   (2026-11-15)
+Revisado por Juan. Antes: commit 69f69d0 (fase 3).
+Tocados: servicio-ia/src/nucleo.js, servicio-ia/src/index.js, servicio-ia/wrangler.toml, servicio-ia/probar.mjs,
+servicio-ia/pruebas/servicio.test.js, servicio-ia/LEEME.md, web/guia-voz.js, web/guia-voz-ia.js, web/pruebas/guia-voz-ia.test.js,
+web/README.md.
+9. Servicio: ruta POST /voz { texto } -> audio/wav, con un modelo de texto a voz de Gemini (gemini-3.8-flash-tts y, de
+   respaldo, gemini-3.1-flash-tts-preview; voz "Sulafat", cálida; documentación consultada el 15-nov-2026). Mismas reglas de
+   origen; límites propios y más bajos, en otra instancia del contador (4 por visitante y minuto, 6 por minuto, 60 por día,
+   600 caracteres); con 429 de Google se pausa 10 minutos. Registro igual de corto: sin clave ni frase.
+   Web: interruptor «Voz humana de Gemini» en las opciones, apagado por defecto. Solo para respuestas de la IA. Si el audio
+   tarda más de ~3 s, falla o no hay cupo, habla enseguida la voz del navegador y no se vuelve a pedir en 5 minutos (30 si
+   fue por cupo). Con lector de pantalla no se pide.
+Verificado: node --test (web 28, servicio 15: forma de la petición de voz, límites propios, 429 con pausa, errores sin detalles
+ni clave). Navegador con micrófono, voz, servicio y voz humana de mentira: 171 de 171 comprobaciones pasan en una corrida
+completa (axe 0 violaciones, sin voces dobles con lector). De paso se corrigió un fallo real que destaparon estas pruebas:
+si el micrófono estaba abierto al empezar el recorrido, no se cerraba y Esc cerraba el micrófono en vez de detener el
+recorrido; ahora el recorrido, lo escrito y los atajos cierran el micrófono, y Esc detiene primero el recorrido.
+verificar.cjs: pasa todo menos V11, que ya fallaba antes de esta ronda y no es de la guía.
+NO PROBADO CON GEMINI DE VERDAD: ninguna llamada real a los modelos de voz (ni si existen en la cuenta, ni cuánto tardan,
+ni sus límites). La voz solo está documentada por la API de Interacciones, que el 15-nov-2026 no respondía para texto. Para
+comprobarlo: publicar y correr node probar.mjs <dirección> (paso 3).
+HAY QUE VOLVER A PUBLICAR EL SERVICIO (npx wrangler deploy) para que exista la ruta /voz y para que la IA pueda señalar.
+
+NOTA (ronda 50, al cierre): en la ultima corrida verificar.cjs paso completo, V11 incluida. V11 es intermitente en esta
+maquina (fallo en varias corridas de las fases 1 a 3 y tambien con el codigo anterior); no es un fallo fijo ni de la guia.
+
+RONDA 51 - guía por voz: color, bienvenida y «Oye Eco»   (2026-11-15)
+Revisado por Juan. Antes: commit 85c6d52 (ronda 50).
+1. Color: la guía vuelve al azul cielo de la web (tokens --acento, --tinta, --tinta-2 y --linea-control de estilos.css) y se
+   quita el violeta. Conserva su identidad (avatar, cabecera, borde superior de luz, brillo) en esa paleta. Contraste: acento
+   10:1 o más y bordes 4,5:1 o más sobre el fondo del panel. Tocados: web/guia-voz.css, web/README.md.
+   Verificado: navegador, secciones de axe (es/en, escritorio y móvil) y señalar: 35 de 35, axe 0 violaciones.
+2. Bienvenida y arranque guiado: tarjeta breve al cargar (no modal, no roba el foco: el primer Tab sigue en «Saltar al
+   contenido»; «Saltar a la guía por voz» lleva a ella; Esc la cierra) con «Empezar el recorrido guiado» y «Explorar yo solo»
+   (y en inglés). «Empezar»: Eco se presenta, presenta la web, invita, y el recorrido arranca solo (sustituye su primer paso);
+   el foco va a «Detener el recorrido». Una vez por sesión (sessionStorage con try/catch). Con lector: sin voz, todo por
+   escrito. Con menos movimiento: sin animación. Tocados: web/guia-voz.js, web/guia-voz.css, web/README.md.
+   Verificado: node --test (28); navegador, sección nueva 26 de 26 (axe 0 en escritorio y móvil, es y en) y recorrido 14 de 14;
+   verificar.cjs pasa V6 (primer Tab) y todo lo demás menos V11, la intermitente de siempre.
+3. «Oye Eco» / "Hey Eco" (opcional): casilla en «Ayuda y opciones», apagada por defecto y no recordada entre visitas, con el
+   aviso de Chrome y Edge. Encendida, un reconocimiento continuo escucha solo la palabra de activación y solo con la guía
+   libre y la página visible (un único micrófono a la vez; no se oye a sí misma). Tolera variantes. La palabra sola abre la
+   guía y escucha; con la orden detrás, la ejecuta. Indicador visible «Micrófono abierto» con botón para apagarlo. Se reinicia
+   si el navegador lo corta; se apaga solo tras 10 minutos sin usarse (GUIA_VOZ_CONFIG.oyeMinutos lo cambia). Nunca con
+   lector de pantalla. La nota del micrófono lo menciona. Tocados: web/guia-voz.js, web/guia-voz.css, web/pruebas/guia-voz.test.js,
+   web/README.md.
+   Verificado: node --test (web 29, con las variantes de la palabra de activación y frases que no deben activarla);
+   navegador: sección nueva 18 de 18, y la suite completa una sola vez al final, 215 de 215 (axe 0 violaciones en escritorio
+   y móvil, es y en; sin voces dobles con lector).
+NO probado en la ronda 51: micrófono real (en especial, cuánto aguanta Chrome un reconocimiento continuo y si en móviles
+lo permite), voces reales, lectores de pantalla reales. «Oye Eco» depende de que el navegador reconozca bien «Eco»; con
+micrófono de mentira se probaron las variantes escritas, no cómo las transcribe cada navegador.
+No hace falta volver a publicar el servicio por la ronda 51 (solo cambió la web).
+   verificar.cjs: pasa todo menos V11 (la intermitente de siempre, ver la nota de la ronda 50).
+
+RONDA 52 - guía por voz: recorrido completo, barra de subtítulos y «Oye Eco» por defecto   (2026-11-15)
+Revisado por Juan. Antes: commit 1236663 (ronda 51).
+1. Recorrido con las dos pistas sonando: 8 pasos. Presenta la web; pista 1 (GISTEMP): la elige, suena, muestra el botón,
+   salta antes del máximo (2023) y lo explica en el gráfico; pista 2 (mar): cambia, pulsa reproducir si hace falta («Escucha
+   cómo suena el mar»), salta antes de su punto más bajo (nov 2007) y lo explica en la lectura; cierra invitando a explorar.
+   Textos más cortos para seguir en 40 a 60 s. Tocados: web/guia-voz.js, web/pruebas/guia-voz.test.js, web/README.md.
+   Verificado: node --test 29 (la pista actual termina en la 2 y suena; llamadas elegir 0, irA, elegir 1, irA); navegador,
+   recorrido y bienvenida 41 de 41: recorrido completo en 41 s, la pista actual cambia al mar y suena (sonando = true)
+   mientras se presenta y en su salto.
+2. Barra de subtítulos: por defecto y en el recorrido solo se ve una barra compacta (abajo y centrada; en móvil, tira baja
+   junto a la esfera), de 3 líneas como mucho con scroll interno y fondo opaco, con «Escribir», «Ayuda y opciones» y cerrar.
+   El panel completo solo se abre cuando se pide (esos botones, un clic en la barra o «ayuda»). Al señalar, si la barra o el
+   panel tapan el lugar (getBoundingClientRect), se van arriba y, si aun así tapan, se minimizan hasta que se quita el resalte.
+   Tocados: web/guia-voz.js, web/guia-voz.css, web/README.md.
+   Verificado: node --test 29; navegador, secciones de barra, bienvenida, recorrido, voz primero, axe y señalar: todas pasan
+   (axe 0 en escritorio y móvil, es y en, con barra y con panel; al señalar 9 lugares nunca los tapa); verificar.cjs como
+   siempre: todo pasa menos V11, la intermitente.
+3. «Oye Eco» activo por defecto desde el primer clic (nunca al cargar): se activa con «Empezar el recorrido guiado», «Explorar
+   yo solo», la esfera, la tecla H o al escribir. Eco lo dice una vez con voz («Puedes llamarme en cualquier momento diciendo:
+   Oye Eco») y queda un indicador pequeño con un botón para apagarlo. La elección se recuerda en localStorage (try/catch).
+   Protección contra el eco: la escucha se pausa mientras Eco habla y casi un segundo después, y nunca hay dos micrófonos a la
+   vez. Permiso denegado: queda apagado sin avisos. 10 minutos sin uso: se pausa y vuelve con la siguiente interacción. Nunca
+   con lector de pantalla. Tocados: web/guia-voz.js, web/guia-voz.css, web/README.md.
+   Verificado: node --test 29; navegador, sección de «Oye Eco» 24 de 24 (no se abre al cargar; los dos botones
+   de la bienvenida lo activan y lo dicen una vez; pausado mientras Eco habla; variantes y orden en la misma frase; se reinicia;
+   el interruptor lo apaga y se recuerda; pausa por tiempo y vuelta con la siguiente acción; permiso denegado sin avisos;
+   nunca con lector; axe 0). La suite completa del final se cortó a mitad por falta de memoria del equipo (no por un fallo):
+   42 comprobaciones, todas pasando; las secciones de los cambios 1 y 2 ya habían pasado completas por separado.
+   Límite conocido: el permiso del micrófono se conoce tarde (es asíncrono). Si se deniega, Eco puede haber dicho ya el aviso
+   de «Oye Eco» una vez, aunque luego quede apagado.
+NO probado en la ronda 52: micrófono real (cuánto aguanta Chrome escuchando sin parar, móviles, cómo transcribe «Eco»), si
+el eco de altavoces reales se cuela tras el margen de casi un segundo, voces reales y lectores de pantalla reales.
+No hace falta volver a publicar el servicio por la ronda 52 (solo cambió la web).
+
+RONDA 53 - integración de la guía por voz (PR #19) en master (rama misael/integrar-pr19)   (2026-11-16)
+La rama juan/guia-voz-ia-v2 partía de la web anterior a la versión en inglés (ronda 43) y a la limpieza (ronda 44). Al unirla:
+1. docs/CAMBIOS.txt: las rondas 33-40 de la rama pasan a ser la 45-52 (detrás de las de master); web/README.md junta las dos tablas de archivos.
+2. Idioma: la guía usa el idioma de la página (<html lang>, que pone js/idioma.js) y lo sigue al pulsar ES / EN; si se cambia desde la guía
+   (selector u orden de voz), pulsa el botón de la página y cambian las dos. guia-voz-adaptador.js: idiomaWeb(), fijarIdiomaWeb() y
+   alCambiarIdiomaWeb() (MutationObserver sobre el atributo lang); con la página en el mismo idioma, «Ahora» se lee de la página; títulos con titulo_en.
+3. La guía marcaba sus textos con data-t, el mismo atributo que traduce js/idioma.js: la página los tomaba por textos fijos sin traducir
+   (V33 fallaba con 29) y los dos módulos escribían en ellos al cambiar de idioma. Ahora la guía usa data-gv-t.
+No se tocó ningún módulo de web/js/ ni nada del pipeline.
+Comprobado: node --test de la guía 29 PASA, del servicio 15 PASA, motor 13 PASA; verificar.cjs V1-V33 = 34 PASA con la guía puesta;
+en Chromium, ES → EN → ES desde la página y EN desde la guía cambian las dos, sin errores de consola.
