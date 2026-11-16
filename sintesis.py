@@ -72,7 +72,6 @@ def adsr(n_muestras, a=0.01, d=0.08, s=0.7, r=0.12):
 # 4) Cuantizar a escala (la pentatónica suena bien en cualquier orden)
 # ---------------------------------------------------------------------------
 PENTATONICA_MAYOR = [0, 2, 4, 7, 9]  # grados en semitonos respecto a la tónica
-PENTATONICA_MENOR = [0, 3, 5, 7, 10]
 
 
 def escala(tonica_midi=60, octavas=3, grados=PENTATONICA_MAYOR):

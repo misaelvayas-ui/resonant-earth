@@ -65,7 +65,7 @@ export function calcularSerie(m, R) {
   });
 }
 
-/* Golpes de la melodía, ordenados por t (segundos de pista): densidad, ligado y re-golpe como en 06:137-175 (sin humanizar).
+/* Golpes de la melodía, ordenados por t (segundos de pista): densidad, ligado y re-golpe como en 06:mel, fusion (sin humanizar).
    tipo: "ataque", "fuerte" (evento brusco) o "regolpe" (nota ligada que se vuelve a tocar suave). */
 export function eventos(m, serie) {
   const T = m.seg_por_fotograma, a = m.articulacion, salida = [];
@@ -95,7 +95,7 @@ export function eventos(m, serie) {
 }
 
 /* Valor de un campo de la serie en la posición 'pos' (s): interpolación lineal entre los CENTROS de fotograma
-   ((i + 0,5)·T), constante antes del primero y después del último (06:269, 06:294) */
+   ((i + 0,5)·T), constante antes del primero y después del último (06:renderizar_fluidsynth, 06:sintetizar_numpy) */
 export function valorEn(serie, campo, pos, T) {
   const u = pos / T - 0.5;
   if (u <= 0) return serie[0][campo];
@@ -114,7 +114,7 @@ export function primerEvento(ev, pos) {
   return lo;
 }
 
-/* Constantes de TIMBRE del respaldo numpy (06:293-305, sintesis.py:32-42); son lo único que no sale del mapeo */
+/* Constantes de TIMBRE del respaldo numpy (06:sintetizar_numpy, sintesis:oscilador); son lo único que no sale del mapeo */
 export const NIVEL_VOZ = 0.5;            // amplitud de la voz sostenida = NIVEL_VOZ · ganancia
 export const NIVEL_GOLPE = 0.35;         // pico del golpe = NIVEL_GOLPE · velocidad / VEL_REF
 export const VEL_REF = 90;

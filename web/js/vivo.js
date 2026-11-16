@@ -8,9 +8,9 @@ import { calcularSerie, aislar, eventos, nivelDron, valorEn, primerEvento, NIVEL
 
 // Constantes de timbre y de tiempo (el resto sale del mapeo)
 const TAU_PUERTA = 0.015;                     // s: entrada y salida del sonido sin clic
-const FUNDIDO_FINAL = 0.05;                   // s: fundido al terminar la pista (06:279)
-const TAU_NOTA = 0.01;                        // s: glide de la voz (06:296)
-const TAU_GANANCIA = 0.08;                    // s: suavizado de la ganancia (06:297)
+const FUNDIDO_FINAL = 0.05;                   // s: fundido al terminar la pista (06:renderizar_fluidsynth)
+const TAU_NOTA = 0.01;                        // s: glide de la voz (06:sintetizar_numpy (f_lead))
+const TAU_GANANCIA = 0.08;                    // s: suavizado de la ganancia (06:sintetizar_numpy (amp))
 const TICK = 25;                              // ms entre revisiones del planificador
 const HORIZONTE = 0.2;                        // s de pista que se programan por adelantado
 const HORIZONTE_OCULTA = 1.2;                 // con la pestaña oculta los temporizadores se frenan: se programa más lejos

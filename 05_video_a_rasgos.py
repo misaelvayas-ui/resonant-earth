@@ -54,6 +54,11 @@ def a_lab(bgr):
     return cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB).reshape(-1, 3).astype(float)
 
 
+def latitudes(alto):
+    """Latitud del centro de cada fila de un mapa que va de +90 a −90."""
+    return 90 - (np.arange(alto) + 0.5) * 180 / alto
+
+
 class TablaMatiz:
     """Como cKDTree pero por MATIZ (HSV de OpenCV, 0-179, circular): query(bgr Nx3) -> (distancia en
     unidades de matiz, índice en la barra). Un píxel con poca saturación o brillo (tierra gris, fondo
@@ -203,7 +208,7 @@ if fija.any():
 
 if cfg.get("ponderar_latitud"):
     _h = fija.shape[0]
-    PESOS_FILA = np.cos(np.deg2rad(90 - (np.arange(_h) + 0.5) * 180 / _h))   # latitud del centro de cada fila
+    PESOS_FILA = np.cos(np.deg2rad(latitudes(_h)))
 else:
     PESOS_FILA = None
 FECHAS = None
@@ -230,7 +235,7 @@ def hemisferios(campo):
     """Clave opcional "hemisferios": media de cada mitad del mapa (norte arriba), con cada fila pesada por
     cos(latitud), y su diferencia. None si un hemisferio no tiene píxeles válidos."""
     h = campo.shape[0]
-    lat = 90 - (np.arange(h) + 0.5) * 180 / h
+    lat = latitudes(h)
     peso = np.cos(np.deg2rad(lat))
     v = ~np.isnan(campo)
     suma, n = np.where(v, campo, 0).sum(axis=1) * peso, v.sum(axis=1) * peso
@@ -255,7 +260,7 @@ for k, frame in fotogramas_muestreados(cfg["video"], paso):
     # centroide_y: latitud media (ponderada por cos(lat), el área real de cada píxel) de lo que está sobre el
     # umbral; 0 = sur, 1 = norte; si no hay nada, el valor anterior (0,5 al inicio). Supone que el recorte va de +90 a -90.
     if caliente.any():
-        lat = 90 - (np.arange(caliente.shape[0]) + 0.5) * 180 / caliente.shape[0]
+        lat = latitudes(caliente.shape[0])
         w = caliente.sum(axis=1) * np.cos(np.deg2rad(lat))
         cy = float((w * lat).sum() / w.sum() + 90) / 180
     else:
