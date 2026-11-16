@@ -22,7 +22,7 @@ NASA data used: **SVS 5207 — Global temperature anomalies 1880–2023 (GISTEMP
 3. Press **Before and after**: the first 5 seconds (1881–1903) play, then, right away, the last 5 (2011–2023).
 4. Press **Explore the map** and move the cursor (or the arrow keys): every point sounds and says its latitude, longitude and temperature, computed at that instant from the color of the frame.
 5. Switch to **Live sound** and uncheck features (melody, volume, panning, drone) to hear what each layer adds.
-6. The key figure: what we read from the video matches NASA's official GISTEMP series with a **correlation of 0.99** (58 years). You can repeat it with one command: `python -m herramientas.validar_gistemp`.
+6. Validation: what we read from the video matches NASA's official GISTEMP series with a **correlation of 0.99** (58 years). You can repeat it with one command: `python -m herramientas.validar_gistemp`.
 7. Limits we state: our reading sits 0.09 °C below the official series; the sea track is a relative index, not exact degrees; the panning of GISTEMP is decided by a small area of the map.
 8. Everything is tested: `python evaluar.py` (47 tests) and `web/pruebas/verificar.cjs` (Playwright and axe checks, including both languages).
 

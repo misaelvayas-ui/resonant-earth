@@ -195,16 +195,16 @@ Valores del config citados: `config_eic.json:26-28` (referencia, vmin/vmax_sonid
 
 ## 5. Decisiones de diseño de la implementación
 
-1. **El video es el reloj.** En vivo, el `<video>` sigue reproduciéndose con su audio a ganancia 0 y el motor programa los sonidos según `currentTime`. Reproducir, pausar, buscar y el final salen de los mismos eventos que ya usa la web.
-2. **Cálculo y síntesis separados.** `web/js/mapeo.js` es puro (sin DOM ni Web Audio) y es lo que prueba `web/pruebas/motor.test.mjs` contra `_esperado.json`. `web/js/vivo.js` solo convierte ese resultado en nodos.
-3. **Timbre del respaldo numpy:** voz sostenida «suave», golpe triangular y dron seno. Web Audio no tiene SoundFont (§6).
-4. **Dron a unos 7 dB bajo la melodía**, con amplitud calculada al cargar la pista (`nivelDron`). El limitador `0,85·tanh(1,5·x)` de `sintesis.limitar` dejaba el dron a 3,7 dB; por eso `vivo.js` usa un limitador de rodilla (lineal hasta 0,8, compresión hacia 0,95) y centra el dron con un `StereoPannerNode` en 0, como `paneo(dron, 0.0)` en 06. Medido sin conexión con `vivo.renderizar()` (prueba V28): 6,97 dB en GISTEMP y 6,96 dB en SST, como potencia total de los dos canales.
-5. **Casillas de rasgos:** apagar tono, volumen o paneo deja ese rasgo fijo (nota de la referencia, 0 dB, centro); apagar el dron lo silencia. Con las tres de la melodía apagadas solo suena el dron y el planificador no programa golpes. El nivel del dron no cambia al marcar casillas.
-6. **El modo se recuerda por pista durante la sesión**, en memoria y sin `localStorage`. Al cargar la página, todas las pistas están en «Pista original».
-7. **Gesto del usuario:** el `AudioContext` se crea y se reanuda dentro de un gesto, de forma síncrona y antes de cualquier `await` (Safari e iOS no lo permiten de otro modo).
-8. **Sin selector de velocidad:** el motor solo responde a `ratechange`, que vuelve a sincronizar sin cambiar las notas.
-9. **Planificador:** `play` arranca el planificador y `playing` solo lo arranca si no está en marcha (si no, los golpes se programan dos veces). Al terminar la pista, la puerta de salida se cierra con una rampa lineal de 50 ms. `vivo.js` escucha los eventos del `<video>` directamente, porque `pause` y `ended` no se tratan igual.
-10. **Pruebas:** `evaluar.py` lanza la prueba de Node si encuentra `node` 18 o más (prueba L1); si no, queda OMITIDA. Safari de macOS y de iOS, Firefox, una pestaña oculta 10 s, los auriculares y un lector de pantalla real están en la lista manual del PR #15 y siguen sin probarse.
+1. El video es el reloj. En vivo, el `<video>` sigue reproduciéndose con su audio a ganancia 0 y el motor programa los sonidos según `currentTime`. Reproducir, pausar, buscar y el final salen de los mismos eventos que ya usa la web.
+2. Cálculo y síntesis separados. `web/js/mapeo.js` es puro (sin DOM ni Web Audio) y es lo que prueba `web/pruebas/motor.test.mjs` contra `_esperado.json`. `web/js/vivo.js` solo convierte ese resultado en nodos.
+3. Timbre del respaldo numpy: voz sostenida «suave», golpe triangular y dron seno. Web Audio no tiene SoundFont (§6).
+4. Dron a unos 7 dB bajo la melodía, con amplitud calculada al cargar la pista (`nivelDron`). El limitador `0,85·tanh(1,5·x)` de `sintesis.limitar` dejaba el dron a 3,7 dB; por eso `vivo.js` usa un limitador de rodilla (lineal hasta 0,8, compresión hacia 0,95) y centra el dron con un `StereoPannerNode` en 0, como `paneo(dron, 0.0)` en 06. Medido sin conexión con `vivo.renderizar()` (prueba V28): 6,97 dB en GISTEMP y 6,96 dB en SST, como potencia total de los dos canales.
+5. Casillas de rasgos: apagar tono, volumen o paneo deja ese rasgo fijo (nota de la referencia, 0 dB, centro); apagar el dron lo silencia. Con las tres de la melodía apagadas solo suena el dron y el planificador no programa golpes. El nivel del dron no cambia al marcar casillas.
+6. El modo se recuerda por pista durante la sesión, en memoria y sin `localStorage`. Al cargar la página, todas las pistas están en «Pista original».
+7. Gesto del usuario: el `AudioContext` se crea y se reanuda dentro de un gesto, de forma síncrona y antes de cualquier `await` (Safari e iOS no lo permiten de otro modo).
+8. Sin selector de velocidad: el motor solo responde a `ratechange`, que vuelve a sincronizar sin cambiar las notas.
+9. Planificador: `play` arranca el planificador y `playing` solo lo arranca si no está en marcha (si no, los golpes se programan dos veces). Al terminar la pista, la puerta de salida se cierra con una rampa lineal de 50 ms. `vivo.js` escucha los eventos del `<video>` directamente, porque `pause` y `ended` no se tratan igual.
+10. Pruebas: `evaluar.py` lanza la prueba de Node si encuentra `node` 18 o más (prueba L1); si no, queda OMITIDA. Safari de macOS y de iOS, Firefox, una pestaña oculta 10 s, los auriculares y un lector de pantalla real están en la lista manual del PR #15 y siguen sin probarse.
 
 ## 6. Reglas difíciles de replicar en Web Audio
 

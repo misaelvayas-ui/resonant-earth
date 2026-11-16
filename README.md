@@ -13,7 +13,7 @@ Prototipo del equipo Resonant Earth para NASA Space Apps 2026 (reto 9, «The Ear
 3. Pulsa **Antes y después**: suenan los primeros 5 segundos (1881–1903) y enseguida los últimos (2011–2023).
 4. Pulsa **Explorar el mapa** y mueve el cursor (o las flechas): cada punto suena y dice su latitud, longitud y temperatura, calculadas en ese instante desde el color del fotograma.
 5. Cambia a **Sonido en vivo** y apaga casillas (melodía, volumen, paneo, dron) para oír qué aporta cada capa.
-6. La cifra clave: lo que leemos del video coincide con la serie oficial GISTEMP de la NASA con una **correlación de 0,99** (58 años). Se repite con un comando: `python -m herramientas.validar_gistemp`.
+6. Validación: lo que leemos del video coincide con la serie oficial GISTEMP de la NASA con una **correlación de 0,99** (58 años). Se repite con un comando: `python -m herramientas.validar_gistemp`.
 7. Límites que declaramos: nuestra lectura queda 0,09 °C por debajo de la serie oficial; la pista del mar es un índice relativo, no grados exactos; el paneo de GISTEMP lo decide una zona pequeña del mapa.
 8. Todo está probado: `python evaluar.py` (47 pruebas) y `web/pruebas/verificar.cjs` (34 comprobaciones con Playwright y axe).
 
