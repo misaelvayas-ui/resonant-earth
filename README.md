@@ -8,26 +8,26 @@ Prototipo del equipo Resonant Earth para NASA Space Apps 2026 (reto 9, «The Ear
 
 ## Guía de 5 minutos para el jurado
 
-1. Abre la web: <https://misaelvayas-ui.github.io/resonant-earth/> (en inglés con los botones ES / EN de la cabecera o con `?lang=en`; o, sin internet, `cd web && python -m http.server 8001` y <http://localhost:8001>).
-2. Pulsa **Temperatura del planeta** y escucha 30 segundos con auriculares. La melodía se queda abajo un siglo y sube en los últimos cuarenta años. La nota grave fija es el promedio de 1951–1980.
-3. Pulsa **Antes y después**: suenan los primeros 5 segundos (1881–1903) y enseguida los últimos (2011–2023).
-4. Pulsa **Explorar el mapa** y mueve el cursor (o las flechas): cada punto suena y dice su latitud, longitud y temperatura, calculadas en ese instante desde el color del fotograma.
-5. Cambia a **Sonido en vivo** y apaga casillas (melodía, volumen, paneo, dron) para oír qué aporta cada capa.
-6. Validación: lo que leemos del video coincide con la serie oficial GISTEMP de la NASA con una **correlación de 0,99** (58 años). Se repite con un comando: `python -m herramientas.validar_gistemp`.
-7. Límites que declaramos: nuestra lectura queda 0,09 °C por debajo de la serie oficial; la pista del mar es un índice relativo, no grados exactos; el paneo de GISTEMP lo decide una zona pequeña del mapa.
-8. Todo está probado: `python evaluar.py` (47 pruebas) y `web/pruebas/verificar.cjs` (34 comprobaciones con Playwright y axe).
+1. Abre <https://misaelvayas-ui.github.io/resonant-earth/>. El botón EN de la cabecera (o `?lang=en`) la pone en inglés. Sin internet: `cd web && python -m http.server 8001` y <http://localhost:8001>.
+2. Elige **Temperatura del planeta** y escucha medio minuto, mejor con auriculares. La melodía pasa un siglo abajo y sube en los últimos cuarenta años; la nota grave que no cambia es el promedio de 1951–1980.
+3. **Antes y después** toca 1881–1903 y, sin pausa, 2011–2023. Son 5 segundos de cada extremo.
+4. En **Explorar el mapa**, mueve el cursor o usa las flechas. Cada punto suena y se describe (latitud, longitud, temperatura) a partir del color del fotograma en ese instante.
+5. Pasa a **Sonido en vivo** y desmarca melodía, volumen, paneo o dron para oír cada capa por separado.
+6. ¿Cuánto se parece al dato real? La media que leemos del video y la serie oficial GISTEMP tienen una correlación de **0,99** en 58 años. `python -m herramientas.validar_gistemp` lo recalcula.
+7. Lo que no hace bien: lee 0,09 °C por debajo de la serie oficial, la pista del mar es un índice relativo y no grados, y en GISTEMP el paneo depende de una zona pequeña del mapa.
+8. Pruebas: `python evaluar.py` (47) y `web/pruebas/verificar.cjs` (34 comprobaciones con Playwright y axe).
 
 ## Cómo respondemos al reto «The Earth Information Jukebox»
 
 | Lo que pide el enunciado | Dónde está |
 |---|---|
-| Una «rocola» donde se elige una visualización del EIC y se oye su paisaje sonoro | La web (`web/`): dos pistas con su video, su sonido y su lectura. SVS 3912 (corrientes y temperatura del mar) está en la lista de recursos del reto |
-| Sonificaciones **generadas en tiempo real** a partir de los fotogramas | «Sonido en vivo»: el navegador genera el audio mientras corre el video. «Explorar el mapa»: lee el color del píxel bajo el cursor en el fotograma y lo toca en ese instante |
-| Analizar los fotogramas (visión por computador: color → sonido) | `05_video_a_rasgos.py` lee la barra de colores del propio video y convierte cada píxel en valor; `web/js/explorar.js` hace lo mismo en el navegador con `<id>_paleta.json` |
-| Equilibrio entre dato y música | Escala pentatónica, dron de referencia, arpegios; y pruebas que exigen que cada nota coincida con el dato (`evaluar.py`, 07, I1) |
-| Traducción exploratoria e interactiva | Casillas para apagar melodía, volumen, paneo o dron; gráfico navegable; «Antes y después»; «Explorar el mapa» |
-| Accesibilidad para personas ciegas o con baja visión: lector de pantalla, respuesta táctil, texto descriptivo | Todo con teclado; lectura en vivo para el lector de pantalla; descripción de cada pista; mapa explorable con flechas que dice latitud, longitud y valor; vibración al cambiar de nota (teléfonos que la permiten) |
-| Contar el porqué de las decisiones | Sección «El porqué» de la web, `docs/CAMBIOS.txt` (registro de cada ronda de cambios, con sus mediciones) y `docs/ESPEC_MODO_EN_VIVO.md` |
+| Una «rocola» de visualizaciones del EIC con su paisaje sonoro | La web (`web/`), con dos pistas. SVS 3912 viene de la lista de recursos del reto |
+| Sonificación **en tiempo real** a partir de los fotogramas | «Sonido en vivo» genera el audio en el navegador mientras corre el video. «Explorar el mapa» toca el píxel que está bajo el cursor |
+| Visión por computador: color → sonido | `05_video_a_rasgos.py` calibra con la barra de colores del propio video; `web/js/explorar.js` usa la misma barra (`<id>_paleta.json`) |
+| Equilibrio entre dato y música | Escala pentatónica, dron de referencia y arpegios. `evaluar.py` (I1) y 07 fallan si una nota no corresponde al dato |
+| Exploración interactiva | Casillas por capa, gráfico navegable, «Antes y después», «Explorar el mapa» |
+| Accesibilidad para personas ciegas o con baja visión | Teclado completo y lectura en vivo para lector de pantalla. Cada pista tiene su descripción, y el mapa se recorre con flechas. En los teléfonos que lo permiten, vibra al cambiar de nota |
+| Explicar las decisiones | Sección «El porqué» de la web; mediciones de cada cambio en `docs/CAMBIOS.txt`; reglas del modo en vivo en `docs/ESPEC_MODO_EN_VIVO.md` |
 
 ## Web
 
@@ -125,41 +125,18 @@ Esto reemplaza `salidas/rasgos.json` y `salidas/rocola.wav`. Para volver al ejem
 
 ## Configuración de 05
 
-Obligatorias: `video`, `mapa` y `barra` (rectángulos `[x0, y0, x1, y1]` en píxeles del video original), `vmin`, `vmax`, `umbral`, `fps_muestreo`, `barra_vertical`, `barra_arriba_es_max`.
+Cada video tiene su JSON en `config/`. Las claves que más se tocan:
 
-| Clave opcional | Por defecto | Para qué |
-|---|---|---|
-| `barra_imagen` | — | leer la barra de un PNG aparte |
-| `escala` | 1.0 | reducir el mapa antes de procesar (0.25 para 4096×2048); los rectángulos siguen en píxeles del video original |
-| `ponderar_latitud` | false | media ponderada por cos(latitud) en mapas equirectangulares completos |
-| `fechas` | — | `time.txt` (un año por línea) o un archivo `ID  AAAA-MM-DDTHH:MMZ` (2.ª columna) → añade `fecha` a cada rasgo |
-| `fechas_formato` | `"anio"` | `"mes"` → `"mar 2007"` (solo con fechas ISO; con `time.txt` siempre es el año) |
-| `modo_color` | `"lab"` | `"matiz"`: compara solo el matiz (HSV) con la barra; para videos cuyo color pierde brillo (líneas de flujo de ECCO2). `dist_max` pasa a unidades de matiz (0-179) |
-| `brillo_min`, `saturacion_min` | 60, 60 | solo con `modo_color: "matiz"`: V y S mínimos para que un píxel cuente (la media sube al subir `brillo_min`) |
-| `referencia` | primer fotograma | valor en el que suena el dron (0 = sin anomalía) |
-| `vmin_sonido`, `vmax_sonido` | `vmin`, `vmax` | rango de la media que se reparte entre las notas (GISTEMP: −0,6 a 1,2) |
-| `densidad_umbrales` | 50 % y 72 % del rango de sonido | `[u1, u2]`: media bajo u1 → 1 nota; hasta u2 → 2; más → 4 |
-| `paneo` | `"x"` | eje del paneo: `"x"` izquierda–derecha del mapa, `"y"` sur–norte (si el centroide recorre menos del 10 % del mapa, el paneo se reduce) |
-| `dron_octava` | 0 | octavas extra del dron (0 = una octava bajo la melodía) |
-| `rasgo_tono` | `"media"` | rasgo que 06 convierte en nota (p. ej. `"dif_hemisferios"`); entonces `vmin_sonido`/`vmax_sonido` son obligatorios y, con `referencia`, `densidad_umbrales` y `umbral_evento`, van en las unidades de ese rasgo |
-| `hemisferios` | false | añade `media_norte`, `media_sur` y `dif_hemisferios` a cada rasgo (supone un mapa de +90 a −90) |
-| `ligar` | true | misma nota que la anterior → se extiende en vez de volver a atacar |
-| `suavizado` | 3 | media móvil centrada de N fotogramas sobre la media (0 o 1 = sin suavizar) |
-| `densidad` | true | false = una nota por fotograma |
-| `regolpe_ligado`, `regolpe_vel` | 1, 0.7 | una nota ligada se vuelve a tocar cada N fotogramas (0 = nunca), a esa fracción de su velocidad |
-| `umbral_evento` | 1/12 del rango de sonido | si la media cruda cambia más que esto entre fotogramas, ataque fuerte (velocidad ≥ 100) aunque la nota no cambie |
-| `octava` | 1 | desplaza melodía y dron (+1 = una octava arriba) |
-| `humanizar` | true | velocidad ±10 % y tiempo ±10 ms, con semilla fija |
-| `instrumento_melodia`, `dron_programa` | 13, 90 | programas GM numerados desde 1 (marimba y pad; el pad 89 se apaga en ~6 s en FluidR3) |
-| `dron_nivel` | 0.048 | volumen del dron (con FluidSynth queda ~7 dB bajo la marimba) |
-| `reverb` | 50 | CC91, 0–127 |
-| `validos_min` | 0.5 (0.1 con `matiz`) | aviso si la mediana de `validos` queda por debajo |
-| `dist_max` | 8.0 | distancia de color (Lab) máxima para aceptar un píxel |
-| `mascara_estatica`, `umbral_estatico`, `frac_estatico` | true, 3.0, 0.7 | descartar tierra, costas y logos: un píxel es estático si en el 70 % de los fotogramas queda a ≤ 3 niveles de su mediana |
-| `mascara_imagen` | — | máscara a mano (PNG, negro = descartar) |
-| `borde_px` | 1 | píxeles descartados alrededor de lo no válido (antialias de costas y texto; 0 con líneas finas) |
+| Clave | Para qué |
+|---|---|
+| `mapa`, `barra` | rectángulos `[x0, y0, x1, y1]` del mapa y de la barra de colores, en píxeles del video original |
+| `vmin`, `vmax` | valores en los extremos de la barra (se leen a ojo en `calibracion.png`) |
+| `fps_muestreo` | fotogramas por segundo que se leen; cada uno dura 0,5 s de audio |
+| `dist_max` | distancia de color máxima para aceptar un píxel (8 por defecto; 17 en GISTEMP) |
+| `referencia` | valor en el que suena el dron (0 °C de anomalía en GISTEMP) |
+| `paneo` | `"x"` o `"y"`: eje del mapa que mueve el sonido de izquierda a derecha |
 
-Para el sonido sin adornos: `ligar: false, suavizado: 0, densidad: false, octava: 0, humanizar: false`.
+La lista completa, con los valores por defecto, está en [docs/CONFIG.md](docs/CONFIG.md).
 
 ## Contrato de datos (`rasgos.json`)
 
@@ -182,7 +159,7 @@ herramientas/  calibrar.py   →  python -m herramientas.calibrar (barra vertica
                exportar_paleta.py → python -m herramientas.exportar_paleta (barra de colores de cada pista para «Explorar el mapa»)
                exportar_web.py   → python -m herramientas.exportar_web (MP4 y rasgos de web/assets desde la MISMA salida que el demo; comprueba el audio)
 web/           web del proyecto: GISTEMP y SST con globo 3D y rocola accesible (ver web/README.md)
-docs/          CAMBIOS.txt (historial de cambios), ESPEC_MODO_EN_VIVO.md (reglas del modo en vivo), datos_oficiales/
+docs/          CAMBIOS.txt (historial de cambios), CONFIG.md (claves de 05 y 06), ESPEC_MODO_EN_VIVO.md (reglas del modo en vivo), datos_oficiales/
 ```
 
 Variables de entorno: `ROCOLA_SALIDAS` y `ROCOLA_CONFIG` redirigen las carpetas; con `ROCOLA_SIN_AUDIO=1` no se reproduce sonido.
@@ -194,23 +171,24 @@ Variables de entorno: `ROCOLA_SALIDAS` y `ROCOLA_CONFIG` redirigen las carpetas;
 - El mapa del video SVS 5207 es más pálido que su barra, por eso `dist_max` es 17 en ese config.
 - Cada fotograma muestreado dura 0,5 s de audio (`SEG_POR_FOTOGRAMA` en 06): con `fps_muestreo` distinto de 2, el video de 08 se estira o se comprime para igualar el audio (el ejemplo sintético, a 4, se ve a mitad de velocidad).
 - `demo_rocola.mp4`: el video empieza 0,1 s después del audio. Es la configuración que no se entrecorta en VLC.
-- Los textos en inglés de la web los escribió una IA y no los ha revisado una persona nativa; tampoco se han probado con un lector de pantalla en inglés.
 - Sin probar por el equipo: Safari (macOS e iOS), Firefox, una pestaña oculta 10 segundos y auriculares reales.
-- `web/equipo.json` tiene los aportes de cada integrante vacíos; la web no muestra nada en su lugar.
 
 El detalle de cada cambio y de cada medición está en [docs/CAMBIOS.txt](docs/CAMBIOS.txt).
 
 ## Uso de IA
 
-Las reglas del NASA Space Apps Challenge permiten usar IA si se declara. Esto es lo que se hizo con ayuda de IA y qué no:
+Las reglas del NASA Space Apps Challenge permiten usar IA si se declara.
 
-- **Herramienta:** Claude (Anthropic), usado desde Claude Code.
-- **Código:** buena parte del programa en Python (`04`–`08`, `sintesis.py`, `evaluar.py`, `herramientas/`) y toda la web (`web/`, incluido el modo de sonido en vivo con Web Audio) se escribieron con ayuda de Claude.
-- **Documentación:** este README, `web/README.md`, `docs/` y los textos de la web se redactaron con ayuda de Claude.
-- **Revisión del equipo:** el equipo revisó, ejecutó y validó todo lo que la IA escribió: las pruebas (`evaluar.py`, `web/pruebas/`) y la comparación con la serie oficial GISTEMP y la accesibilidad (axe, teclado). Cada ronda hecha con IA está anotada como tal en [docs/CAMBIOS.txt](docs/CAMBIOS.txt).
-- **Lo que NO es IA:** el sonido y las descripciones. La música sale de reglas fijas sobre los números leídos del video (ver «Qué se oye»), y las frases de «Qué pasa ahora» se arman con plantillas a partir de los mismos números. Con los mismos datos, el resultado es siempre el mismo.
-- **Imágenes:** la web no usa imágenes generadas con IA. El ícono se dibuja por código (`web/hacer_icono.py`), las texturas del globo son de la NASA y `web/assets/compartir.jpg` es una captura de la propia web.
-- **Datos:** no hay datos generados con IA. Los videos son de la NASA (Scientific Visualization Studio).
+El equipo diseñó el sistema: cómo se lee un video del SVS, qué rasgos se extraen, las reglas que convierten cada rasgo en sonido (escala, dron de referencia, paneo, densidad de notas), la calibración de GISTEMP y ECCO2 y la validación contra la serie oficial GISTEMP v4. También decidió qué entraba en la web y cómo debía funcionar para una persona ciega.
+
+Para escribir el código y los textos usamos Claude (Anthropic) desde Claude Code. Con su ayuda se escribió buena parte del programa en Python (`04`–`08`, `sintesis.py`, `evaluar.py`, `herramientas/`), la web completa (`web/`, con el modo en vivo en Web Audio), las pruebas y los borradores de la documentación y de los textos de la web, incluida la traducción al inglés. Todo pasó por el equipo: lo ejecutamos, lo comparamos con los datos de la NASA, lo probamos con teclado y axe, y corregimos lo que no cuadraba.
+
+Lo que no sale de una IA:
+
+- El sonido. La música sale de reglas fijas aplicadas a los números leídos del video (ver «Qué se oye»). Con los mismos datos el resultado es siempre el mismo.
+- Las frases de «Qué pasa ahora», que se arman con plantillas a partir de esos números.
+- Las imágenes. El ícono se dibuja por código (`web/hacer_icono.py`), las texturas del globo son de la NASA y `web/assets/compartir.jpg` es una captura de la propia web.
+- Los datos. Los videos son del NASA Scientific Visualization Studio.
 
 ## Referencias
 

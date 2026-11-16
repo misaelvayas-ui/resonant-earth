@@ -69,8 +69,8 @@ function construir(ctx, salida) {
   const dron = ctx.createOscillator();
   dron.type = "sine";
   gVoz.gain.value = 0; gDron.gain.value = 0; puerta.gain.value = 0;
-  // Limitador de rodilla: lineal hasta RODILLA (no toca el nivel relativo dron/melodía) y comprime los picos hacia TECHO.
-  // (0,85·tanh(1,5·x), como sintesis.limitar, subía el dron 2 dB y bajaba la melodía 1,3 dB: quedaba a 3,7 dB y no a 7)
+  // Limitador de rodilla: lineal hasta RODILLA para no tocar el nivel dron/melodía; un tanh como sintesis.limitar
+  // dejaba el dron a 3,7 dB de la melodía en vez de 7.
   const curva = new Float32Array(2049);
   curva.forEach((_, i, c) => {
     const x = (i / 1024) - 1, a = Math.abs(x);

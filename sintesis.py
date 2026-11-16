@@ -12,10 +12,7 @@ from scipy.signal import lfilter
 
 FS = 44100  # Hz
 
-# ---------------------------------------------------------------------------
-# 1) Nota MIDI <-> frecuencia
-#    f = 440 * 2^((n - 69) / 12)   (n = 69 es La4 = 440 Hz; +12 = una octava)
-# ---------------------------------------------------------------------------
+# f = 440 * 2^((n - 69) / 12); n = 69 es La4
 def midi_a_hz(n):
     return 440.0 * 2.0 ** ((np.asarray(n, dtype=float) - 69.0) / 12.0)
 
@@ -24,11 +21,7 @@ def hz_a_midi(f):
     return 69.0 + 12.0 * np.log2(np.asarray(f, dtype=float) / 440.0)
 
 
-# ---------------------------------------------------------------------------
-# 2) Oscilador con FASE CONTINUA
-#    sin(2*pi*f*t) con f variable da saltos de fase (clics): se integra la frecuencia
-#    instantánea, phi[n] = sum(2*pi*f[k]/FS).
-# ---------------------------------------------------------------------------
+# Con f variable, sin(2*pi*f*t) da saltos de fase (clics): se integra la frecuencia instantánea.
 def oscilador(f_inst, forma="seno"):
     """f_inst: array de frecuencia por muestra (Hz). Devuelve la señal."""
     f_inst = np.asarray(f_inst, dtype=float)
@@ -47,10 +40,6 @@ def tono(f, dur, forma="seno"):
     return oscilador(np.full(int(dur * FS), float(f)), forma)
 
 
-# ---------------------------------------------------------------------------
-# 3) Envolvente ADSR (Attack, Decay, Sustain, Release)
-#    Evita clics al inicio y al final, y da carácter a cada nota.
-# ---------------------------------------------------------------------------
 def adsr(n_muestras, a=0.01, d=0.08, s=0.7, r=0.12):
     """a, d, r en segundos; s = nivel de sostenido (0..1). Longitud total = n_muestras."""
     total = (a + d + r) * FS
@@ -68,9 +57,7 @@ def adsr(n_muestras, a=0.01, d=0.08, s=0.7, r=0.12):
     return env[:n_muestras] if len(env) >= n_muestras else np.pad(env, (0, n_muestras - len(env)))
 
 
-# ---------------------------------------------------------------------------
-# 4) Cuantizar a escala (la pentatónica suena bien en cualquier orden)
-# ---------------------------------------------------------------------------
+# La pentatónica no tiene semitonos: cualquier secuencia de notas suena consonante.
 PENTATONICA_MAYOR = [0, 2, 4, 7, 9]  # grados en semitonos respecto a la tónica
 
 
@@ -87,9 +74,6 @@ def valor_a_nota(x, vmin, vmax, notas):
     return notas[idx]
 
 
-# ---------------------------------------------------------------------------
-# 5) Utilidades: suavizado, paneo, dB, guardar WAV, reproducir
-# ---------------------------------------------------------------------------
 def suavizar(x, tau_s):
     """Filtro IIR de 1 polo (glide/portamento); tau_s = constante de tiempo en s."""
     alfa = 1 - np.exp(-1 / (tau_s * FS))

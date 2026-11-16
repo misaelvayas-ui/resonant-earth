@@ -17,26 +17,26 @@ NASA data used: **SVS 5207 — Global temperature anomalies 1880–2023 (GISTEMP
 
 ## 5-minute guide for the judges
 
-1. Open the web page: <https://misaelvayas-ui.github.io/resonant-earth/?lang=en> (or, offline, `cd web && python -m http.server 8001` and <http://localhost:8001/?lang=en>).
-2. Press **Planet temperature** and listen for 30 seconds with headphones. The melody stays low for a century and rises in the last forty years. The fixed low note is the 1951–1980 average.
-3. Press **Before and after**: the first 5 seconds (1881–1903) play, then, right away, the last 5 (2011–2023).
-4. Press **Explore the map** and move the cursor (or the arrow keys): every point sounds and says its latitude, longitude and temperature, computed at that instant from the color of the frame.
-5. Switch to **Live sound** and uncheck features (melody, volume, panning, drone) to hear what each layer adds.
-6. Validation: what we read from the video matches NASA's official GISTEMP series with a **correlation of 0.99** (58 years). You can repeat it with one command: `python -m herramientas.validar_gistemp`.
-7. Limits we state: our reading sits 0.09 °C below the official series; the sea track is a relative index, not exact degrees; the panning of GISTEMP is decided by a small area of the map.
-8. Everything is tested: `python evaluar.py` (47 tests) and `web/pruebas/verificar.cjs` (Playwright and axe checks, including both languages).
+1. Open <https://misaelvayas-ui.github.io/resonant-earth/?lang=en>. Offline: `cd web && python -m http.server 8001` and <http://localhost:8001/?lang=en>.
+2. Pick **Planet temperature** and listen for half a minute, ideally with headphones. The melody stays low for a century and climbs over the last forty years; the low note that never moves is the 1951–1980 average.
+3. **Before and after** plays 1881–1903 and then, without a pause, 2011–2023. Five seconds of each end.
+4. In **Explore the map**, move the cursor or use the arrow keys. Each point plays a note and is described (latitude, longitude, temperature) from the color of the frame at that moment.
+5. Switch to **Live sound** and uncheck melody, volume, panning or drone to hear each layer on its own.
+6. How close is it to the real data? The average we read from the video and NASA's official GISTEMP series correlate at **0.99** over 58 years. `python -m herramientas.validar_gistemp` recomputes it.
+7. Where it falls short: it reads 0.09 °C below the official series, the sea track is a relative index rather than degrees, and in GISTEMP the panning depends on a small area of the map.
+8. Tests: `python evaluar.py` (47) and `web/pruebas/verificar.cjs` (34 Playwright and axe checks, both languages).
 
 ## How we answer the challenge
 
 | What the challenge asks | Where it is |
 |---|---|
-| A "jukebox" where you pick an EIC visualization and hear its soundscape | The web page (`web/`): two tracks, each with its video, its sound and its text reading |
-| Sonifications **generated in real time** from the frames | "Live sound": the browser generates the audio while the video plays. "Explore the map": reads the color of the pixel under the cursor and turns it into a note on the spot |
-| Frame analysis (computer vision: color → sound) | `05_video_a_rasgos.py` reads the video's own color bar and turns every pixel into a value; `web/js/explorar.js` does the same in the browser |
-| Balance between data and music | Pentatonic scale, reference drone, arpeggios; and tests that require every note to match the data (`evaluar.py`, 07) |
-| Exploratory, interactive translation | Checkboxes to switch off melody, volume, panning or drone; a navigable chart; "Before and after"; "Explore the map" |
-| Accessibility for blind or low-vision people | Full keyboard use; live text reading for screen readers; a description of each track; Spanish and English |
-| Explaining the reasons for the decisions | The "Why it matters" section of the web page, `docs/CAMBIOS.txt` (Spanish) and `docs/ESPEC_MODO_EN_VIVO.md` (Spanish) |
+| A "jukebox" of EIC visualizations and their soundscapes | The web page (`web/`), with two tracks |
+| Sonification **in real time** from the frames | "Live sound" builds the audio in the browser while the video plays. "Explore the map" plays the pixel under the cursor |
+| Computer vision: color → sound | `05_video_a_rasgos.py` calibrates against the video's own color bar; `web/js/explorar.js` uses that same bar in the browser |
+| Balance between data and music | Pentatonic scale, reference drone, arpeggios. `evaluar.py` and 07 fail if a note does not match the data |
+| Exploratory, interactive translation | Per-layer checkboxes, a navigable chart, "Before and after", "Explore the map" |
+| Accessibility for blind or low-vision people | Full keyboard use and a live reading for screen readers. Every track has a description, and the map can be walked with the arrow keys. Spanish and English |
+| Explaining the decisions | The "Why it matters" section of the page; measurements for each change in `docs/CAMBIOS.txt` and the live-mode rules in `docs/ESPEC_MODO_EN_VIVO.md` (both in Spanish) |
 
 ## What you hear
 
@@ -136,7 +136,7 @@ python 08_video_con_audio.py                       # salidas/demo_rocola.mp4
    python 06_rasgos_a_audio.py
    ```
 
-This replaces `salidas/rasgos.json` and `salidas/rocola.wav`. To go back to the synthetic example, run 04 → 07 again. The configuration keys of 05 and 06 are listed in the Spanish README ("Configuración de 05").
+This replaces `salidas/rasgos.json` and `salidas/rocola.wav`. To go back to the synthetic example, run 04 → 07 again. The configuration keys of 05 and 06 are listed in [docs/CONFIG.md](docs/CONFIG.md) (Spanish).
 
 ## Data contract (`rasgos.json`)
 
@@ -155,7 +155,7 @@ datos/         downloaded videos and color bars (ignored by git)
 salidas/       everything generated (WAV, MP4, PNG, JSON)
 herramientas/  calibrar.py, exportar_mapeo.py, exportar_web.py, validar_gistemp.py
 web/           the accessible web jukebox, in Spanish and English
-docs/          CAMBIOS.txt (change log), audits and specifications (in Spanish)
+docs/          CAMBIOS.txt (change log), CONFIG.md, ESPEC_MODO_EN_VIVO.md (in Spanish)
 ```
 
 ## Known limitations
@@ -163,21 +163,22 @@ docs/          CAMBIOS.txt (change log), audits and specifications (in Spanish)
 - Second video, SVS 3912 (ECCO2): only about 26 % of the map is valid (the bright current lines) and the average comes out a few °C higher than the real one. It is good for the seasonal shape, not for absolute values; the web page says so.
 - The °C range of the color bar is read by eye from `calibracion.png` (there is no OCR).
 - Each sampled frame lasts 0.5 s of audio (`SEG_POR_FOTOGRAMA` in 06); with a different `fps_muestreo` the video is stretched or compressed to match.
-- The English of the web page was written with AI and has not been reviewed by a native speaker. It has not been tried with a screen reader in English.
 - Not tried by the team: Safari (macOS and iOS), Firefox, a hidden tab for 10 seconds and real headphones.
-- `web/equipo.json` has the contribution of each member empty; the web page shows nothing in its place.
 
 ## Use of AI
 
-The NASA Space Apps Challenge rules allow AI if it is disclosed. This is what was done with the help of AI, and what was not:
+The NASA Space Apps Challenge rules allow AI as long as it is disclosed.
 
-- **Tool**: Claude (Anthropic), used through Claude Code.
-- **Code**: a large part of the Python program (`04`–`08`, `sintesis.py`, `evaluar.py`, `herramientas/`) and the whole web page (`web/`, including the live sound mode with Web Audio) were written with the help of Claude.
-- **Documentation and texts**: the READMEs, `docs/`, and the texts of the web page (including the English translation) were drafted with the help of Claude.
-- **Review by the team**: the team reviewed, ran and validated everything the AI wrote: the tests (`evaluar.py`, `web/pruebas/`), the comparison with the official GISTEMP series, and the accessibility checks (axe, keyboard). Each round of changes made with AI is logged as such in [docs/CAMBIOS.txt](docs/CAMBIOS.txt).
-- **What is NOT AI**: the sound and the text descriptions. The music comes from fixed rules applied to the numbers read from the video (see "What you hear"), and the "Now" sentences are built from templates using the same numbers. With the same data, the result is always the same.
-- **Images**: the web page uses no AI-generated images. The icon is drawn by code (`web/hacer_icono.py`), the globe textures are from NASA and `web/assets/compartir.jpg` is a screenshot of the page itself.
-- **Data**: no AI-generated data. The videos are from NASA (Scientific Visualization Studio).
+The team designed the system: how an SVS video is read, which features are extracted, the rules that turn each feature into sound (scale, reference drone, panning, note density), the GISTEMP and ECCO2 calibration, and the validation against the official GISTEMP v4 series. We also decided what went into the web page and how it had to work for a blind user.
+
+We used Claude (Anthropic), through Claude Code, to write code and text. With its help we wrote a large part of the Python program (`04`–`08`, `sintesis.py`, `evaluar.py`, `herramientas/`), the whole web page (`web/`, including the Web Audio live mode), the tests, and drafts of the documentation and the page texts, including the English translation. All of it went through the team: we ran it, compared it with NASA's data, checked it with the keyboard and axe, and fixed what did not add up.
+
+What does not come from an AI:
+
+- The sound. The music comes from fixed rules applied to the numbers read from the video (see "What you hear"). The same data always gives the same result.
+- The "Now" sentences, which are filled in from templates with those numbers.
+- The images. The icon is drawn by code (`web/hacer_icono.py`), the globe textures are NASA's and `web/assets/compartir.jpg` is a screenshot of the page itself.
+- The data. The videos come from the NASA Scientific Visualization Studio.
 
 ## References
 

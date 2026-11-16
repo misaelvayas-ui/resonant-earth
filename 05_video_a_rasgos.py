@@ -9,7 +9,7 @@
   4. Calcula los rasgos de cada fotograma.
 
 Uso:  python 05_video_a_rasgos.py [config/config_video.json]
-Claves del config: README, sección "Configuración de 05". Las musicales pasan tal cual a rasgos.json para 06.
+Claves del config: docs/CONFIG.md. Las musicales pasan tal cual a rasgos.json para 06.
 """
 import json
 import sys
@@ -32,7 +32,7 @@ except json.JSONDecodeError as e:
 _faltan = [k for k in ("video", "mapa", "barra", "vmin", "vmax", "umbral", "fps_muestreo", "barra_vertical")
            + (("barra_arriba_es_max",) if cfg.get("barra_vertical") else ()) if k not in cfg]
 if _faltan:
-    sys.exit(f"Faltan claves obligatorias en '{_ruta_cfg}': {', '.join(_faltan)} (ver el README, «Configuración de 05»).")
+    sys.exit(f"Faltan claves obligatorias en '{_ruta_cfg}': {', '.join(_faltan)} (ver docs/CONFIG.md).")
 _no_num = [k for k in ("vmin", "vmax", "umbral", "fps_muestreo", "escala", "dist_max", "referencia", "vmin_sonido", "vmax_sonido")
            if k in cfg and (isinstance(cfg[k], bool) or not isinstance(cfg[k], (int, float)))]
 if _no_num:
