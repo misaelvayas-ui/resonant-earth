@@ -816,6 +816,8 @@
       tecla: "Usar la tecla H para hablar",
       oye: "Activar con «Oye Eco»", oyeNota: "Viene activo desde tu primer clic. Mientras lo está, el micrófono queda abierto en esta página; en Chrome y Edge el audio va al servicio de voz del navegador. Se pausa tras 10 minutos sin usarse y vuelve con tu siguiente acción.",
       oyeApagar: "Apagar «Oye Eco»", apagarCorto: "Apagar",
+      oyeBienvenida: "Activar «Oye Eco»: llámame con la voz, sin pulsar nada",
+      oyeBienvenidaNota: "Puedes llamarme en cualquier momento diciendo: Oye Eco. El navegador te pedirá permiso para usar el micrófono. Lo puedes cambiar después en Ayuda y opciones.",
       oyeSinPermiso: "«Oye Eco»: sin permiso de micrófono. Actívalo en el candado de la barra de direcciones.",
       oyeLlamame: "Cuando quieras, llámame diciendo: Oye Eco.", oyeEscuchando: "Escuchando «Oye Eco»", oyePausadoHablo: "«Oye Eco»: pausado mientras hablo",
       oyePausadoEscucho: "«Oye Eco»: pausado mientras te escucho", oyePausadoRecorrido: "«Oye Eco»: pausado durante el recorrido", oyePausadoPienso: "«Oye Eco»: pausado mientras pienso",
@@ -861,6 +863,8 @@
       tecla: "Use the H key to talk",
       oye: "Wake with “Hey Eco”", oyeNota: "It is on from your first click. While it is on, the microphone stays open on this page; in Chrome and Edge the audio goes to the browser's speech service. It pauses after 10 minutes without use and comes back with your next action.",
       oyeApagar: "Turn off “Hey Eco”", apagarCorto: "Turn off",
+      oyeBienvenida: "Turn on “Hey Eco”: call me with your voice, no pressing needed",
+      oyeBienvenidaNota: "You can call me at any time by saying: Hey Eco. Your browser will ask for permission to use the microphone. You can change this later under Help and options.",
       oyeSinPermiso: "“Hey Eco”: no microphone permission. Turn it on from the padlock in the address bar.",
       oyeLlamame: "Whenever you like, call me by saying: Hey Eco.", oyeEscuchando: "Listening for “Hey Eco”", oyePausadoHablo: "“Hey Eco”: paused while I speak",
       oyePausadoEscucho: "“Hey Eco”: paused while I listen to you", oyePausadoRecorrido: "“Hey Eco”: paused during the tour", oyePausadoPienso: "“Hey Eco”: paused while I think",
@@ -925,6 +929,11 @@
         </button>
       </div>
       <p id="gv-bienvenida-texto" class="gv-subtitulo" data-t="bienvenida"></p>
+      <div class="gv-bienvenida-opciones">
+        <div class="gv-campo-opcion"><label for="gv-b-idioma" data-t="idioma"></label><select id="gv-b-idioma"><option value="es" lang="es">Español</option><option value="en" lang="en">English</option></select></div>
+        <label class="gv-casilla"><input type="checkbox" id="gv-b-oye" aria-describedby="gv-b-oye-nota" checked> <span data-t="oyeBienvenida"></span></label>
+        <p class="gv-nota" id="gv-b-oye-nota" data-t="oyeBienvenidaNota"></p>
+      </div>
       <div class="gv-fila">
         <button type="button" id="gv-empezar" class="gv-boton gv-boton-principal" data-t="empezar"></button>
         <button type="button" id="gv-explorar" class="gv-boton" data-t="explorar"></button>
@@ -1026,6 +1035,7 @@
       escribir: $("gv-escribir"), zonaEscribir: $("gv-zona-escribir"), opciones: $("gv-opciones"), listaAyuda: $("gv-lista-ayuda"), idioma: $("gv-idioma"),
       lector: $("gv-lector"), tecla: $("gv-tecla"), seguir: $("gv-seguir"), voz: $("gv-voz"), velocidad: $("gv-velocidad"), probar: $("gv-probar"),
       barraEscribir: $("gv-barra-escribir"), barraOpciones: $("gv-barra-opciones"), barraCerrar: $("gv-barra-cerrar"),
+      bIdioma: $("gv-b-idioma"), bOye: $("gv-b-oye"),
       oyeLinea: $("gv-oye-linea"), oyeLineaTexto: $("gv-oye-linea-texto"), oyeLineaApagar: $("gv-oye-linea-apagar"),
       oye: $("gv-oye"), oyeIndicador: $("gv-oye-indicador"), oyeTexto: $("gv-oye-texto"), oyeApagar: $("gv-oye-apagar"),
       bienvenida: $("gv-bienvenida"), empezar: $("gv-empezar"), explorar: $("gv-explorar"), cerrarBienvenida: $("gv-bienvenida-cerrar") };
@@ -1413,6 +1423,8 @@
       if (clave !== vigia.ultimoEstado) { registroOye("estado:", clave); vigia.ultimoEstado = clave; }
       ui.oye.checked = vigia.encendido;
       ui.oye.disabled = !Reconocedor || modoLector() || vigia.noViable;
+      ui.bOye.checked = oyeElegido() && oyePosible();          // la bienvenida: marcado por defecto, salvo que se haya apagado antes
+      ui.bOye.disabled = ui.oye.disabled;
       // en la barra (o el panel): siempre, con palabras
       ui.oyeLineaTexto.textContent = texto;
       ui.oyeLinea.dataset.estado = clave;
@@ -1567,10 +1579,14 @@
        Con lector de pantalla, todo va por escrito (sin voz). */
     function empezarGuiado() {
       cerrarBienvenida({ foco: false });
-      interaccion();
+      interaccion();                                  // pide el permiso del micrófono y activa «Oye Eco» si la persona lo dejó marcado
       guia.saludo = true;                             // la esfera ya no vuelve a saludar
       abrirTarjeta();
-      recorrer({ intro: decirOye() ? `${u().intro} ${u().oyeLlamame}` : u().intro });
+      // «Oye Eco» se menciona antes que nada: después del nombre y antes de contar la web (si no lo apagó)
+      const partes = u().intro.split(/(?<=\.)\s+/);
+      const dice = decirOye();
+      if (dice) guia.oyeDicho = true;
+      recorrer({ intro: dice ? [partes[0], u().oyeLlamame, ...partes.slice(1)].join(" ") : u().intro });
       ui.detener.focus();                             // con el teclado, Enter detiene el recorrido
     }
 
@@ -1739,6 +1755,7 @@
       ui.hablarTexto.textContent = guia.escuchando ? t.escuchando : t.hablar;
       ui.velocidad.setAttribute("aria-valuetext", nombreVelocidad(Number(ui.velocidad.value)));
       ui.idioma.value = guia.idioma;
+      ui.bIdioma.value = guia.idioma;
       if (!guia.ultima) ui.respuesta.textContent = t.inicial;
       if (enlaceSalto) enlaceSalto.textContent = t.saltar;
       if (ia && ia.traducir) ia.traducir(guia.idioma);
@@ -1789,6 +1806,9 @@
     });
     for (const chip of panel.querySelectorAll(".gv-chip")) chip.addEventListener("click", () => { cerrarMicro(); atender(chip.textContent); });
     ui.idioma.addEventListener("change", () => fijarIdioma(ui.idioma.value));
+    // la bienvenida: se elige el idioma y «Oye Eco» ANTES de empezar (sin que Eco hable por el cambio)
+    ui.bIdioma.addEventListener("change", () => fijarIdioma(ui.bIdioma.value, { avisar: false }));
+    ui.bOye.addEventListener("change", () => { guardar({ oye: ui.bOye.checked }); pintarOye(); });
     ui.lector.addEventListener("change", () => fijarLector(ui.lector.checked));
     ui.tecla.addEventListener("change", () => guardar({ tecla: ui.tecla.checked }));
     ui.oye.addEventListener("change", () => {           // la elección se recuerda

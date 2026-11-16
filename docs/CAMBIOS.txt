@@ -1284,3 +1284,13 @@ estados en la barra, un solo micrófono a la vez, axe 0) y secciones de axe, voz
 corrida se cortó por una carga lenta de la página y su sección pasó al repetirla). verificar.cjs: todo pasa menos V11, la
 intermitente.
 NO probado: micrófono real. Para comprobarlo: abrir la consola (nivel Detallado) y buscar [oye-eco].
+
+RONDA 42 - bienvenida: configurar idioma y «Oye Eco» antes de empezar   (2026-11-15)
+Hecho con ayuda de IA (Claude, de Anthropic); revisado por Juan. Antes: commit e1242e1 (ronda 41).
+La tarjeta de bienvenida trae, antes de los dos botones, el selector de idioma y la casilla «Activar «Oye Eco»» (marcada por
+defecto), con su explicación en texto. Con «Explorar yo solo» o «Empezar el recorrido guiado»: Eco menciona «Oye Eco» antes de
+hacer nada (voz y subtítulo), se pide el permiso del micrófono con ese clic y «Oye Eco» queda activo (en el recorrido, en
+pausa hasta que termina). Sin cambiar nada más. Tocados: web/guia-voz.js, web/guia-voz.css, web/README.md.
+Verificado: node --test 29; navegador, secciones de la bienvenida, «Oye Eco», barra y axe: 60 de 60 (axe 0 en escritorio y móvil).
+Límite: ningún navegador deja sonar audio antes de un clic; la mención hablada llega con el clic en uno de los dos botones.
+NO probado: micrófono real.
