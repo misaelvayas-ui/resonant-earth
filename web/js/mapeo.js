@@ -120,15 +120,15 @@ export const NIVEL_GOLPE = 0.35;         // pico del golpe = NIVEL_GOLPE · velo
 export const VEL_REF = 90;
 export const GOLPE_A = 0.003;            // s: ataque lineal del golpe
 export const GOLPE_D = 0.12;             // s: caída lineal hasta 0
-export const DRON_DB = 7;                // dB del dron por debajo de la melodía (ESPEC §2.2)
-const ARM_VOZ = [1, 0.35, 0.15];         // seno + 2.º y 3.er armónico, ÷ 1,5 (forma «suave»)
+const DRON_DB = 7;                // dB del dron por debajo de la melodía (ESPEC §2.2)
+export const ARMONICOS = [1, 0.35, 0.15];   // seno + 2.º y 3.er armónico, ÷ 1,5 (forma «suave»)
 
 /* Amplitud del seno del dron: DRON_DB bajo el RMS de la melodía. Se calcula con la serie y los golpes COMPLETOS
    (sin aislar rasgos): el dron no cambia de nivel al marcar casillas. */
 export function nivelDron(m, serie, ev) {
   const T = m.seg_por_fotograma, D = serie.length * T;
   const g2 = serie.reduce((a, f) => a + f.ganancia ** 2, 0) / serie.length;
-  const eVoz = NIVEL_VOZ ** 2 * g2 * (ARM_VOZ.reduce((a, c) => a + c * c, 0) / 2 / 1.5 ** 2);
+  const eVoz = NIVEL_VOZ ** 2 * g2 * (ARMONICOS.reduce((a, c) => a + c * c, 0) / 2 / 1.5 ** 2);
   const eGolpe = (ev.reduce((a, e) => a + ((NIVEL_GOLPE * e.vel) / VEL_REF) ** 2, 0) * ((GOLPE_A + GOLPE_D) / 3) * (1 / 3)) / D;
   return Math.SQRT2 * 10 ** (-DRON_DB / 20) * Math.sqrt(eVoz + eGolpe);
 }

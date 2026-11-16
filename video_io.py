@@ -77,12 +77,7 @@ def _sirve(metodo):
             return False
         if not os.path.exists(ruta) or os.path.getsize(ruta) == 0:
             return False
-        cap = cv2.VideoCapture(ruta)
-        n = 0
-        while cap.read()[0]:
-            n += 1
-        cap.release()
-        return n >= 5
+        return contar_fotogramas(ruta) >= 5
 
 
 def metodo_video():

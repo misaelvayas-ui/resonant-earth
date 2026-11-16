@@ -31,7 +31,7 @@ function reloj(seg, decimales) {
   const f = decimales ? 10 : 1;
   const v = Math.floor(seg * f + 1e-6) / f;
   const m = Math.floor(v / 60), r = v - m * 60;
-  return `${m}:${decimales ? idioma.decimal(r.toFixed(1).replace(".", ",")).padStart(4, "0") : String(r).padStart(2, "0")}`;
+  return `${m}:${decimales ? idioma.decimal(r.toFixed(1)).padStart(4, "0") : String(r).padStart(2, "0")}`;
 }
 const durTotal = (d) => Math.round(d * 10) / 10;
 function tiempoTexto(t, dur) {

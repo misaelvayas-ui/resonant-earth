@@ -84,9 +84,7 @@ def tabla_desde_barra(frame):
     """Devuelve (KD-tree de colores Lab, valores asociados) leyendo la barra."""
     x0, y0, x1, y1 = cfg["barra"]
     if cfg.get("barra_imagen"):            # p. ej. SVS 5207 trae la barra como PNG aparte
-        frame = cv2.imread(cfg["barra_imagen"])
-        if frame is None:
-            sys.exit(f"No se pudo leer la barra '{cfg['barra_imagen']}'. Revisa la ruta.")
+        frame = cv2.imread(cfg["barra_imagen"])         # ya comprobado al abrir el video
     tira = frame[y0:y1, x0:x1]
     # promedia a lo ancho de la barra para quitar ruido de compresión
     perfil = tira.mean(axis=1 if cfg["barra_vertical"] else 0)          # (N, 3) BGR

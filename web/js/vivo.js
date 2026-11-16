@@ -4,10 +4,9 @@
 "use strict";
 
 import * as audio from "./audio.js";
-import { calcularSerie, aislar, eventos, nivelDron, valorEn, primerEvento, NIVEL_VOZ, NIVEL_GOLPE, VEL_REF, GOLPE_A, GOLPE_D } from "./mapeo.js";
+import { calcularSerie, aislar, eventos, nivelDron, valorEn, primerEvento, NIVEL_VOZ, NIVEL_GOLPE, VEL_REF, GOLPE_A, GOLPE_D, ARMONICOS } from "./mapeo.js";
 
 // Constantes de timbre y de tiempo (el resto sale del mapeo)
-const ARMONICOS = [1, 0.35, 0.15];            // forma «suave»: seno + 2.º y 3.er armónico, ÷ 1,5
 const TAU_PUERTA = 0.015;                     // s: entrada y salida del sonido sin clic
 const FUNDIDO_FINAL = 0.05;                   // s: fundido al terminar la pista (06:279)
 const TAU_NOTA = 0.01;                        // s: glide de la voz (06:296)
@@ -19,7 +18,7 @@ const RODILLA = 0.8, TECHO = 0.95;           // limitador: de qué nivel empieza
 const TODOS = { tono: true, volumen: true, paneo: true, dron: true };
 
 let medio = null;
-let mapeo = null, rasgosDatos = null;         // pista cargada
+let mapeo = null;                             // mapeo de la pista cargada
 let serieBase = null, serie = null, ev = [];  // serie completa, serie con rasgos aislados y sus golpes
 let ampDron = 0;
 let rasgos = { ...TODOS };                    // casillas: qué rasgos modulan el sonido
@@ -42,7 +41,6 @@ export function iniciar() {
 /* Prepara una pista: calcula la serie y los golpes (no crea nodos ni suena todavía) */
 export function cargar(m, R) {
   mapeo = m;
-  rasgosDatos = R;
   serieBase = calcularSerie(m, R);
   ampDron = nivelDron(m, serieBase, eventos(m, serieBase));      // siempre con todo encendido: el dron no cambia de nivel
   recalcular();
@@ -103,7 +101,7 @@ function crearNodos() {
 
 /* Lo que depende de la pista: nota del dron y su nivel */
 function aplicarPista() {
-  const { ctx, dron, gDron, voz } = nodos;
+  const { ctx, dron, voz } = nodos;
   const ahora = ctx.currentTime;
   dron.frequency.setValueAtTime(mapeo.dron.hz, ahora);
   voz.frequency.setValueAtTime(hz(serie[0].nota), ahora);

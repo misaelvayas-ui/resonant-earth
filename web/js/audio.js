@@ -4,7 +4,7 @@
      sonido en vivo (vivo.js) → busVivo ┴→ GainNode (volumen) → AnalyserNode → destino */
 "use strict";
 
-export const N_BANDAS = 64;
+const N_BANDAS = 64;
 const FFT = 1024;
 const INDICE_MAX = 372;
 
@@ -169,11 +169,6 @@ export async function reproducir() {
 
 export function pausar() {
   if (medio) medio.pause();
-}
-
-export async function alternar() {
-  if (medio && !medio.paused) { pausar(); return true; }
-  return reproducir();
 }
 
 export function buscar(segundos) {

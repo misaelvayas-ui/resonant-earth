@@ -41,8 +41,8 @@ export function fechaLoc(f) {
   return `${mes} ${m[2]}`;
 }
 
-/* La coma decimal de un reloj o una cifra: «0:30,5» → «0:30.5» en inglés */
-export const decimal = (txt) => (lang === "en" ? txt.replace(",", ".") : txt);
+/* Un número ya formateado con punto decimal («30.5»): en español pasa a coma («30,5») */
+export const decimal = (txt) => (lang === "en" ? txt : txt.replace(".", ","));
 
 function aplicarTextos() {
   for (const el of document.querySelectorAll("[data-t]")) {
@@ -61,7 +61,7 @@ function aplicarTextos() {
   for (const b of document.querySelectorAll("[data-lang]")) b.setAttribute("aria-pressed", String(b.dataset.lang === lang));
 }
 
-export function establecer(nuevo, guardar = true) {
+function establecer(nuevo, guardar = true) {
   if (!IDIOMAS.includes(nuevo)) return;
   lang = nuevo;
   if (guardar) { try { localStorage.setItem(CLAVE, nuevo); } catch (e) { /* sin almacenamiento: no se recuerda */ } }
